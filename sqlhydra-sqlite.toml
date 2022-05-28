@@ -1,0 +1,10 @@
+[general]
+connection = "Data Source=./MainBoot/bin/Debug/net6.0/WorkBotDatabase.sqlite3;Version=3;"
+output = "./Database/HydraGenerated.fs"
+namespace = "WorkTelegram.HydraGenerated"
+cli_mutable = true
+[readers]
+reader_type = "System.Data.Common.DbDataReader"
+[filters]
+include = []
+exclude = []
