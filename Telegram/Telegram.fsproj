@@ -42,7 +42,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.fsproj" />
-    <ProjectReference Include="..\Database\Infrastructure.fsproj" />
+    <ProjectReference Include="..\Infrastructure\Infrastructure.fsproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,7 +1,6 @@
 ﻿module Main
 
 open WorkTelegram.Core
-open WorkTelegram.Logger
 open WorkTelegram.Telegram
 open WorkTelegram.Infrastructure
 
@@ -9,10 +8,6 @@ open Microsoft.Extensions.Logging
 open System.Threading
 open Funogram.Telegram.Bot
 open Funogram.Types
-
-type AdditionalData = {
-    Name : string
-}
 
 [<EntryPoint>]
 let main _ =

@@ -499,6 +499,24 @@ module View =
                   Utils.sendMessageAndDeleteAfterDelay env office.Manager.ChatId text 5000)
           ]
           Keyboard.create [
+            let createExcelTableFromItemsAsBytes items =
+              let headers = ["Имя"; "Серийный номер"; "Мак адрес"; "Куда или для чего"; "Количество"; "Сотрудник"; "Дата"]
+              [ for head in headers do
+                  FsExcel.Cell [ FsExcel.String head ]
+                FsExcel.Go FsExcel.NewRow
+                for item in items do
+                  let count = let c = item.Count in c.GetValue
+                  FsExcel.Cell [ FsExcel.String   %item.Item.Name                                                   ]
+                  FsExcel.Cell [ FsExcel.String   (Option.string item.Item.Serial                                  )]
+                  FsExcel.Cell [ FsExcel.String   (Option.string item.Item.MacAddress                              )]
+                  FsExcel.Cell [ FsExcel.String   (Option.string item.Location                                     )]
+                  FsExcel.Cell [ FsExcel.Integer  (int count                                                       )]
+                  FsExcel.Cell [ FsExcel.String   (sprintf "%s %s" %item.Employer.FirstName %item.Employer.LastName)]
+                  FsExcel.Cell [ FsExcel.DateTime item.Time                                                         ]
+                  FsExcel.Go FsExcel.NewRow
+                FsExcel.AutoFit FsExcel.AllCols
+              ] |> FsExcel.Render.AsStreamBytes
+
             Button.create 
               "Получить таблицу актуальных записей"                   
               (fun _ ->
@@ -507,24 +525,7 @@ module View =
                   if items.Length > 0 then
                     try
                       let streamWithDocument =
-                        let bytes =
-                          let headers = ["Имя"; "Серийный номер"; "Мак адрес"; "Куда или для чего"; "Количество"; "Сотрудник"; "Дата"]
-                          [ for head in headers do
-                              FsExcel.Cell [ FsExcel.String head ]
-                            FsExcel.Go FsExcel.NewRow
-                            for item in items do
-                              let count = let c = item.Count in c.GetValue
-                              FsExcel.Cell [ FsExcel.String   %item.Item.Name                                                   ]
-                              FsExcel.Cell [ FsExcel.String   (Option.string item.Item.Serial                                  )]
-                              FsExcel.Cell [ FsExcel.String   (Option.string item.Item.MacAddress                              )]
-                              FsExcel.Cell [ FsExcel.String   (Option.string item.Location                                     )]
-                              FsExcel.Cell [ FsExcel.Integer  (int count                                                       )]
-                              FsExcel.Cell [ FsExcel.String   (sprintf "%s %s" %item.Employer.FirstName %item.Employer.LastName)]
-                              FsExcel.Cell [ FsExcel.DateTime item.Time                                                         ]
-                              FsExcel.Go FsExcel.NewRow
-                            FsExcel.AutoFit FsExcel.AllCols
-                          ]
-                          |> FsExcel.Render.AsStreamBytes
+                        let bytes = createExcelTableFromItemsAsBytes items
                         new System.IO.MemoryStream(bytes)
                       let documentName = "ActualItemsTable.xlsx"
                       Utils.sendDocumentAndDeleteAfterDelay env managerState.Manager.ChatId documentName streamWithDocument 90000
