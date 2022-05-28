@@ -93,6 +93,16 @@ module Database =
     let result =  command.ExecuteNonQuery()
     env.Log.Debug $"Schema executed with code: {result}"
 
+  let private querySelectOfficeIdByOfficeName (officeName: OfficeName) =
+
+    let officeName = %officeName
+
+    select {
+      for office in offices do
+      where (office.office_name = officeName)
+      select(office.office_id)
+    }
+
   let insertChatIdAsync env (chatId: UMX.ChatId) =
     task {
       try 
@@ -769,31 +779,24 @@ module Database =
     task {
       
       let queryContext = sharedQueryContext env
-
-      let officeName: string = %office.OfficeName
       
-      env.Log.Info $"Try get all actual items from office with name {officeName}"
+      env.Log.Info $"Try get all actual items from office with name {office.OfficeName}"
 
       try
 
-        let officeId =
-          select {
-            for o in offices do
-            where (o.office_name = officeName)
-            select(o.office_id)
-          }
+        let queryOfficeId = querySelectOfficeIdByOfficeName office.OfficeName
 
         let! selected =
           selectTask HydraReader.Read queryContext {
             for di in deletionItems do
             where(
-                 di.office_id   = subqueryOne officeId
+                 di.office_id   = subqueryOne queryOfficeId 
               && di.is_deletion = false
               && di.is_hidden   = false)
             yield(di)
           }
 
-        env.Log.Debug $"Get actual items from office with name {officeName}"
+        env.Log.Debug $"Get actual items from office with name {office.OfficeName}"
         return
           selected
           |> List.ofSeq
@@ -829,14 +832,14 @@ module Database =
 
           env.Log.Warning
             $"SQLite Exception when try get all actual items from
-              office with name {officeName} exn message {qe.Message}"
+              office with name {office.OfficeName} exn message {qe.Message}"
           return DatabaseError.SQLiteException qe |> Error
 
         | exn ->
 
           env.Log.Warning
             $"Exception when try get all actual items from
-              office with name {officeName} exn message {exn.Message}"
+              office with name {office.OfficeName} exn message {exn.Message}"
           return DatabaseError.UnknownException exn |> Error
 
     }
