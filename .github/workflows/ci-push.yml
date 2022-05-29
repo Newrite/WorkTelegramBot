@@ -43,14 +43,10 @@ jobs:
         #if: steps.changed-files.outputs.only_changed == 'true'
         uses: mdallasanta/ssh-scp-deploy@v1.2.0
         with:
-          local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/'                                                  # Local file path - REQUIRED false - DEFAULT ./
-          remote: "/home/newrite/WorkTelegramBot/master"                                                 # Remote file path - REQUIRED false - DEFAULT ~/
-          host: '${{ secrets.SERVER_IP }}'                                      # Remote server address - REQUIRED true
-          port: '${{ secrets.SSH_REMOTE_PORT }}'                                     # Remote server port - REQUIRED false - DEFAULT 22
-          user: 'newrite'                                     # Remote server user - REQUIRED true
-          password: ${{ secrets.PASSWORD_SFTP }}                             # User password - REQUIRED at least one of "password" or "key" 
-          #key: ${{secrets.KEY}}                                        # Remote server private key - REQUIRED at least one of "password" or "key" 
-          #pre_upload: echo "This will be executed before the upload!"  # Command to run via ssh before scp upload - REQUIRED false
-          #post_upload: echo "This will be executed after the upload!"  # Command to run via ssh after scp upload - REQUIRED false
-          #ssh_options: -o StrictHostKeyChecking=no                     # A set of ssh_option separated by -o - REQUIRED false - DEFAULT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-          #scp_options: -v                                              # Flags to use during scp - REQUIRED false - DEFAULT ''
+          local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/*'                          
+          remote: "/home/newrite/WorkTelegramBot/master"                            
+          host: '${{ secrets.SERVER_IP }}'                        
+          port: '${{ secrets.SSH_REMOTE_PORT }}'                     
+          user: 'newrite'                                     
+          password: ${{ secrets.PASSWORD_SFTP }}               
+         
