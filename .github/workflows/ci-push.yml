@@ -46,7 +46,7 @@ jobs:
           username: 'itemkeeper'
           host: '${{ secrets.SERVER_IP }}'
           port: '${{ secrets.SSH_REMOTE_PORT }}'
-          privateKey: ${{ secrets.SSH_PRIVATE_KEY }}
+          password: ${{ secrets.PASSWORD_SFTP }}
           localDir: './App/bin/Release/net6.0/linux-arm/publish/*'
           remoteDir: '/master'
           #args: '-o ConnectTimeout=5'
