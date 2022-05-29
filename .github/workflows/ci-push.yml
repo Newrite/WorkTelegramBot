@@ -41,12 +41,12 @@ jobs:
 
       - name: Deploy
         #if: steps.changed-files.outputs.only_changed == 'true'
-        uses: wlixcc/SFTP-Deploy-Action@v1.0
+        uses: wangyucode/sftp-upload-action@v1.3.2
         with:
           username: 'itemkeeper'
-          server: '${{ secrets.SERVER_IP }}'
+          host: '${{ secrets.SERVER_IP }}'
           port: '${{ secrets.SSH_REMOTE_PORT }}'
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          local_path: './App/bin/Release/net6.0/linux-arm/publish/*'
-          remote_path: '/master'
-          args: '-o ConnectTimeout=5'
+          privateKey: ${{ secrets.SSH_PRIVATE_KEY }}
+          localDir: './App/bin/Release/net6.0/linux-arm/publish/*'
+          remoteDir: '/master'
+          #args: '-o ConnectTimeout=5'
