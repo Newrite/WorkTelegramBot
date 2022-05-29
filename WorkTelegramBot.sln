@@ -11,6 +11,11 @@ Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Telegram", "Telegram\Telegr
 EndProject
 Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Infrastructure", "Infrastructure\Infrastructure.fsproj", "{3917E51D-9E7B-4947-95C2-F888F8467998}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решения", "Элементы решения", "{71498960-F964-4DE4-9233-6A69D1AB5327}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\ci-push.yml = .github\workflows\ci-push.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
