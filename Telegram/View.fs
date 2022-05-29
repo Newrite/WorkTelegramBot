@@ -527,7 +527,7 @@ module View =
                       let streamWithDocument =
                         let bytes = createExcelTableFromItemsAsBytes items
                         new System.IO.MemoryStream(bytes)
-                      let documentName = "ActualItemsTable.xlsx"
+                      let documentName = System.DateTime.Now |> string |> (+) "_ActualItemsTable.xlsx"
                       Utils.sendDocumentAndDeleteAfterDelay env managerState.Manager.ChatId documentName streamWithDocument 90000
                       let text =
                         "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
