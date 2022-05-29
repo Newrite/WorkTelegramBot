@@ -47,6 +47,6 @@ jobs:
           host: '${{ secrets.SERVER_IP }}'
           port: '${{ secrets.SSH_REMOTE_PORT }}'
           password: ${{ secrets.PASSWORD_SFTP }}
-          localDir: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/*'
+          localDir: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/'
           remoteDir: '/master'
           #args: '-o ConnectTimeout=5'
