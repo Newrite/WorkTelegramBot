@@ -6,8 +6,8 @@ open WorkTelegram.Infrastructure
 
 open Serilog
 open System.Threading
-open Funogram.Telegram.Bot
 open Funogram.Types
+open Funogram.Telegram.Bot
 
 [<EntryPoint>]
 let main _ =
