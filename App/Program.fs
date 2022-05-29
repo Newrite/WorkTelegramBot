@@ -15,12 +15,11 @@ let main _ =
   let TGToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
   let logger =
-    (new Serilog.LoggerConfiguration())
+    (new LoggerConfiguration())
       .WriteTo.Console()
       .WriteTo.File("WorkTelegramBotLog.txt")
       .MinimumLevel.Verbose()
       .CreateLogger()
-
 
   let logging =
     { Debug   = logger.Debug
