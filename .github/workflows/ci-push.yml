@@ -41,7 +41,7 @@ jobs:
 
       - name: Deploy
         #if: steps.changed-files.outputs.only_changed == 'true'
-        uses: mdallasanta/ssh-scp-deploy@{version}
+        uses: mdallasanta/ssh-scp-deploy@v1.2.0
         with:
           local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/'                                                  # Local file path - REQUIRED false - DEFAULT ./
           remote: "/home/newrite/WorkTelegramBot/master"                                                 # Remote file path - REQUIRED false - DEFAULT ~/
