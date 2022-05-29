@@ -4,7 +4,7 @@ open WorkTelegram.Core
 open WorkTelegram.Telegram
 open WorkTelegram.Infrastructure
 
-open Microsoft.Extensions.Logging
+open Serilog
 open System.Threading
 open Funogram.Telegram.Bot
 open Funogram.Types
@@ -17,19 +17,18 @@ let main _ =
   let TGToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
   let logger =
-
-    let appName = "WorkingBotApp"
-    
-    LoggerFactory
-      .Create(fun builder -> builder.AddConsole().SetMinimumLevel(LogLevel.Trace) |> ignore)
-      .CreateLogger(appName)
+    (new Serilog.LoggerConfiguration())
+      .WriteTo.Console()
+      .WriteTo.File("WorkTelegramBotLog.txt")
+      .MinimumLevel.Verbose()
+      .CreateLogger()
 
 
   let logging =
-    { Debug   = logger.LogDebug
-      Info    = logger.LogInformation
-      Error   = logger.LogError
-      Warning = logger.LogWarning }
+    { Debug   = logger.Debug
+      Info    = logger.Information
+      Error   = logger.Error
+      Warning = logger.Warning }
 
   let databaseName = "WorkBotDatabase.sqlite3"
 
@@ -59,7 +58,14 @@ let main _ =
   Funogram.Telegram.Api.setMyCommands commands
   |> Funogram.Api.api env.Config
   |> Async.RunSynchronously
-  |> ignore
+  |> function
+  | Ok response ->
+    if response then
+      env.Log.Debug "Succes set bot commands"
+    else
+      env.Log.Warning "Set commands return false, maybe just don't update?"
+  | Error err         ->
+    env.Log.Warning $"Setting bot commands return ApiResponseError {err}"
 
   let update (ctx: UpdateContext) =
     if ctx.Update.Message.IsSome then
