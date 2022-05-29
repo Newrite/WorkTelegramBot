@@ -41,12 +41,11 @@ jobs:
 
       - name: Deploy
         #if: steps.changed-files.outputs.only_changed == 'true'
-        uses: wangyucode/sftp-upload-action@v1.3.2
+        uses: srueda99/scp-action@v12
         with:
-          username: 'itemkeeper'
-          host: '${{ secrets.SERVER_IP }}'
           port: '${{ secrets.SSH_REMOTE_PORT }}'
+          host: '${{ secrets.SERVER_IP }}'
+          destination: "/home/newrite/WorkTelegramBot/master"
+          username: 'newrite'
           password: ${{ secrets.PASSWORD_SFTP }}
-          localDir: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/'
-          remoteDir: './master'
-          #args: '-o ConnectTimeout=5'
+          origin: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/'
