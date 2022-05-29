@@ -12,8 +12,6 @@ open Funogram.Types
 [<EntryPoint>]
 let main _ =
 
-  let iChatId = 944079861L
-
   let TGToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
   let logger =
