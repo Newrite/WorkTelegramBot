@@ -47,11 +47,6 @@ let main _ =
        { Command = "/restart"; Description = "Что бы перезапустить работу с ботом выберите эту комманду"     }
        { Command = "/finish";  Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" } |]
 
-  //Funogram.Telegram.Api.deleteMyCommands()
-  //|> Funogram.Api.api env.Config
-  //|> Async.RunSynchronously
-  //|> ignore
-
   Funogram.Telegram.Api.setMyCommands commands
   |> Funogram.Api.api env.Config
   |> Async.RunSynchronously
