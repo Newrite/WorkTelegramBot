@@ -228,28 +228,29 @@ module Elmish =
       let dict = new ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
 
       if isWithStateFunctions program then
+
         let messages = program.GetChatStates.Value()
+
         for message in messages do
-          Funogram.Telegram.Api.editMessageTextBase
-            (Some(Int message.Chat.Id)) (Some message.MessageId) None "Инициализация..." None None None
+
+          Funogram.Telegram.Api.deleteMessage message.Chat.Id message.MessageId
+          |> Funogram.Api.api config
+          |> Async.RunSynchronously
+          |> ignore
+
+          Funogram.Telegram.Api.sendMessage message.Chat.Id "Инициализация..."
           |> Funogram.Api.api config
           |> Async.RunSynchronously
           |> function
-          | Ok message ->
-            printfn $"Message edit {message}"
-            match message with
-            | EditMessageResult.Message message ->
-              let processorConfig = { Config = config; Message = message }
-              dict.TryAdd(
-                message.Chat.Id,
-                MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
-              ) |> ignore
-            | EditMessageResult.Success _ -> ()
-          | Error err  ->
-            printfn $"Message error edit {err}"
-            program.DelChatState.Value message
-        
-        
+          | Ok msg ->
+            let processorConfig = { Config = config; Message = msg }
+            dict.TryAdd(
+              msg.Chat.Id,
+              MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
+            ) |> ignore
+            if program.SaveChatState.IsSome then
+              program.SaveChatState.Value msg
+          | Error _ -> ()
 
       let internalUpdate update (ctx: Funogram.Telegram.Bot.UpdateContext) =
         match ctx with

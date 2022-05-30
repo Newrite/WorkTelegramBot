@@ -136,7 +136,7 @@ module Database =
                 message.chat_id      = chatId
                 message.message_json = serializedMessage
               }
-            onConflictDoUpdate m.message_json (serializedMessage)
+            onConflictDoUpdate m.chat_id (m.message_json)
           }
 
         if inserted > 0 then
