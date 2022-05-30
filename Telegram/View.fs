@@ -528,7 +528,9 @@ module View =
                         let bytes = createExcelTableFromItemsAsBytes items
                         new System.IO.MemoryStream(bytes)
                       let documentName =
-                        let dateString =  string System.DateTime.Now
+                        let dateString =
+                          let now = System.DateTime.Now
+                          $"{now.Day}.{now.Month}.{now.Year} {now.Hour}:{now.Minute}:{now.Second}"
                         ctx.Env.Log.Debug $"Generated string from datetime for document is {dateString}"
                         let name = "ActualItemsTable" + dateString + ".xlsx"
                         ctx.Env.Log.Debug $"Generated document name of items is {name}"
