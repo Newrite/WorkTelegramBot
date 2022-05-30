@@ -1,6 +1,7 @@
 ﻿namespace WorkTelegram.Telegram
 
-open System.Collections.Generic
+open WorkTelegram.Core
+
 open Funogram.Telegram.Types
 open Funogram.Telegram.Bot
 open System.Collections.Concurrent
@@ -51,6 +52,9 @@ module Elmish =
     
     let create buttonList = { Buttons = Seq.ofList buttonList }
 
+    let createSingle buttonText onClick =
+      { Buttons = seq { Button.create buttonText onClick } }
+
   [<NoComparison>]
   type RenderView = 
     { MessageText:     string
@@ -90,14 +94,21 @@ module Elmish =
 
   type Dispatch<'message> = 'message -> unit
   type CallInit<'model>   = unit     -> 'model
+  type CallGetChatState   = unit     -> Message list
+  type CallSaveChatState  = Message  -> unit
+  type CallDelChatState   = Message  -> unit
 
   [<NoComparison>]
   [<NoEquality>]
   type Program<'model, 'message> =
     private
-     { Init:    Message   -> 'model
-       Update:  'message  -> 'model -> CallInit<'model> -> 'model 
-       View:    Dispatch<'message>  -> 'model           -> RenderView }
+     { Init:          Message   -> 'model
+       Update:        'message  -> 'model -> CallInit<'model> -> 'model 
+       View:          Dispatch<'message>  -> 'model           -> RenderView
+       Log:           Logging
+       GetChatStates: CallGetChatState  option 
+       SaveChatState: CallSaveChatState option
+       DelChatState:  CallDelChatState  option }
 
   let modelViewUpdateProcessor 
     (processorConfig: ProcessorConfig) program (processor: MailboxProcessor<ProcessorCommands<_>>) =
@@ -137,21 +148,26 @@ module Elmish =
                   b.OnClick ctx))
       
       let rec cycle renderView = async {
-        let! msg = handler.Receive()
-        match msg with
-        | MessageHandlerCommands.UpdateRenderView rv ->
-          return! cycle rv
-        | MessageHandlerCommands.Message ctx ->
-          match ctx with
-          | Message message ->
-            renderView.MessageHandlers
-            |> Seq.iter (fun f -> f message)
-          | NoMessageOrCallback -> ()
-          | Callback (_, data) | CallbackWithMessage (_, data, _) ->
-            runOnClickIfMatch renderView data ctx
+        try
+          let! msg = handler.Receive()
+          match msg with
+          | MessageHandlerCommands.UpdateRenderView rv ->
+            return! cycle rv
+          | MessageHandlerCommands.Message ctx ->
+            match ctx with
+            | Message message ->
+              renderView.MessageHandlers
+              |> Seq.iter (fun f -> f message)
+            | NoMessageOrCallback -> ()
+            | Callback (_, data) | CallbackWithMessage (_, data, _) ->
+              runOnClickIfMatch renderView data ctx
+            return! cycle renderView
+          | MessageHandlerCommands.Finish ->
+            (handler :> IDisposable).Dispose()
+        with exn ->
+          program.Log.Error
+            $"Raise exception in render actor, message {exn.Message}"
           return! cycle renderView
-        | MessageHandlerCommands.Finish ->
-          (handler :> IDisposable).Dispose()
       }
 
       cycle renderViewInit
@@ -159,29 +175,34 @@ module Elmish =
     let messageHandler = MailboxProcessor.Start(messageHandlerProcessor renderViewInit)
 
     let rec cycle model = async {
-      let! msg = processor.Receive()
-      match msg with
-      | ProcessorCommands.Update message ->
-        let newModel   = program.Update message model (fun () -> program.Init processorConfig.Message)
-        let renderView = program.View dispatch newModel
-        MessageHandlerCommands.UpdateRenderView renderView |> messageHandler.Post
-        render renderView
-        return! cycle newModel
-      | ProcessorCommands.GetDispatch channel ->
-        channel.Reply dispatch
+      try
+        let! msg = processor.Receive()
+        match msg with
+        | ProcessorCommands.Update message ->
+          let newModel   = program.Update message model (fun () -> program.Init processorConfig.Message)
+          let renderView = program.View dispatch newModel
+          MessageHandlerCommands.UpdateRenderView renderView |> messageHandler.Post
+          render renderView
+          return! cycle newModel
+        | ProcessorCommands.GetDispatch channel ->
+          channel.Reply dispatch
+          return! cycle model
+        | ProcessorCommands.Message ctx ->
+          MessageHandlerCommands.Message ctx |> messageHandler.Post
+          return! cycle model
+        | ProcessorCommands.Finish ->
+          messageHandler.Post MessageHandlerCommands.Finish
+          let chatId    = processorConfig.Message.Chat.Id
+          let messageId = processorConfig.Message.MessageId
+          Funogram.Telegram.Api.deleteMessage chatId messageId
+          |> Funogram.Api.api processorConfig.Config
+          |> Async.RunSynchronously
+          |> ignore
+          (processor :> IDisposable).Dispose()
+      with exn ->
+        program.Log.Error
+          $"Raise exception in elmish actor, message {exn.Message}"
         return! cycle model
-      | ProcessorCommands.Message ctx ->
-        MessageHandlerCommands.Message ctx |> messageHandler.Post
-        return! cycle model
-      | ProcessorCommands.Finish ->
-        messageHandler.Post MessageHandlerCommands.Finish
-        let chatId    = processorConfig.Message.Chat.Id
-        let messageId = processorConfig.Message.MessageId
-        Funogram.Telegram.Api.deleteMessage chatId messageId
-        |> Funogram.Api.api processorConfig.Config
-        |> Async.RunSynchronously
-        |> ignore
-        (processor :> IDisposable).Dispose()
     }
     
     cycle modelInit
@@ -189,15 +210,59 @@ module Elmish =
   [<RequireQualifiedAccess>]
   module Program =
     
-    let mkSimple view update init =
-      { Init    = init
-        Update  = update
-        View    = view }
+    let mkSimple logger view update init =
+      { Init          = init
+        Update        = update
+        View          = view
+        Log           = logger
+        GetChatStates = None
+        SaveChatState = None
+        DelChatState  = None }
+
+    let mkWithState logger view update init getState saveState delState =
+      { Init          = init
+        Update        = update
+        View          = view
+        Log           = logger
+        GetChatStates = Some getState
+        SaveChatState = Some saveState 
+        DelChatState  = Some delState }
+
+    let isWithStateFunctions program =
+
+      program.GetChatStates.IsSome
+      && program.SaveChatState.IsSome
+      && program.DelChatState.IsSome
 
     let startProgram config onUpdate program =
 
 
       let dict = new ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
+
+      if isWithStateFunctions program then
+
+        let messages = program.GetChatStates.Value()
+
+        for message in messages do
+
+          Funogram.Telegram.Api.deleteMessage message.Chat.Id message.MessageId
+          |> Funogram.Api.api config
+          |> Async.RunSynchronously
+          |> ignore
+
+          Funogram.Telegram.Api.sendMessage message.Chat.Id "Инициализация..."
+          |> Funogram.Api.api config
+          |> Async.RunSynchronously
+          |> function
+          | Ok msg ->
+            let processorConfig = { Config = config; Message = msg }
+            dict.TryAdd(
+              msg.Chat.Id,
+              MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
+            ) |> ignore
+            if program.SaveChatState.IsSome then
+              program.SaveChatState.Value msg
+          | Error _ -> ()
 
       let internalUpdate update (ctx: Funogram.Telegram.Bot.UpdateContext) =
         match ctx with
@@ -210,7 +275,7 @@ module Elmish =
 
           let startFunction() = 
             let sendedMessage =
-              Funogram.Telegram.Api.sendMessage m.Chat.Id "start"
+              Funogram.Telegram.Api.sendMessage m.Chat.Id "Инициализация..."
               |> Funogram.Api.api config
               |> Async.RunSynchronously
 
@@ -221,7 +286,8 @@ module Elmish =
                 m.Chat.Id,
                 MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
               ) |> ignore
-
+              if program.SaveChatState.IsSome then
+                program.SaveChatState.Value msg
             | Error _ -> ()
 
           let IsFinish =
@@ -233,6 +299,9 @@ module Elmish =
 
             ProcessorCommands.Finish
             |> dict[m.Chat.Id].Post
+
+            if program.DelChatState.IsSome then
+              program.DelChatState.Value m
 
             dict.TryRemove(m.Chat.Id) |> ignore
 

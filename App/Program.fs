@@ -60,7 +60,7 @@ let main _ =
   | Error err         ->
     env.Log.Warning $"Setting bot commands return ApiResponseError {err}"
 
-  let update (ctx: UpdateContext) =
+  let botUpdate (ctx: UpdateContext) =
     if ctx.Update.Message.IsSome then
       let message = ctx.Update.Message.Value
       if message.Chat.Username <> ctx.Me.Username then
@@ -70,8 +70,16 @@ let main _ =
 
   try
 
-    Elmish.Program.mkSimple (View.view env history) (Update.update history) (Init.init env history)
-    |> Elmish.Program.startProgram env.Config update
+    let getState = fun () -> Database.selectMessages    env
+    let setState =           Database.insertMessage     env
+    let delState =           Database.deleteMessageJson env
+    let view     =           View.view                  env history
+    let update   =           Update.update                  history
+    let init     =           Init.init                  env history
+
+    Elmish.Program.mkWithState
+      env.Log view update init getState setState delState
+    |> Elmish.Program.startProgram env.Config botUpdate
     |> Async.RunSynchronously
 
   with exn ->
