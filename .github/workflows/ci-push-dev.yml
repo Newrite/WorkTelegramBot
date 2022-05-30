@@ -1,0 +1,52 @@
+name: CI Push
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+
+jobs:
+  build:
+    name: Publish & Test & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v21
+        with:
+          files: |
+            **/*.fs
+            **/*.fsproj
+
+      - name: Setup .NET Core SDK
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '6.0.x'
+
+      - name: Install dependencies
+        run: dotnet restore
+
+      - name: Publish
+        run: |
+          cd ./App
+          dotnet publish -c Release  -r linux-arm -p:PublishSingleFile=true --self-contained true -p:PublishedTrimmed=false
+
+      #- name: Test
+      #  run: dotnet test --no-restore --verbosity normal
+
+      - name: Deploy
+        if: steps.changed-files.outputs.only_changed == 'true'
+        uses: mdallasanta/ssh-scp-deploy@v1.2.0
+        with:
+          local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/*'                          
+          remote: "/home/newrite/WorkTelegramBot/dev"                            
+          host: '${{ secrets.SERVER_IP }}'                        
+          port: '${{ secrets.SSH_REMOTE_PORT }}'                     
+          user: 'newrite'                                     
+          password: ${{ secrets.PASSWORD_SFTP }}               
+         
