@@ -25,7 +25,7 @@ jobs:
             **/*.fsproj
 
       - name: Echo
-        run: echo '${{ steps.changed-files.outputs }}'
+        run: echo '${{ steps.changed-files.outputs.only_changed }}'
 
       - name: Setup .NET Core SDK
         uses: actions/setup-dotnet@v2
@@ -44,7 +44,7 @@ jobs:
       #  run: dotnet test --no-restore --verbosity normal
 
       - name: Deploy
-        if: steps.changed-files.outputs.only_changed == 'true'
+        #if: steps.changed-files.outputs.only_changed == 'true'
         uses: mdallasanta/ssh-scp-deploy@v1.2.0
         with:
           local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/*'                          
