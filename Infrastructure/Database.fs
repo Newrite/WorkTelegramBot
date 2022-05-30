@@ -126,7 +126,7 @@ module Database =
 
         let serializedMessage = Json.serialize message
 
-        env.Log.Debug $"Done serialize message: {serializedMessage}"
+        env.Log.Debug "Done serialize message"
 
         let! inserted =
           insertTask queryContext {
@@ -180,10 +180,7 @@ module Database =
 
         return
           selected
-          |> Seq.map (fun m -> 
-            let des = Json.deserialize<Funogram.Telegram.Types.Message> m
-            env.Log.Debug $"Success deserialize message {des}"
-            des)
+          |> Seq.map (fun m -> Json.deserialize<Funogram.Telegram.Types.Message> m)
           |> List.ofSeq
 
       with exn ->
@@ -198,23 +195,36 @@ module Database =
     let result = selectMessagesAsync env
     result.Result
 
-  let deleteMessageAsync env (message: Funogram.Telegram.Types.Message) =
+  let deleteMessageJsonAsync env (message: Funogram.Telegram.Types.Message) =
     task {
       try
+
+        env.Log.Info "Try delete message json"
+
         let chatId = message.Chat.Id
+
         let queryContext = sharedQueryContext env
+
         let! deleted =
           deleteTask queryContext {
             for m in messages do
             where(m.chat_id = chatId)
           }
+
+        env.Log.Debug $"Success delete {deleted} messsages json"
+
         return ()
+
       with exn ->
+
+        env.Log.Error $"Exception when try delete message json
+          with exception message {exn.Message}"
+
         return ()
     }
 
-  let deleteMessage env message =
-    let result = deleteMessageAsync env message
+  let deleteMessageJson env message =
+    let result = deleteMessageJsonAsync env message
     result.Result
 
   let insertChatIdAsync env (chatId: UMX.ChatId) =

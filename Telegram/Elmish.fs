@@ -1,5 +1,7 @@
 ﻿namespace WorkTelegram.Telegram
 
+open WorkTelegram.Core
+
 open Funogram.Telegram.Types
 open Funogram.Telegram.Bot
 open System.Collections.Concurrent
@@ -103,6 +105,7 @@ module Elmish =
      { Init:          Message   -> 'model
        Update:        'message  -> 'model -> CallInit<'model> -> 'model 
        View:          Dispatch<'message>  -> 'model           -> RenderView
+       Log:           Logging
        GetChatStates: CallGetChatState  option 
        SaveChatState: CallSaveChatState option
        DelChatState:  CallDelChatState  option }
@@ -162,7 +165,8 @@ module Elmish =
           | MessageHandlerCommands.Finish ->
             (handler :> IDisposable).Dispose()
         with exn ->
-          printfn $"Exception render: Msg {exn.Message}"
+          program.Log.Error
+            $"Raise exception in render actor, message {exn.Message}"
           return! cycle renderView
       }
 
@@ -171,29 +175,34 @@ module Elmish =
     let messageHandler = MailboxProcessor.Start(messageHandlerProcessor renderViewInit)
 
     let rec cycle model = async {
-      let! msg = processor.Receive()
-      match msg with
-      | ProcessorCommands.Update message ->
-        let newModel   = program.Update message model (fun () -> program.Init processorConfig.Message)
-        let renderView = program.View dispatch newModel
-        MessageHandlerCommands.UpdateRenderView renderView |> messageHandler.Post
-        render renderView
-        return! cycle newModel
-      | ProcessorCommands.GetDispatch channel ->
-        channel.Reply dispatch
+      try
+        let! msg = processor.Receive()
+        match msg with
+        | ProcessorCommands.Update message ->
+          let newModel   = program.Update message model (fun () -> program.Init processorConfig.Message)
+          let renderView = program.View dispatch newModel
+          MessageHandlerCommands.UpdateRenderView renderView |> messageHandler.Post
+          render renderView
+          return! cycle newModel
+        | ProcessorCommands.GetDispatch channel ->
+          channel.Reply dispatch
+          return! cycle model
+        | ProcessorCommands.Message ctx ->
+          MessageHandlerCommands.Message ctx |> messageHandler.Post
+          return! cycle model
+        | ProcessorCommands.Finish ->
+          messageHandler.Post MessageHandlerCommands.Finish
+          let chatId    = processorConfig.Message.Chat.Id
+          let messageId = processorConfig.Message.MessageId
+          Funogram.Telegram.Api.deleteMessage chatId messageId
+          |> Funogram.Api.api processorConfig.Config
+          |> Async.RunSynchronously
+          |> ignore
+          (processor :> IDisposable).Dispose()
+      with exn ->
+        program.Log.Error
+          $"Raise exception in elmish actor, message {exn.Message}"
         return! cycle model
-      | ProcessorCommands.Message ctx ->
-        MessageHandlerCommands.Message ctx |> messageHandler.Post
-        return! cycle model
-      | ProcessorCommands.Finish ->
-        messageHandler.Post MessageHandlerCommands.Finish
-        let chatId    = processorConfig.Message.Chat.Id
-        let messageId = processorConfig.Message.MessageId
-        Funogram.Telegram.Api.deleteMessage chatId messageId
-        |> Funogram.Api.api processorConfig.Config
-        |> Async.RunSynchronously
-        |> ignore
-        (processor :> IDisposable).Dispose()
     }
     
     cycle modelInit
@@ -201,21 +210,23 @@ module Elmish =
   [<RequireQualifiedAccess>]
   module Program =
     
-    let mkSimple view update init =
+    let mkSimple logger view update init =
       { Init          = init
         Update        = update
         View          = view
+        Log           = logger
         GetChatStates = None
         SaveChatState = None
         DelChatState  = None }
 
-    let mkWithState view update init getState saveState delState =
+    let mkWithState logger view update init getState saveState delState =
       { Init          = init
         Update        = update
         View          = view
+        Log           = logger
         GetChatStates = Some getState
         SaveChatState = Some saveState 
-        DelChatState  = Some delState}
+        DelChatState  = Some delState }
 
     let isWithStateFunctions program =
       program.GetChatStates.IsSome
