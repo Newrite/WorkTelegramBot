@@ -529,7 +529,10 @@ module View =
                         new System.IO.MemoryStream(bytes)
                       let documentName =
                         let dateString =  string System.DateTime.Now
-                        "ItemsTable_" + dateString + ".xlsx"
+                        ctx.Env.Log.Debug $"Generated string from datetime for document is {dateString}"
+                        let name = "ItemsTable_" + dateString + ".xlsx"
+                        ctx.Env.Log.Debug $"Generated document name of items is {name}"
+                        name
                       Utils.sendDocumentAndDeleteAfterDelay env managerState.Manager.ChatId documentName streamWithDocument 90000
                       let text =
                         "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
