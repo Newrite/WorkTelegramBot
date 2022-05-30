@@ -1,6 +1,5 @@
 ﻿namespace WorkTelegram.Telegram
 
-open System.Collections.Generic
 open Funogram.Telegram.Types
 open Funogram.Telegram.Bot
 open System.Collections.Concurrent
@@ -140,21 +139,25 @@ module Elmish =
                   b.OnClick ctx))
       
       let rec cycle renderView = async {
-        let! msg = handler.Receive()
-        match msg with
-        | MessageHandlerCommands.UpdateRenderView rv ->
-          return! cycle rv
-        | MessageHandlerCommands.Message ctx ->
-          match ctx with
-          | Message message ->
-            renderView.MessageHandlers
-            |> Seq.iter (fun f -> f message)
-          | NoMessageOrCallback -> ()
-          | Callback (_, data) | CallbackWithMessage (_, data, _) ->
-            runOnClickIfMatch renderView data ctx
+        try
+          let! msg = handler.Receive()
+          match msg with
+          | MessageHandlerCommands.UpdateRenderView rv ->
+            return! cycle rv
+          | MessageHandlerCommands.Message ctx ->
+            match ctx with
+            | Message message ->
+              renderView.MessageHandlers
+              |> Seq.iter (fun f -> f message)
+            | NoMessageOrCallback -> ()
+            | Callback (_, data) | CallbackWithMessage (_, data, _) ->
+              runOnClickIfMatch renderView data ctx
+            return! cycle renderView
+          | MessageHandlerCommands.Finish ->
+            (handler :> IDisposable).Dispose()
+        with exn ->
+          printfn $"Exception render: Msg {exn.Message}"
           return! cycle renderView
-        | MessageHandlerCommands.Finish ->
-          (handler :> IDisposable).Dispose()
       }
 
       cycle renderViewInit
