@@ -6,7 +6,7 @@ open WorkTelegram.Core
 open FSharp.UMX
 
 open Microsoft.Data.Sqlite
-open System.Text.Json
+open FSharp.Json
 open SqlHydra.Query
 open SqlHydra.Query.SqliteExtensions
 open SqlKata
@@ -124,7 +124,7 @@ module Database =
 
         env.Log.Debug "Start serialize message"
 
-        let serializedMessage = JsonSerializer.Serialize(message)
+        let serializedMessage = Json.serialize message
 
         env.Log.Debug $"Done serialize message: {serializedMessage}"
 
@@ -180,7 +180,7 @@ module Database =
 
         return
           selected
-          |> Seq.map (fun m -> JsonSerializer.Deserialize<Funogram.Telegram.Types.Message>(m))
+          |> Seq.map (fun m -> Json.deserialize<Funogram.Telegram.Types.Message> m)
           |> List.ofSeq
 
       with exn ->
