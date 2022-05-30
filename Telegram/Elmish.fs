@@ -236,6 +236,7 @@ module Elmish =
           |> Async.RunSynchronously
           |> function
           | Ok message ->
+            printfn $"Message edit {message}"
             match message with
             | EditMessageResult.Message message ->
               let processorConfig = { Config = config; Message = message }
@@ -244,7 +245,8 @@ module Elmish =
                 MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
               ) |> ignore
             | EditMessageResult.Success _ -> ()
-          | Error _  ->
+          | Error err  ->
+            printfn $"Message error edit {err}"
             program.DelChatState.Value message
         
         

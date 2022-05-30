@@ -180,7 +180,10 @@ module Database =
 
         return
           selected
-          |> Seq.map (fun m -> Json.deserialize<Funogram.Telegram.Types.Message> m)
+          |> Seq.map (fun m -> 
+            let des = Json.deserialize<Funogram.Telegram.Types.Message> m
+            env.Log.Debug $"Success deserialize message {des}"
+            des)
           |> List.ofSeq
 
       with exn ->
