@@ -69,7 +69,12 @@ let main _ =
 
   try
 
-    Elmish.Program.mkSimple (View.view env history) (Update.update history) (Init.init env history)
+    let getState = fun () -> Database.selectMessages env
+    let setState = Database.insertMessage env
+    let delState = Database.deleteMessage env
+
+    Elmish.Program.mkWithState
+      (View.view env history) (Update.update history) (Init.init env history) getState setState delState
     |> Elmish.Program.startProgram env.Config update
     |> Async.RunSynchronously
 

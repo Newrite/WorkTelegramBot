@@ -92,14 +92,20 @@ module Elmish =
 
   type Dispatch<'message> = 'message -> unit
   type CallInit<'model>   = unit     -> 'model
+  type CallGetChatState   = unit     -> Message list
+  type CallSaveChatState  = Message  -> unit
+  type CallDelChatState   = Message  -> unit
 
   [<NoComparison>]
   [<NoEquality>]
   type Program<'model, 'message> =
     private
-     { Init:    Message   -> 'model
-       Update:  'message  -> 'model -> CallInit<'model> -> 'model 
-       View:    Dispatch<'message>  -> 'model           -> RenderView }
+     { Init:          Message   -> 'model
+       Update:        'message  -> 'model -> CallInit<'model> -> 'model 
+       View:          Dispatch<'message>  -> 'model           -> RenderView
+       GetChatStates: CallGetChatState  option 
+       SaveChatState: CallSaveChatState option
+       DelChatState:  CallDelChatState  option }
 
   let modelViewUpdateProcessor 
     (processorConfig: ProcessorConfig) program (processor: MailboxProcessor<ProcessorCommands<_>>) =
@@ -196,14 +202,52 @@ module Elmish =
   module Program =
     
     let mkSimple view update init =
-      { Init    = init
-        Update  = update
-        View    = view }
+      { Init          = init
+        Update        = update
+        View          = view
+        GetChatStates = None
+        SaveChatState = None
+        DelChatState  = None }
+
+    let mkWithState view update init getState saveState delState =
+      { Init          = init
+        Update        = update
+        View          = view
+        GetChatStates = Some getState
+        SaveChatState = Some saveState 
+        DelChatState  = Some delState}
+
+    let isWithStateFunctions program =
+      program.GetChatStates.IsSome
+      && program.SaveChatState.IsSome
+      && program.DelChatState.IsSome
 
     let startProgram config onUpdate program =
 
 
       let dict = new ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
+
+      if isWithStateFunctions program then
+        let messages = program.GetChatStates.Value()
+        for message in messages do
+          Funogram.Telegram.Api.editMessageTextBase
+            (Some(Int message.Chat.Id)) (Some message.MessageId) None "Инициализация..." None None None
+          |> Funogram.Api.api config
+          |> Async.RunSynchronously
+          |> function
+          | Ok message ->
+            match message with
+            | EditMessageResult.Message message ->
+              let processorConfig = { Config = config; Message = message }
+              dict.TryAdd(
+                message.Chat.Id,
+                MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
+              ) |> ignore
+            | EditMessageResult.Success _ -> ()
+          | Error _  ->
+            program.DelChatState.Value message
+        
+        
 
       let internalUpdate update (ctx: Funogram.Telegram.Bot.UpdateContext) =
         match ctx with
@@ -227,7 +271,8 @@ module Elmish =
                 m.Chat.Id,
                 MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
               ) |> ignore
-
+              if program.SaveChatState.IsSome then
+                program.SaveChatState.Value msg
             | Error _ -> ()
 
           let IsFinish =
@@ -239,6 +284,9 @@ module Elmish =
 
             ProcessorCommands.Finish
             |> dict[m.Chat.Id].Post
+
+            if program.DelChatState.IsSome then
+              program.DelChatState.Value m
 
             dict.TryRemove(m.Chat.Id) |> ignore
 

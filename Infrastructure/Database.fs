@@ -6,16 +6,24 @@ open WorkTelegram.Core
 open FSharp.UMX
 
 open Microsoft.Data.Sqlite
+open System.Text.Json
 open SqlHydra.Query
 open SqlHydra.Query.SqliteExtensions
 open SqlKata
 open main
+
 
 module Database =
 
   let [<Literal>] private Schema =
     @"CREATE TABLE IF NOT EXISTS chat_id_table (
         chat_id INTEGER NOT NULL PRIMARY KEY
+      );
+
+      CREATE TABLE IF NOT EXISTS message (
+        chat_id INTEGER NOT NULL PRIMARY KEY,
+        message_json TEXT NOT NULL,
+        FOREIGN KEY(chat_id) REFERENCES chat_id_table(chat_id)
       );
     
       CREATE TABLE IF NOT EXISTS manager (
@@ -64,6 +72,7 @@ module Database =
   let private managers      = table<main.manager>        |> inSchema (nameof main)
   let private deletionItems = table<main.deletion_items> |> inSchema (nameof main)
   let private chatIds       = table<main.chat_id_table>  |> inSchema (nameof main)
+  let private messages      = table<main.message>        |> inSchema (nameof main)
 
   let private sharedQueryContext env =
     env.Log.Debug "Call shared query context function"
@@ -102,6 +111,108 @@ module Database =
       where (office.office_name = officeName)
       select(office.office_id)
     }
+
+  let insertMessageAsync env (message: Funogram.Telegram.Types.Message) =
+    task {
+      try
+
+        let chatId = message.Chat.Id
+        
+        env.Log.Info $"Insert new message from chat id {chatId}"
+
+        let queryContext = sharedQueryContext env
+
+        env.Log.Debug "Start serialize message"
+
+        let serializedMessage = JsonSerializer.Serialize(message)
+
+        env.Log.Debug $"Done serialize message: {serializedMessage}"
+
+        let! inserted =
+          insertTask queryContext {
+            for m in messages do
+            entity
+              {
+                message.chat_id      = chatId
+                message.message_json = serializedMessage
+              }
+            onConflictDoUpdate m.message_json (serializedMessage)
+          }
+
+        if inserted > 0 then
+          
+          env.Log.Debug "Successfull insert json message"
+
+        else
+          
+          env.Log.Debug "No insert json message"
+
+        return ()
+
+      with exn ->
+
+        env.Log.Error $"Exception when try insert message {exn.Message}"
+
+        return ()
+    }
+
+  let insertMessage env message =
+    let result = insertMessageAsync env message
+    result.Result
+
+  let selectMessagesAsync env =
+    task {
+      try
+        
+        env.Log.Info "Try get saved messages"
+
+        let queryContext = sharedQueryContext env
+
+        env.Log.Debug "Select messages json from database"
+
+        let! selected =
+          selectTask HydraReader.Read queryContext {
+            for m in messages do
+            select(m.message_json)
+          }
+
+        env.Log.Debug "Success select messages json"
+
+        return
+          selected
+          |> Seq.map (fun m -> JsonSerializer.Deserialize<Funogram.Telegram.Types.Message>(m))
+          |> List.ofSeq
+
+      with exn ->
+
+        env.Log.Error $"Exception when try get messages json
+          with exception message {exn.Message}"
+
+        return []
+    }
+
+  let selectMessages env =
+    let result = selectMessagesAsync env
+    result.Result
+
+  let deleteMessageAsync env (message: Funogram.Telegram.Types.Message) =
+    task {
+      try
+        let chatId = message.Chat.Id
+        let queryContext = sharedQueryContext env
+        let! deleted =
+          deleteTask queryContext {
+            for m in messages do
+            where(m.chat_id = chatId)
+          }
+        return ()
+      with exn ->
+        return ()
+    }
+
+  let deleteMessage env message =
+    let result = deleteMessageAsync env message
+    result.Result
 
   let insertChatIdAsync env (chatId: UMX.ChatId) =
     task {

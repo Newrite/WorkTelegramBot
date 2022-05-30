@@ -128,6 +128,22 @@ module main =
             if __.chat_id.IsNull() then None else Some(__.Read())
 
     [<CLIMutable>]
+    type message =
+        { chat_id: int64
+          message_json: string }
+
+    type messageReader(reader: System.Data.Common.DbDataReader, getOrdinal) =
+        member __.chat_id = RequiredColumn(reader, getOrdinal, reader.GetInt64, "chat_id")
+        member __.message_json = RequiredColumn(reader, getOrdinal, reader.GetString, "message_json")
+
+        member __.Read() =
+            { chat_id = __.chat_id.Read()
+              message_json = __.message_json.Read() }
+
+        member __.ReadIfNotNull() =
+            if __.chat_id.IsNull() then None else Some(__.Read())
+
+    [<CLIMutable>]
     type office =
         { office_id: int64
           office_name: string
@@ -166,11 +182,13 @@ type HydraReader(reader: System.Data.Common.DbDataReader) =
     let lazymaindeletion_items = lazy (main.deletion_itemsReader (reader, buildGetOrdinal 11))
     let lazymainemployer = lazy (main.employerReader (reader, buildGetOrdinal 5))
     let lazymainmanager = lazy (main.managerReader (reader, buildGetOrdinal 3))
+    let lazymainmessage = lazy (main.messageReader (reader, buildGetOrdinal 2))
     let lazymainoffice = lazy (main.officeReader (reader, buildGetOrdinal 4))
     member __.``main.chat_id_table`` = lazymainchat_id_table.Value
     member __.``main.deletion_items`` = lazymaindeletion_items.Value
     member __.``main.employer`` = lazymainemployer.Value
     member __.``main.manager`` = lazymainmanager.Value
+    member __.``main.message`` = lazymainmessage.Value
     member __.``main.office`` = lazymainoffice.Value
     member private __.AccFieldCount with get () = accFieldCount and set (value) = accFieldCount <- value
 
@@ -184,6 +202,8 @@ type HydraReader(reader: System.Data.Common.DbDataReader) =
         | "main.employer", true -> __.``main.employer``.ReadIfNotNull >> box
         | "main.manager", false -> __.``main.manager``.Read >> box
         | "main.manager", true -> __.``main.manager``.ReadIfNotNull >> box
+        | "main.message", false -> __.``main.message``.Read >> box
+        | "main.message", true -> __.``main.message``.ReadIfNotNull >> box
         | "main.office", false -> __.``main.office``.Read >> box
         | "main.office", true -> __.``main.office``.ReadIfNotNull >> box
         | _ -> failwith $"Could not read type '{entity}' because no generated reader exists."
