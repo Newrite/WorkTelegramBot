@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Get changed files
         id: changed-files
@@ -44,7 +46,7 @@ jobs:
       #  run: dotnet test --no-restore --verbosity normal
 
       - name: Deploy
-        #if: steps.changed-files.outputs.only_changed == 'true'
+        if: steps.changed-files.outputs.only_changed == 'true'
         uses: mdallasanta/ssh-scp-deploy@v1.2.0
         with:
           local: '${{ github.workspace }}/App/bin/Release/net6.0/linux-arm/publish/*'                          

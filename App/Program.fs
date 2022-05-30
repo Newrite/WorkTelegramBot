@@ -66,25 +66,40 @@ let main _ =
         Utils.deleteMessageBase env message |> ignore
 
   let history = System.Collections.Generic.Stack<_>()
+  
+  let rec appLoop (sleepTime: int) =
 
-  try
+    env.Log.Info $"Start application, sleep before start {sleepTime}"
 
-    let getState = fun () -> Database.selectMessages    env
-    let setState =           Database.insertMessage     env
-    let delState =           Database.deleteMessageJson env
-    let view     =           View.view                  env history
-    let update   =           Update.update                  history
-    let init     =           Init.init                  env history
+    Thread.Sleep(sleepTime)
 
-    Elmish.Program.mkWithState
-      env.Log view update init getState setState delState
-    |> Elmish.Program.startProgram env.Config botUpdate
-    |> Async.RunSynchronously
+    try
 
-  with exn ->
+      let getState = fun () -> Database.selectMessages    env
+      let setState =           Database.insertMessage     env
+      let delState =           Database.deleteMessageJson env
+      let view     =           View.view                  env history
+      let update   =           Update.update                  history
+      let init     =           Init.init                  env history
 
-    env.Log.Error $"Exception message {exn.Message}
-      Trace: {exn.StackTrace}"
+      Elmish.Program.mkWithState
+        env.Log view update init getState setState delState
+      |> Elmish.Program.startProgram env.Config botUpdate
+      |> Async.RunSynchronously
+
+    with exn ->
+
+      let sleepTime = if sleepTime >= 60000 then 60000 else sleepTime * sleepTime
+
+      env.Log.Error
+        $"App loop exception
+          Message: {exn.Message}
+          Stacktrace: {exn.StackTrace}
+          New sleep time: {sleepTime}"
+
+      appLoop sleepTime
+
+  appLoop 1000
 
   0
 
