@@ -530,7 +530,7 @@ module View =
                       let documentName =
                         let dateString =  string System.DateTime.Now
                         ctx.Env.Log.Debug $"Generated string from datetime for document is {dateString}"
-                        let name = "ItemsTable_" + dateString + ".xlsx"
+                        let name = "ActualItemsTable" + dateString + ".xlsx"
                         ctx.Env.Log.Debug $"Generated document name of items is {name}"
                         name
                       Utils.sendDocumentAndDeleteAfterDelay env managerState.Manager.ChatId documentName streamWithDocument 90000
