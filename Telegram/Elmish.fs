@@ -229,6 +229,7 @@ module Elmish =
         DelChatState  = Some delState }
 
     let isWithStateFunctions program =
+
       program.GetChatStates.IsSome
       && program.SaveChatState.IsSome
       && program.DelChatState.IsSome
