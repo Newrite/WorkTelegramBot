@@ -51,6 +51,9 @@ module Elmish =
     
     let create buttonList = { Buttons = Seq.ofList buttonList }
 
+    let createSingle buttonText onClick =
+      { Buttons = seq { Button.create buttonText onClick } }
+
   [<NoComparison>]
   type RenderView = 
     { MessageText:     string
@@ -210,7 +213,7 @@ module Elmish =
 
           let startFunction() = 
             let sendedMessage =
-              Funogram.Telegram.Api.sendMessage m.Chat.Id "start"
+              Funogram.Telegram.Api.sendMessage m.Chat.Id "Инициализация..."
               |> Funogram.Api.api config
               |> Async.RunSynchronously
 
