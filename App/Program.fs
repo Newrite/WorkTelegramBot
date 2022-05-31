@@ -25,7 +25,8 @@ let main _ =
     { Debug   = logger.Debug
       Info    = logger.Information
       Error   = logger.Error
-      Warning = logger.Warning }
+      Warning = logger.Warning
+      Fatal   = logger.Fatal }
 
   let databaseName = "WorkBotDatabase.sqlite3"
 
@@ -91,7 +92,7 @@ let main _ =
 
       let sleepTime = if sleepTime >= 60000 then 60000 else sleepTime * sleepTime
 
-      env.Log.Error
+      env.Log.Fatal
         $"App loop exception
           Message: {exn.Message}
           Stacktrace: {exn.StackTrace}
