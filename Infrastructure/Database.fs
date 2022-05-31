@@ -914,16 +914,14 @@ module Database =
           selectTask HydraReader.Read queryContext {
             for di in deletionItems do
             where(di.office_id = subqueryOne queryOfficeId)
-            join e in employers on
-              (di.chat_id = e.chat_id)
-            yield(di, e)
+            yield(di)
           }
 
         env.Log.Debug $"Get actual items from office with name {office.OfficeName}"
         return
           selected
           |> List.ofSeq
-          |> List.map (fun (di, e) ->
+          |> List.map (fun di ->
             let name:       ItemName          = %di.item_name
             let macaddress: MacAddress option = Option.map (fun m -> %m) di.item_mac
             let serial:     Serial     option = Option.map (fun s -> %s) di.item_serial
@@ -939,10 +937,20 @@ module Database =
               a.Value
             let item = Item.create name serial macaddress
             let employer =
-              { FirstName = %e.first_name
-                LastName  = %e.last_name
-                ChatId    = %e.chat_id
-                Office    = office }
+              let e = selectEmployerByChatId env %di.chat_id
+              let m = selectManagerByChatId  env %di.chat_id
+              if e.IsSome then
+                let e = e.Value
+                { FirstName = e.FirstName
+                  LastName  = e.LastName
+                  ChatId    = e.ChatId
+                  Office    = office }
+              else
+                let m = m.Value
+                { FirstName = m.FirstName
+                  LastName  = m.LastName
+                  ChatId    = m.ChatId
+                  Office    = office }
             let recordedItem =
               { Item  = item
                 Count = count
