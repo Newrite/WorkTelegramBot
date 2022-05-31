@@ -522,14 +522,15 @@ module View =
               (fun _ ->
                 match Database.selectAllItemsByOffice env office with
                 | Ok items ->
-                  if items.Length > 0 then
+                  let recordedItems =
+                    items
+                    |> List.filter (fun i -> (i.IsDeletion |> not) && (i.IsHidden |> not))
+                    |> List.map    (fun i -> i.RecordedItem)
+
+                  if recordedItems.Length > 0 then
                     try
                       let streamWithDocument =
-                        let bytes =
-                          items
-                          |> List.filter (fun i -> (i.IsDeletion |> not) && (i.IsHidden |> not))
-                          |> List.map    (fun i -> i.RecordedItem)
-                          |> createExcelTableFromItemsAsBytes
+                        let bytes = createExcelTableFromItemsAsBytes recordedItems
                         new System.IO.MemoryStream(bytes)
                       let documentName =
                         let dateString =
