@@ -914,7 +914,8 @@ module Database =
           selectTask HydraReader.Read queryContext {
             for di in deletionItems do
             where(di.office_id   = subqueryOne queryOfficeId)
-            join e in employers on (di.office_id = e.office_id)
+            join e in employers on 
+              ((di.office_id, di.chat_id) = (e.office_id, e.chat_id))
             yield(di, e)
           }
 
