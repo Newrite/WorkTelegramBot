@@ -236,7 +236,8 @@ module rec Types =
     { Debug:   string -> unit
       Info:    string -> unit
       Error:   string -> unit
-      Warning: string -> unit }
+      Warning: string -> unit
+      Fatal:   string -> unit }
   
   [<NoEquality>]
   [<NoComparison>]
