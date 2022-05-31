@@ -525,10 +525,9 @@ module View =
                   if items.Length > 0 then
                     try
                       let streamWithDocument =
-                        let a = (1, 2)
                         let bytes =
                           items
-                          |> List.filter (fun i -> i.IsDeletion |> not && i.IsHidden |> not)
+                          |> List.filter (fun i -> (i.IsDeletion |> not) && (i.IsHidden |> not))
                           |> List.map    (fun i -> i.RecordedItem)
                           |> createExcelTableFromItemsAsBytes
                         new System.IO.MemoryStream(bytes)

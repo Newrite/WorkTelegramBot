@@ -913,7 +913,7 @@ module Database =
         let! selected =
           selectTask HydraReader.Read queryContext {
             for di in deletionItems do
-            join e in employers on (di.chat_id = e.chat_id)
+            join e in employers on (subqueryOne queryOfficeId = e.office_id)
             where(di.office_id   = subqueryOne queryOfficeId)
             yield(di, e)
           }
