@@ -41,7 +41,7 @@ module View =
           ]
           Keyboard.create [
             Button.create 
-              "Отредактировать записи"
+              "Удалить запись"
               (fun _ -> employerState |> UpdateMessage.StartEditRecordedItems |> ctx.Dispatch)
           ]
           ctx.BackCancelKeyboard
@@ -520,12 +520,17 @@ module View =
             Button.create 
               "Получить таблицу актуальных записей"                   
               (fun _ ->
-                match Database.selectAllActualItemsByOffice env office with
+                match Database.selectAllItemsByOffice env office with
                 | Ok items ->
                   if items.Length > 0 then
                     try
                       let streamWithDocument =
-                        let bytes = createExcelTableFromItemsAsBytes items
+                        let a = (1, 2)
+                        let bytes =
+                          items
+                          |> List.filter (fun i -> i.IsDeletion |> not && i.IsHidden |> not)
+                          |> List.map    (fun i -> i.RecordedItem)
+                          |> createExcelTableFromItemsAsBytes
                         new System.IO.MemoryStream(bytes)
                       let documentName =
                         let dateString =

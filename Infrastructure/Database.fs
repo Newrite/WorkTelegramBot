@@ -899,7 +899,7 @@ module Database =
     let result = tryDeleteOfficeByOfficeNameAndUpdateCacheAsync env office
     result.Result
     
-  let selectAllActualItemsByOfficeAsync env (office: RecordedOffice) =
+  let selectAllItemsByOfficeAsync env (office: RecordedOffice) =
     task {
       
       let queryContext = sharedQueryContext env
@@ -914,10 +914,7 @@ module Database =
           selectTask HydraReader.Read queryContext {
             for di in deletionItems do
             join e in employers on (di.chat_id = e.chat_id)
-            where(
-                 di.office_id   = subqueryOne queryOfficeId 
-              && di.is_deletion = false
-              && di.is_hidden   = false)
+            where(di.office_id   = subqueryOne queryOfficeId)
             yield(di, e)
           }
 
@@ -945,11 +942,16 @@ module Database =
                 LastName  = %e.last_name
                 ChatId    = %e.chat_id
                 Office    = office }
-            { Item  = item
-              Count = count
-              Time  = System.DateTime.FromBinary(di.date)
-              Location = location
-              Employer = employer })
+            let recordedItem =
+              { Item  = item
+                Count = count
+                Time  = System.DateTime.FromBinary(di.date)
+                Location = location
+                Employer = employer }
+            {| RecordedItem = recordedItem
+               IsHidden     = di.is_hidden
+               IsDeletion   = di.is_deletion 
+               Id           = di.deletion_id |})
           |> Ok
 
       with
@@ -969,6 +971,6 @@ module Database =
 
     }
 
-  let selectAllActualItemsByOffice env office =
-    let result = selectAllActualItemsByOfficeAsync env office
+  let selectAllItemsByOffice env office =
+    let result = selectAllItemsByOfficeAsync env office
     result.Result
