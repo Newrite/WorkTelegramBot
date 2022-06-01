@@ -1,31 +1,66 @@
 ﻿namespace WorkTelegram.Core
 
-module Resources = 
+module Resources =
 
   module Keyboard =
-    
-    let [<Literal>] BackTxt              = "Назад"
-    let [<Literal>] DeletionTxt          = "Списать"
-    let [<Literal>] WithoutSerialTxt     = "Без серийника"
-    let [<Literal>] EnterSerialTxt       = "Ввести"
-    let [<Literal>] WithoutMacAddressTxt = "Без мака"
-    let [<Literal>] EnterMacAddressTxt   = "Ввести"
-    let [<Literal>] EnterLocationTxt     = "Ввести"
-    let [<Literal>] WithoutLocationTxt   = "Не указывать"
-    let [<Literal>] CancelTxt            = "Отмена"
-  
+
+    [<Literal>]
+    let BackTxt = "Назад"
+
+    [<Literal>]
+    let DeletionTxt = "Списать"
+
+    [<Literal>]
+    let WithoutSerialTxt = "Без серийника"
+
+    [<Literal>]
+    let EnterSerialTxt = "Ввести"
+
+    [<Literal>]
+    let WithoutMacAddressTxt = "Без мака"
+
+    [<Literal>]
+    let EnterMacAddressTxt = "Ввести"
+
+    [<Literal>]
+    let EnterLocationTxt = "Ввести"
+
+    [<Literal>]
+    let WithoutLocationTxt = "Не указывать"
+
+    [<Literal>]
+    let CancelTxt = "Отмена"
+
   module Callback =
-    
-    let [<Literal>] BackCD               = "back"
-    let [<Literal>] DeletionCD           = "deletion"
-    let [<Literal>] WithoutSerialCD      = "without_serial"
-    let [<Literal>] EnterSerialCD        = "enter_serial"
-    let [<Literal>] WithoutMacAddressCD  = "without_macaddress"
-    let [<Literal>] EnterMacAddressCD    = "enter_macaddress"
-    let [<Literal>] EnterLocationCD      = "enterl_location"
-    let [<Literal>] WithoutLocationCD    = "without_location"
-    let [<Literal>] CancelCD             = "cancel"
-  
+
+    [<Literal>]
+    let BackCD = "back"
+
+    [<Literal>]
+    let DeletionCD = "deletion"
+
+    [<Literal>]
+    let WithoutSerialCD = "without_serial"
+
+    [<Literal>]
+    let EnterSerialCD = "enter_serial"
+
+    [<Literal>]
+    let WithoutMacAddressCD = "without_macaddress"
+
+    [<Literal>]
+    let EnterMacAddressCD = "enter_macaddress"
+
+    [<Literal>]
+    let EnterLocationCD = "enterl_location"
+
+    [<Literal>]
+    let WithoutLocationCD = "without_location"
+
+    [<Literal>]
+    let CancelCD = "cancel"
+
   module Commands =
-  
-    let [<Literal>] StartTxt = "/start"
+
+    [<Literal>]
+    let StartTxt = "/start"
