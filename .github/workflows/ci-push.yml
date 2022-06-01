@@ -34,12 +34,13 @@ jobs:
 
       - name: Install dependencies
         run: |
+          cd ./src
           dotnet tool restore
           dotnet restore
 
       - name: Publish
         run: |
-          cd ./App
+          cd ./src/App
           dotnet publish -c Release  -r linux-arm -p:PublishSingleFile=true --self-contained true -p:PublishedTrimmed=false
 
       #- name: Test
