@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net6.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <RunAnalyzersDuringBuild>True</RunAnalyzersDuringBuild>
     <RunAnalyzersDuringLiveAnalysis>True</RunAnalyzersDuringLiveAnalysis>
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
@@ -14,7 +14,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <WarningLevel>5</WarningLevel>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-    <OtherFlags>--allsigs</OtherFlags>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM32'">
@@ -25,7 +24,6 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <WarningLevel>5</WarningLevel>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
-    <OtherFlags>--allsigs</OtherFlags>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM32'">
@@ -34,20 +32,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Program.fs" />
+    <Compile Include="Resources.fs" />
+    <Compile Include="Extensions.fs" />
+    <Compile Include="Types.fs" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FSharp.UMX" Version="1.1.0" />
     <PackageReference Include="Funogram.Telegram" Version="4.4.2.4" />
-    <PackageReference Include="serilog" Version="2.11.0" />
-    <PackageReference Include="serilog.sinks.console" Version="4.0.1" />
-    <PackageReference Include="serilog.sinks.file" Version="5.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Core\Core.fsproj" />
-    <ProjectReference Include="..\Infrastructure\Infrastructure.fsproj" />
-    <ProjectReference Include="..\Telegram\Telegram.fsproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.5" />
   </ItemGroup>
 
   <ItemGroup>
