@@ -7,6 +7,18 @@
       "commands": [
         "sqlhydra-sqlite"
       ]
+    },
+    "fantomas-tool": {
+      "version": "4.7.9",
+      "commands": [
+        "fantomas"
+      ]
+    },
+    "dotnet-fsharplint": {
+      "version": "0.21.2",
+      "commands": [
+        "dotnet-fsharplint"
+      ]
     }
   }
 }
