@@ -13,17 +13,17 @@
       "typedItemStyle": "SpaceAfter"
     }
   },
-  "typePrefixing": { "enabled": true },
+  "typePrefixing": { "enabled": false },
   "unionDefinitionIndentation": { "enabled": true },
-  "moduleDeclSpacing": { "enabled": true },
+  "moduleDeclSpacing": { "enabled": false },
   "classMemberSpacing": { "enabled": true },
   "tupleCommaSpacing": { "enabled": true },
   "tupleIndentation": { "enabled": true },
-  "tupleParentheses": { "enabled": true },
+  "tupleParentheses": { "enabled": false },
   "patternMatchClausesOnNewLine": { "enabled": true },
   "patternMatchOrClausesOnNewLine": { "enabled": true },
   "patternMatchClauseIndentation": { "enabled": true },
-  "patternMatchExpressionIndentation": { "enabled": true },
+  "patternMatchExpressionIndentation": { "enabled": false },
   "recursiveAsyncFunction": { "enabled": true },
   "redundantNewKeyword": { "enabled": true },
   "nestedStatements": {
@@ -38,7 +38,7 @@
       "maxComplexity": 40
     }
   },
-  "reimplementsFunction": { "enabled": true },
+  "reimplementsFunction": { "enabled": false },
   "canBeReplacedWithComposition": { "enabled": true },
   "failwithWithSingleArgument": { "enabled": true },
   "raiseWithSingleArgument": { "enabled": true },
@@ -48,73 +48,73 @@
   "failwithfWithArgumentsMatchingFormatString": { "enabled": true },
   "failwithBadUsage": { "enabled": true },
   "maxLinesInLambdaFunction": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 7
     }
   },
   "maxLinesInMatchLambdaFunction": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 100
     }
   },
   "maxLinesInValue": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 100
     }
   },
   "maxLinesInFunction": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 100
     }
   },
   "maxLinesInMember": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 100
     }
   },
   "maxLinesInConstructor": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 100
     }
   },
   "maxLinesInProperty": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 70
     }
   },
   "maxLinesInModule": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 1000
     }
   },
   "maxLinesInRecord": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 500
     }
   },
   "maxLinesInEnum": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 500
     }
   },
   "maxLinesInUnion": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 500
     }
   },
   "maxLinesInClass": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxLines": 500
     }
@@ -247,11 +247,11 @@
   "maxNumberOfFunctionParameters": {
     "enabled": true,
     "config": {
-      "maxItems": 5
+      "maxItems": 7
     }
   },
   "maxNumberOfMembers": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxItems": 32
     }
@@ -266,7 +266,7 @@
   "wildcardNamedWithAsPattern": { "enabled": true },
   "uselessBinding": { "enabled": true },
   "tupleOfWildcards": { "enabled": true },
-  "favourTypedIgnore": { "enabled": true },
+  "favourTypedIgnore": { "enabled": false },
   "favourReRaise": { "enabled": true },
   "favourStaticEmptyFields": { "enabled": true },
   "favourConsistentThis": {
@@ -275,9 +275,9 @@
       "symbol": "self"
     }
   },
-  "avoidTooShortNames": { "enabled": true },
+  "avoidTooShortNames": { "enabled": false },
   "indentation": {
-    "enabled": true
+    "enabled": false
   },
   "maxCharactersOnLine": {
     "enabled": false,

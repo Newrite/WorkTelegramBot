@@ -78,9 +78,9 @@ module Elmish =
   [<NoComparison>]
   [<NoEquality>]
   [<RequireQualifiedAccess>]
-  type ProcessorCommands<'message> =
-    | Update of 'message
-    | GetDispatch of AsyncReplyChannel<'message -> unit>
+  type ProcessorCommands<'Message> =
+    | Update of 'Message
+    | GetDispatch of AsyncReplyChannel<'Message -> unit>
     | Message of UpdateContext
     | Finish
 
@@ -92,19 +92,19 @@ module Elmish =
     | Message of UpdateContext
     | Finish
 
-  type Dispatch<'message> = 'message -> unit
-  type CallInit<'model> = unit -> 'model
+  type Dispatch<'Message> = 'Message -> unit
+  type CallInit<'Model> = unit -> 'Model
   type CallGetChatState = unit -> Message list
   type CallSaveChatState = Message -> unit
   type CallDelChatState = Message -> unit
 
   [<NoComparison>]
   [<NoEquality>]
-  type Program<'model, 'message> =
+  type Program<'Model, 'Message> =
     private
-      { Init: Message -> 'model
-        Update: 'message -> 'model -> CallInit<'model> -> 'model
-        View: Dispatch<'message> -> 'model -> RenderView
+      { Init: Message -> 'Model
+        Update: 'Message -> 'Model -> CallInit<'Model> -> 'Model
+        View: Dispatch<'Message> -> 'Model -> RenderView
         Log: Logging
         GetChatStates: CallGetChatState option
         SaveChatState: CallSaveChatState option
@@ -288,7 +288,7 @@ module Elmish =
         match ctx with
         | Message m ->
 
-          let IsStart =
+          let isStart =
             m.Text.IsSome
             && (m.Text.Value = "/start")
             && (dict.ContainsKey(m.Chat.Id) |> not)
@@ -313,7 +313,7 @@ module Elmish =
                 program.SaveChatState.Value msg
             | Error _ -> ()
 
-          let IsFinish =
+          let isFinish =
             m.Text.IsSome
             && (m.Text.Value = "/finish")
             && dict.ContainsKey(m.Chat.Id)
@@ -327,26 +327,26 @@ module Elmish =
 
             dict.TryRemove(m.Chat.Id) |> ignore
 
-          let IsRestart =
+          let isRestart =
             m.Text.IsSome
             && (m.Text.Value = "/restart")
             && dict.ContainsKey(m.Chat.Id)
 
-          let IsMessageAndActorInDict = m.Text.IsSome && dict.ContainsKey(m.Chat.Id)
+          let isMessageAndActorInDict = m.Text.IsSome && dict.ContainsKey(m.Chat.Id)
 
-          if IsStart then
+          if isStart then
 
             startFunction ()
 
-          if IsMessageAndActorInDict then
+          if isMessageAndActorInDict then
             ProcessorCommands.Message ctx
             |> dict[m.Chat.Id].Post
 
-          if IsFinish then
+          if isFinish then
 
             finishFunction ()
 
-          if IsRestart then
+          if isRestart then
 
             finishFunction ()
             startFunction ()

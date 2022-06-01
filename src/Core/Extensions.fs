@@ -3,11 +3,10 @@
 open Funogram
 open Funogram.Types
 
-
 [<AutoOpen>]
 module Ext =
-  let inline (^) f x = f x
 
+  let inline (^) f x = f x
 
 module Funogram =
 
