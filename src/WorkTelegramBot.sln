@@ -14,6 +14,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решения", "Элементы решения", "{71498960-F964-4DE4-9233-6A69D1AB5327}"
 	ProjectSection(SolutionItems) = preProject
 		..\.editorconfig = ..\.editorconfig
+		.fantomasignore = .fantomasignore
 		..\.github\workflows\ci-push.yml = ..\.github\workflows\ci-push.yml
 		Directory.Build.props = Directory.Build.props
 		..\.config\dotnet-tools.json = ..\.config\dotnet-tools.json
