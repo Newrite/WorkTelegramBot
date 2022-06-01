@@ -758,8 +758,8 @@ module Database =
           for di in deletionItems do
             where (
               di.chat_id = chatId
-              && di.is_hidden = false
-              && di.is_deletion = false
+              && not di.is_hidden
+              && not di.is_deletion
               && di.office_id = subqueryOne officeId
             )
 
@@ -796,14 +796,14 @@ module Database =
 
             a.Value
 
-          let item = Item.create name serial macaddress
+          let item =
+            { Item = Item.create name serial macaddress
+              Count = count
+              Time = System.DateTime.FromBinary(di.date)
+              Location = location
+              Employer = employer }
 
-          { Item = item
-            Count = count
-            Time = System.DateTime.FromBinary(di.date)
-            Location = location
-            Employer = employer },
-          di.deletion_id)
+          (item, di.deletion_id))
 
     }
 
@@ -915,8 +915,8 @@ module Database =
               set di.is_deletion true
 
               where (
-                di.is_deletion = false
-                && di.is_hidden = false
+                not di.is_deletion
+                && not di.is_hidden
                 && di.office_id = subqueryOne officeId
               )
           }

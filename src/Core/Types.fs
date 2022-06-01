@@ -106,7 +106,7 @@ module rec Types =
           .Replace("-", "")
           .Replace(";", "")
 
-      let r = new Text.RegularExpressions.Regex("[a-fA-F0-9]{12}$")
+      let r = Text.RegularExpressions.Regex("[a-fA-F0-9]{12}$")
 
       match r.IsMatch(inputCleaned) with
       | true ->

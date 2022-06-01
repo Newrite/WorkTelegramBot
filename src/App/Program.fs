@@ -12,10 +12,10 @@ open Funogram.Telegram.Bot
 [<EntryPoint>]
 let main _ =
 
-  let TGToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
+  let tgToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
   let logger =
-    (new LoggerConfiguration())
+    LoggerConfiguration()
       .WriteTo.Console()
       .WriteTo.File("WorkTelegramBotLog.txt")
       .MinimumLevel.Verbose()
@@ -32,7 +32,7 @@ let main _ =
 
   let env =
     { Log = logging
-      Config = { defaultConfig with Token = TGToken }
+      Config = { defaultConfig with Token = tgToken }
       DBConn = Database.createConnection logging databaseName
       CacheActor = MailboxProcessor.Start(Cache.cacheActor) }
 
