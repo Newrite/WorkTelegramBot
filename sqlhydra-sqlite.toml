@@ -1,6 +1,6 @@
 [general]
-connection = "Data Source=./App/bin/Debug/net6.0/WorkBotDatabase.sqlite3;Version=3;"
-output = "./Infrastructure/HydraGenerated.fs"
+connection = "Data Source=./src/App/bin/Debug/net6.0/WorkBotDatabase.sqlite3;Version=3;"
+output = "./src/Infrastructure/HydraGenerated.fs"
 namespace = "WorkTelegram.HydraGenerated"
 cli_mutable = true
 [readers]
