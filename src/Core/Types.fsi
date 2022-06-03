@@ -42,10 +42,6 @@ namespace WorkTelegram.Core
         
         type ChatId = int64<chatid>
     
-    module Option =
-        
-        val string: optionValue: 'a option -> string
-    
     module Types =
         
         [<RequireQualifiedAccess>]

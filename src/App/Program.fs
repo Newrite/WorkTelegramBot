@@ -93,6 +93,8 @@ let main _ =
     with
     | exn ->
 
+      history.Clear()
+
       let sleepTime =
         if sleepTime >= 60000 then
           60000
