@@ -2,7 +2,8 @@
   "ignoreFiles": [
     "assemblyinfo.*",
     "*assemblyinfo.*",
-    "HydraGenerated.fs"
+    "HydraGenerated.fs",
+    "SharedExtension.fs"
   ],
   "global": {
     "numIndentationSpaces": 2
