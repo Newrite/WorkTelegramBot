@@ -42,15 +42,6 @@ module UMX =
 
 open UMX
 
-[<RequireQualifiedAccess>]
-module Option =
-
-  let string optionValue =
-    match optionValue with
-    | Some v -> string v
-    | None -> "None"
-
-
 [<AutoOpen>]
 module rec Types =
 

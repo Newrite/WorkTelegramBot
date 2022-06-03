@@ -34,6 +34,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="SharedExtension.fs" />
     <Compile Include="Resources.fs" />
     <Compile Include="Extensions.fs" />
     <Compile Include="Types.fs" />
