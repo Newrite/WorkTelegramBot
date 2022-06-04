@@ -260,7 +260,7 @@ module View =
 
     let authEmployer eauth =
 
-      let renderOffices (offices: RecordedOffice list) =
+      let renderOffices (offices: Office list) =
 
         if offices.Length > 0 then
 
@@ -296,7 +296,7 @@ module View =
 
               if array.Length = 2 then
                 let firstName, lastName: FirstName * LastName = %array[0], %array[1]
-                let employer = RecordedEmployer.create firstName lastName office %message.Chat.Id
+                let employer = Employer.create firstName lastName office %message.Chat.Id
 
                 employer
                 |> Employer.AskingFinish
@@ -332,7 +332,7 @@ module View =
               if array.Length = 2 then
                 let firstName, lastName: FirstName * LastName = %array[0], %array[1]
 
-                let manager: RecordedManager =
+                let manager: Manager =
                   { FirstName = firstName
                     LastName = lastName
                     ChatId = %message.Chat.Id }

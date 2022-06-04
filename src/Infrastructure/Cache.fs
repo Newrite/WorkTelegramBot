@@ -3,7 +3,22 @@
 open WorkTelegram.Core
 
 open System
-open WorkTelegram.Core.Types
+
+[<NoEquality>]
+[<NoComparison>]
+[<RequireQualifiedAccess>]
+type CacheCommand =
+  | Initialization of Env
+  | EmployerByChatId of ChatId * AsyncReplyChannel<Employer option>
+  | ManagerByChatId of ChatId * AsyncReplyChannel<Manager option>
+  //| OfficeByManagerChatId of ChatId * AsyncReplyChannel<RecordedOffice   option>
+  | Offices of AsyncReplyChannel<Office list option>
+  | AddOffice of Office
+  | AddEmployer of Employer
+  | AddManager of Manager
+  | CurrentCache of AsyncReplyChannel<Cache>
+  | GetOfficeEmployers of Office * AsyncReplyChannel<Employer list option>
+  | DeleteOffice of Office
 
 module Cache =
 

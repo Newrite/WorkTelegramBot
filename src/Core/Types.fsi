@@ -45,29 +45,19 @@ namespace WorkTelegram.Core
     module Types =
         
         [<RequireQualifiedAccess>]
-        type PositiveIntError =
-            | NumberMustBePositive
-            | CantParseStringToPositiveInt
+        type BusinessError =
+            | NotFoundInDatabase
+            | IncorrectMacAddress
+            | NumberMostBePositive
+            | IncorrectParseResult
         
-        [<RequireQualifiedAccess>]
-        and MacAddressError = | CantValidateMacAddress
+        [<Struct>]
+        and Inter = int32
         
         [<NoComparison; RequireQualifiedAccess>]
-        and DatabaseError =
-            | CantInsertEmployer of RecordedEmployer
-            | CantInsertManager of RecordedManager
-            | CantInsertOffice of RecordedOffice
-            | CantDeleteOffice of RecordedOffice
-            | ChatIdAlreadyExistInDatabase of UMX.ChatId
-            | CantUpdateEmployerApproved of RecordedEmployer
-            | CantDeleteRecordedItem of int64
-            | SQLiteException of Microsoft.Data.Sqlite.SqliteException
-            | UnknownException of System.Exception
-        
-        [<RequireQualifiedAccess>]
         and AppError =
-            | PositiveIntError of PositiveIntError
-            | MacAddressError of MacAddressError
+            | DatabaseError of Donald.DbError
+            | BusinessError of BusinessError
         
         [<Struct>]
         and PositiveInt =
@@ -177,10 +167,12 @@ namespace WorkTelegram.Core
             
             override ToString: unit -> string
         
+        val a: i: Inter -> unit
+        
         module MacAddress =
             
             val validate:
-              input: string -> Result<UMX.MacAddress,MacAddressError>
+              input: string -> Result<FSharp.UMX.string<'u>,BusinessError>
         
         module OfficeName =
             
@@ -189,9 +181,9 @@ namespace WorkTelegram.Core
         
         module PositiveInt =
             
-            val create: count: uint32 -> Result<PositiveInt,PositiveIntError>
+            val create: count: uint32 -> Result<PositiveInt,BusinessError>
             
-            val tryParse: str: string -> Result<PositiveInt,PositiveIntError>
+            val tryParse: str: string -> Result<PositiveInt,BusinessError>
             
             val one: PositiveInt
         

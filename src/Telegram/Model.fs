@@ -9,13 +9,13 @@ module AuthProcess =
   [<RequireQualifiedAccess>]
   type Employer =
     | EnteringOffice
-    | EnteringLastFirstName of RecordedOffice
-    | AskingFinish of RecordedEmployer
+    | EnteringLastFirstName of Office
+    | AskingFinish of Employer
 
   [<RequireQualifiedAccess>]
   type Manager =
     | EnteringLastFirstName
-    | AskingFinish of RecordedManager
+    | AskingFinish of Manager
 
   [<RequireQualifiedAccess>]
   type Model =
@@ -32,7 +32,7 @@ module EmployerProcess =
     | EnteringSerial of ItemWithOnlyName
     | EnteringCount of Item
     | EnteringLocation of Item * PositiveInt
-    | AskingFinish of RecordedDeletionItem
+    | AskingFinish of DeletionItem
 
   [<RequireQualifiedAccess>]
   type Model =
@@ -41,7 +41,7 @@ module EmployerProcess =
     | EditRecordedDeletions
 
   type EmployerContext =
-    { Employer: RecordedEmployer
+    { Employer: Employer
       Model: Model }
 
     member self.UpdateModel model = { self with Model = model }
@@ -51,19 +51,19 @@ module ManagerProcess =
   [<RequireQualifiedAccess>]
   type MakeOffice =
     | EnteringName
-    | AskingFinish of RecordedOffice
+    | AskingFinish of Office
 
   [<RequireQualifiedAccess>]
   type Model =
     | NoOffices
     | MakeOffice of MakeOffice
-    | ChooseOffice of RecordedOffice list
-    | InOffice of RecordedOffice
-    | AuthEmployers of RecordedOffice
-    | DeAuthEmployers of RecordedOffice
+    | ChooseOffice of Office list
+    | InOffice of Office
+    | AuthEmployers of Office
+    | DeAuthEmployers of Office
 
   type ManagerContext =
-    { Manager: RecordedManager
+    { Manager: Manager
       Model: Model }
 
     member self.UpdateModel model = { self with Model = model }

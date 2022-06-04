@@ -227,7 +227,7 @@ module Elmish =
   [<RequireQualifiedAccess>]
   module Program =
 
-    let mkSimple logger view update init =
+    let mkProgram logger view update init =
       { Init = init
         Update = update
         View = view
@@ -236,14 +236,11 @@ module Elmish =
         SaveChatState = None
         DelChatState = None }
 
-    let mkWithState logger view update init getState saveState delState =
-      { Init = init
-        Update = update
-        View = view
-        Log = logger
-        GetChatStates = Some getState
-        SaveChatState = Some saveState
-        DelChatState = Some delState }
+    let withState getState saveState delState program =
+      { program with
+          GetChatStates = Some getState
+          SaveChatState = Some saveState
+          DelChatState = Some delState }
 
     let isWithStateFunctions program =
 

@@ -31,6 +31,12 @@ module UMX =
   [<Measure>]
   type private chatid
 
+  [<Measure>]
+  type private officeid
+
+  [<Measure>]
+  type private deletionid
+
   type ItemName = string<itemname>
   type Serial = string<serialnumber>
   type MacAddress = string<macaddress>
@@ -39,6 +45,8 @@ module UMX =
   type OfficeName = string<officename>
   type Location = string<location>
   type ChatId = int64<chatid>
+  type OfficeId = int64<officeid>
+  type DeletionId = int64<deletionid>
 
 open UMX
 
@@ -46,35 +54,22 @@ open UMX
 module rec Types =
 
   [<RequireQualifiedAccess>]
-  type PositiveIntError =
-    | NumberMustBePositive
-    | CantParseStringToPositiveInt
-
-  [<RequireQualifiedAccess>]
-  type MacAddressError = | CantValidateMacAddress
+  type BusinessError =
+    | NotFoundInDatabase
+    | IncorrectMacAddress
+    | NumberMostBePositive
+    | IncorrectParseResult
 
   [<NoComparison>]
   [<RequireQualifiedAccess>]
-  type DatabaseError =
-    | CantInsertEmployer of RecordedEmployer
-    | CantInsertManager of RecordedManager
-    | CantInsertOffice of RecordedOffice
-    | CantDeleteOffice of RecordedOffice
-    | ChatIdAlreadyExistInDatabase of ChatId
-    | CantUpdateEmployerApproved of RecordedEmployer
-    | CantDeleteRecordedItem of int64
-    | SQLiteException of Microsoft.Data.Sqlite.SqliteException
-    | UnknownException of System.Exception
-
-  [<RequireQualifiedAccess>]
   type AppError =
-    | PositiveIntError of PositiveIntError
-    | MacAddressError of MacAddressError
+    | DatabaseError of Donald.DbError
+    | BusinessError of BusinessError
 
   [<RequireQualifiedAccess>]
   module MacAddress =
 
-    let validate (input: string) : Result<MacAddress, MacAddressError> =
+    let validate (input: string) =
 
       let rec format (chars: char []) (acc: string) counter position =
         if position > 11 then
@@ -103,7 +98,7 @@ module rec Types =
       | true ->
         let macAddress = format (inputCleaned.ToCharArray()) "" 0 0
         %macAddress |> Ok
-      | false -> MacAddressError.CantValidateMacAddress |> Error
+      | false -> BusinessError.IncorrectMacAddress |> Error
 
   [<RequireQualifiedAccess>]
   module OfficeName =
@@ -139,12 +134,12 @@ module rec Types =
       if count > 0u then
         { Value = count } |> Ok
       else
-        Error PositiveIntError.NumberMustBePositive
+        Error BusinessError.NumberMostBePositive
 
     let tryParse (str: string) =
       match UInt32.TryParse(str) with
       | true, value -> create value
-      | false, _ -> Error PositiveIntError.CantParseStringToPositiveInt
+      | false, _ -> Error BusinessError.IncorrectParseResult
 
     let one = { Value = 1u }
 
@@ -227,21 +222,21 @@ module rec Types =
   [<RequireQualifiedAccess>]
   type CacheCommand =
     | Initialization of Env
-    | EmployerByChatId of ChatId * AsyncReplyChannel<RecordedEmployer option>
-    | ManagerByChatId of ChatId * AsyncReplyChannel<RecordedManager option>
+    | EmployerByChatId of ChatId * AsyncReplyChannel<Employer option>
+    | ManagerByChatId of ChatId * AsyncReplyChannel<Manager option>
     //| OfficeByManagerChatId of ChatId * AsyncReplyChannel<RecordedOffice   option>
-    | Offices of AsyncReplyChannel<RecordedOffice list option>
-    | AddOffice of RecordedOffice
-    | AddEmployer of RecordedEmployer
-    | AddManager of RecordedManager
+    | Offices of AsyncReplyChannel<Office list option>
+    | AddOffice of Office
+    | AddEmployer of Employer
+    | AddManager of Manager
     | CurrentCache of AsyncReplyChannel<Cache>
-    | GetOfficeEmployers of RecordedOffice * AsyncReplyChannel<RecordedEmployer list option>
-    | DeleteOffice of RecordedOffice
+    | GetOfficeEmployers of Office * AsyncReplyChannel<Employer list option>
+    | DeleteOffice of Office
 
   type Cache =
-    { Employers: RecordedEmployer list
-      Offices: RecordedOffice list
-      Managers: RecordedManager list }
+    { Employers: Employer list
+      Offices: Office list
+      Managers: Manager list }
 
   [<NoEquality>]
   [<NoComparison>]
@@ -252,31 +247,25 @@ module rec Types =
       Warning: string -> unit
       Fatal: string -> unit }
 
-  [<NoEquality>]
-  [<NoComparison>]
-  type Env =
-    { Log: Logging
-      Config: BotConfig
-      DBConn: SqliteConnection
-      CacheActor: MailboxProcessor<CacheCommand> }
-
-  type RecordedManager =
+  type Manager =
     { ChatId: ChatId
       FirstName: FirstName
       LastName: LastName }
 
-  type RecordedOffice =
-    { OfficeName: OfficeName
-      Manager: RecordedManager }
+  type Office =
+    { OfficeId: OfficeId
+      IsHidden: bool
+      OfficeName: OfficeName
+      Manager: Manager }
 
-  type RecordedEmployer =
+  type Employer =
     { FirstName: FirstName
       LastName: LastName
-      Office: RecordedOffice
+      Office: Office
       ChatId: ChatId }
 
   [<RequireQualifiedAccess>]
-  module RecordedEmployer =
+  module Employer =
 
     let create firstName lastName office chatId =
       { FirstName = firstName
@@ -284,12 +273,15 @@ module rec Types =
         Office = office
         ChatId = chatId }
 
-  type RecordedDeletionItem =
-    { Item: Item
+  type DeletionItem =
+    { DeletionId: DeletionId
+      Item: Item
       Count: PositiveInt
       Time: DateTime
+      IsDeletion: bool
+      IsHidden: bool
       Location: Location option
-      Employer: RecordedEmployer }
+      Employer: Employer }
 
     override self.ToString() =
       let macText =
