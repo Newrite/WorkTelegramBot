@@ -86,7 +86,8 @@ let main _ =
       let update = Update.update history
       let init = Init.init env history
 
-      Elmish.Program.mkWithState env.Log view update init getState setState delState
+      Elmish.Program.mkProgram env.Log view update init
+      |> Elmish.Program.withState getState setState delState
       |> Elmish.Program.startProgram env.Config botUpdate
       |> Async.RunSynchronously
 

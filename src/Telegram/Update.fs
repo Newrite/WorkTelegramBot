@@ -8,17 +8,17 @@ open WorkTelegram.Infrastructure
 [<RequireQualifiedAccess>]
 type UpdateMessage =
   | AuthManagerChange of AuthProcess.Manager
-  | FinishEmployerAuth of RecordedEmployer * Env
-  | FinishManagerAuth of RecordedManager * Env
-  | ManagerChooseOffice of ManagerProcess.ManagerContext * RecordedOffice
+  | FinishEmployerAuth of Employer * Env
+  | FinishManagerAuth of Manager * Env
+  | ManagerChooseOffice of ManagerProcess.ManagerContext * Office
   | ManagerMakeOfficeChange of ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
-  | FinishMakeOfficeProcess of RecordedOffice * Env
+  | FinishMakeOfficeProcess of Office * Env
   | StartEditRecordedItems of EmployerProcess.EmployerContext
-  | StartAuthEmployers of ManagerProcess.ManagerContext * RecordedOffice
-  | StartDeAuthEmployers of ManagerProcess.ManagerContext * RecordedOffice
+  | StartAuthEmployers of ManagerProcess.ManagerContext * Office
+  | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
   | AuthEmployerChange of AuthProcess.Employer
-  | FinishDeletionProcess of EmployerProcess.EmployerContext * RecordedDeletionItem * Env
+  | FinishDeletionProcess of EmployerProcess.EmployerContext * DeletionItem * Env
   | Back
   | Cancel
   | NothingChange

@@ -281,7 +281,7 @@ module Database =
     result.Result
 
   /// Insert manager in database and update managers list in cache
-  let insertManagerAsync env (managerToAdd: RecordedManager) =
+  let insertManagerAsync env (managerToAdd: Manager) =
 
     let insertTaskQ qContext =
 
@@ -359,7 +359,7 @@ module Database =
     let result = selectManagerByChatIdAsync env chatId
     result.Result
 
-  let insertEmployerAsync env (employerToAdd: RecordedEmployer) isApproved =
+  let insertEmployerAsync env (employerToAdd: Employer) isApproved =
 
     let insertTaskQ qContext office =
       insertTask qContext {
@@ -471,7 +471,7 @@ module Database =
     result.Result
 
   /// Insert office in database and update office list in cache
-  let insertOfficeAsync env (office: RecordedOffice) =
+  let insertOfficeAsync env (office: Office) =
 
     let chatId = %office.Manager.ChatId
     let officeName = %office.OfficeName
@@ -586,7 +586,7 @@ module Database =
   //  let result = selectOfficeByManagerChatIdAsync env chatId
   //  result.Result
 
-  let insertDeletionItemAsync env (itemToAdd: RecordedDeletionItem) =
+  let insertDeletionItemAsync env (itemToAdd: DeletionItem) =
 
     let insertTaskQ qContext office =
 
@@ -635,7 +635,7 @@ module Database =
       | None -> return None
     }
 
-  let insertDeletionItem env (itemToAdd: RecordedDeletionItem) =
+  let insertDeletionItem env (itemToAdd: DeletionItem) =
     let result = insertDeletionItemAsync env itemToAdd
     result.Result
 
@@ -716,7 +716,7 @@ module Database =
     let result = initializeCacheAsync env
     result.Result
 
-  let isApprovedAsync env (employer: RecordedEmployer) =
+  let isApprovedAsync env (employer: Employer) =
     task {
 
       let queryContext = sharedQueryContext env
@@ -733,11 +733,11 @@ module Database =
       return selected |> Seq.exists ^ fun e -> e.is_approved
     }
 
-  let isApproved env (employer: RecordedEmployer) =
+  let isApproved env (employer: Employer) =
     let result = isApprovedAsync env employer
     result.Result
 
-  let selectDeletionItemsAsync env (employer: RecordedEmployer) =
+  let selectDeletionItemsAsync env (employer: Employer) =
     task {
 
       let queryContext = sharedQueryContext env
@@ -807,11 +807,11 @@ module Database =
 
     }
 
-  let selectDeletionItems env (employer: RecordedEmployer) =
+  let selectDeletionItems env (employer: Employer) =
     let result = selectDeletionItemsAsync env employer
     result.Result
 
-  let updateIsApprovedEmployerAsync env isApproved (employer: RecordedEmployer) =
+  let updateIsApprovedEmployerAsync env isApproved (employer: Employer) =
     task {
 
       let queryContext = sharedQueryContext env
@@ -891,7 +891,7 @@ module Database =
     let result = setIsHiddenTrueForItemAsync env itemId
     result.Result
 
-  let setIsDeletionTrueForAllItemsInOfficeAsync env (office: RecordedOffice) =
+  let setIsDeletionTrueForAllItemsInOfficeAsync env (office: Office) =
     task {
 
       let officeName: string = %office.OfficeName
@@ -938,7 +938,7 @@ module Database =
     let result = setIsDeletionTrueForAllItemsInOfficeAsync env office
     result.Result
 
-  let tryDeleteOfficeByOfficeNameAndUpdateCacheAsync env (office: RecordedOffice) =
+  let tryDeleteOfficeByOfficeNameAndUpdateCacheAsync env (office: Office) =
     task {
 
       let queryContext = sharedQueryContext env
@@ -987,7 +987,7 @@ module Database =
     let result = tryDeleteOfficeByOfficeNameAndUpdateCacheAsync env office
     result.Result
 
-  let selectAllItemsByOfficeAsync env (office: RecordedOffice) =
+  let selectAllItemsByOfficeAsync env (office: Office) =
     task {
 
       let queryContext = sharedQueryContext env
