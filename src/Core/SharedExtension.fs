@@ -4,6 +4,22 @@ namespace global
 
 open System
 
+type Either<'LeftValue, 'RightValue> =
+  | Left of 'LeftValue
+  | Right of 'RightValue
+
+[<RequireQualifiedAccess>]
+module Either =
+
+  let ifLeft either =
+    match either with
+    | Left _ -> true
+    | Right _ -> false
+
+  let ifRight either =
+    match either with
+    | Left _ -> false
+    | Right _ -> true
 [<RequireQualifiedAccess>]
 module Option =
 
