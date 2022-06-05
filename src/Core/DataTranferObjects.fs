@@ -6,7 +6,7 @@ open FSharp.UMX
 open FSharp.Json
 open System
 
-module private Field =
+module Field =
   [<Literal>]
   let ChatId = "chat_id"
 
@@ -119,6 +119,8 @@ module ChatIdDto =
 
   let toDomain (chatIdTable: ChatIdDto) : UMX.ChatId = %chatIdTable.ChatId
 
+  let [<Literal>] TableName = "chat_id"
+
 type MessageDto = { ChatId: int64; MessageJson: string }
 
 [<RequireQualifiedAccess>]
@@ -134,6 +136,8 @@ module MessageDto =
 
   let toDomain (message: MessageDto) =
     Json.deserialize<Funogram.Telegram.Types.Message> message.MessageJson
+
+  let [<Literal>] TableName = "message"
 
 type ManagerDto =
   { ChatId: int64
@@ -157,6 +161,8 @@ module ManagerDto =
     { ChatId = %manager.ChatId
       FirstName = %manager.FirstName
       LastName = %manager.LastName }
+
+  let [<Literal>] TableName = "manager"
 
 type OfficeDto =
   { OfficeId: int64
@@ -188,6 +194,8 @@ module OfficeDto =
       OfficeName = %office.OfficeName
       Manager = manager }
 
+  let [<Literal>] TableName = "office"
+
 type EmployerDto =
   { ChatId: int64
     FirstName: string
@@ -198,9 +206,9 @@ type EmployerDto =
 [<RequireQualifiedAccess>]
 module EmployerDto =
 
-  let ofReader (rd: IDataReader) =
+  let ofDataReader (rd: IDataReader) =
     { ChatId = rd.ReadInt64 Field.ChatId
-      FirstName = rd.ReadString Field.FirstName
+      FirstName = rd.ReadString "first_name"
       LastName = rd.ReadString Field.LastName
       IsApproved = rd.ReadBoolean Field.IsApproved
       OfficeId = rd.ReadInt64 Field.OfficeId }
@@ -219,6 +227,8 @@ module EmployerDto =
       FirstName = %employer.FirstName
       LastName = %employer.LastName
       Office = office }
+
+  let [<Literal>] TableName = "employer"
 
 type DeletionItemDto =
   { DeletionId: int64
@@ -289,3 +299,5 @@ module DeletionItemDto =
       Time = System.DateTime.FromBinary(item.Date)
       Location = Option.map (fun l -> %l) item.ToLocation
       Count = count.Value }
+
+  let [<Literal>] TableName = "deletion_items"

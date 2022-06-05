@@ -9,7 +9,7 @@ type ILogger =
   abstract member Error: string -> unit
   abstract member Warning: string -> unit
   abstract member Fatal: string -> unit
-  abstract member Debut: string -> unit
+  abstract member Debug: string -> unit
   abstract member Info: string -> unit
 
 [<Interface>]
@@ -32,13 +32,21 @@ type IDb =
 
 [<Interface>]
 type ICacheInterface =
-  abstract member tryGetEmployerByChatId: UMX.ChatId -> Result<Employer, BusinessError>
-  abstract member tryGetManagerByChatId: UMX.ChatId -> Result<Manager, BusinessError>
-  abstract member tryGetOfficeByManagerId: UMX.ChatId -> Result<Office, BusinessError>
   abstract member getOffices: unit -> Office list
   abstract member getDeltionItems: unit -> DeletionItem list
+  abstract member getEmployers: unit -> Employer list
+  abstract member getManagers: unit -> Manager list
+  abstract member getOfficesByManagerId: UMX.ChatId -> Office list
+  abstract member tryGetEmployerByChatId: UMX.ChatId -> Result<Employer, BusinessError>
+  abstract member tryGetManagerByChatId: UMX.ChatId -> Result<Manager, BusinessError>
   abstract member tryAddOfficeInDb: RecordOffice -> Result<Office, BusinessError>
   abstract member tryAddEmployerInDb: RecordEmployer -> Result<Employer, BusinessError>
+  abstract member tryAddManagerInDb: ManagerDto -> Result<Manager, BusinessError>
+  abstract member tryAddDeletionItemInDb: RecordDeletionItem -> Result<DeletionItem, BusinessError>
+  abstract member tryUpdateEmployerApprovedInDb: Employer -> Result<Employer, BusinessError>
+  abstract member tryDeletionForOfficeItems: OfficeId -> Result<unit, BusinessError>
+  abstract member tryHideDeletionItem: DeletionId -> Result<unit, BusinessError>
+  abstract member tryDeleteOffice: OfficeId -> Result<unit, BusinessError>
 
 [<Interface>]
 type ICache =
