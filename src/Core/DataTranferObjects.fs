@@ -199,6 +199,12 @@ module OfficeDto =
       OfficeName = %office.OfficeName
       Manager = manager }
 
+  let toDomainWithManager (office: OfficeDto) manager =
+    { OfficeId = %office.OfficeId
+      IsHidden = office.IsHidden
+      OfficeName = %office.OfficeName
+      Manager = manager }
+
   let [<Literal>] TableName = "office"
 
 type EmployerDto =

@@ -3,9 +3,7 @@
 open WorkTelegram.Core
 open System.Data
 open FSharp.UMX
-open WorkTelegram.Core.Field
-open WorkTelegram.Core.Types
-
+open Donald
 [<NoEquality>]
 [<NoComparison>]
 [<RequireQualifiedAccess>]
@@ -21,9 +19,9 @@ type CacheCommand =
   | TryGetMessageByChatId of
     UMX.ChatId *
     AsyncReplyChannel<Result<Funogram.Telegram.Types.Message, BusinessError>>
-  | TryAddOfficeInDb of RecordOffice * AsyncReplyChannel<Result<Office, BusinessError>>
-  | TryAddEmployerInDb of RecordEmployer * AsyncReplyChannel<Result<Employer, BusinessError>>
-  | TryAddManagerInDb of ManagerDto * AsyncReplyChannel<Result<Manager, BusinessError>>
+  | TryAddOfficeInDb of RecordOffice * AsyncReplyChannel<Result<Office, AppError>>
+  | TryAddEmployerInDb of RecordEmployer * AsyncReplyChannel<Result<Employer, AppError>>
+  | TryAddManagerInDb of ManagerDto * AsyncReplyChannel<Result<Manager, AppError>>
   | TryAddDeletionItemInDb of RecordDeletionItem * AsyncReplyChannel<Result<DeletionItem, AppError>>
   | TryAddOrUpdateMessageInDb of
     MessageDto *
@@ -33,7 +31,7 @@ type CacheCommand =
     bool *
     AsyncReplyChannel<Result<Employer, BusinessError>>
   | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<Result<unit, BusinessError>>
-  | TryHideDeletionItem of DeletionId * AsyncReplyChannel<Result<unit, BusinessError>>
+  | TryHideDeletionItem of DeletionId * AsyncReplyChannel<bool>
   | TryDeleteOffice of OfficeId * AsyncReplyChannel<Result<unit, BusinessError>>
 
 [<NoComparison>]
@@ -198,6 +196,49 @@ module Cache =
               cacheHandler { cache with Cache.DeletionItems = itemDomain :: cache.DeletionItems }
           | Error err ->
             err |> Error |> channel.Reply
+            return! cacheHandler cache
+
+        | CacheCommand.TryAddManagerInDb(managerDto, channel) ->
+              
+          let result = Database.insertManager ctx.Conn managerDto
+          match result with
+          | Ok _ ->
+              let manager = ManagerDto.toDomain managerDto
+              manager |> Ok |> channel.Reply
+              return! cacheHandler { cache with  Cache.Managers = manager :: cache.Managers }
+          | Error err ->  err |> Error |> channel.Reply
+
+        | CacheCommand.TryAddOfficeInDb(officeRecord, channel) ->
+              
+          let result =
+            result {
+              let! _ = Database.insertOffice ctx.Conn officeRecord
+              let chatIdDto = ChatIdDto.fromDomain %officeRecord.ManagerChatId
+              let! manager = Database.selectManagerByChatId ctx.Conn chatIdDto
+              and! officeDto = Database.selectOfficeByName ctx.Conn officeRecord.OfficeName
+              return (ManagerDto.toDomain manager, officeDto)
+            }
+
+          match result with
+          | Ok (m, o) ->
+            let office = OfficeDto.toDomainWithManager o m
+            office |> Ok |> channel.Reply
+            return! cacheHandler { cache with Cache.Offices = office :: cache.Offices }
+          | Error err ->
+            err |> Error |> channel.Reply
+            return! cacheHandler cache
+
+        | CacheCommand.TryHideDeletionItem(deletionId, channel) ->
+          let result = Database.setTrueForHiddenFieldOfItem ctx.Conn %deletionId
+          match result with
+          | Ok _ ->
+            channel.Reply true
+            let updatedList =
+              cache.DeletionItems
+              |> List.map (fun di -> if di.DeletionId = deletionId then { di with IsHidden = true } else di)
+            return! cacheHandler { cache with Cache.DeletionItems = updatedList }
+          | Error _ ->
+            channel.Reply false
             return! cacheHandler cache
 
         | CacheCommand.TryAddOrUpdateMessageInDb (message, channel) ->
