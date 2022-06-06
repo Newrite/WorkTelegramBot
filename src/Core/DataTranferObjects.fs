@@ -58,6 +58,8 @@ module Field =
   [<Literal>]
   let ToLocation = "to_location"
 
+open Field
+
 type RecordOffice = { OfficeName: string; ManagerChatId: int64 }
 
 type RecordEmployer =
@@ -73,6 +75,7 @@ type RecordDeletionItem =
     Count: uint32
     Time: DateTime
     Location: string option
+    OfficeId: int64
     EmployerChatId: int64 }
 
 [<RequireQualifiedAccess>]
@@ -98,6 +101,7 @@ module Record =
     (count: PositiveInt)
     time
     (location: Location option)
+    (officeId: OfficeId)
     (employerChatId: UMX.ChatId)
     =
     { ItemName = %item.Name
@@ -106,6 +110,7 @@ module Record =
       Count = count.GetValue
       Time = time
       Location = Option.map (fun l -> %l) location
+      OfficeId = %officeId
       EmployerChatId = %employerChatId }
 
 type ChatIdDto = { ChatId: int64 }
@@ -279,6 +284,28 @@ module DeletionItemDto =
     (manager: ManagerDto)
     : DeletionItem =
     let employer = EmployerDto.toDomain office manager employer
+
+    let itemRecorded =
+      let serial = Option.map (fun s -> %s) item.ItemSerial
+      let macaddress = Option.map (fun m -> %m) item.ItemMac
+      Item.create %item.ItemName serial macaddress
+
+    let count =
+      item.Count
+      |> uint
+      |> PositiveInt.create
+      |> Option.ofResult
+
+    { DeletionId = %item.DeletionId
+      Item = itemRecorded
+      IsDeletion = item.IsDeletion
+      IsHidden = item.IsHidden
+      Employer = employer
+      Time = System.DateTime.FromBinary(item.Date)
+      Location = Option.map (fun l -> %l) item.ToLocation
+      Count = count.Value }
+
+  let toDomainWithEmployer (item: DeletionItemDto) (employer: Employer) =
 
     let itemRecorded =
       let serial = Option.map (fun s -> %s) item.ItemSerial

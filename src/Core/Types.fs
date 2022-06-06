@@ -51,7 +51,7 @@ module UMX =
 open UMX
 
 [<AutoOpen>]
-module rec Types =
+module Types =
 
   [<RequireQualifiedAccess>]
   type BusinessError =
@@ -216,36 +216,6 @@ module rec Types =
         createWithSerial name serial.Value
       else
         createWithOnlyName name
-
-  [<NoEquality>]
-  [<NoComparison>]
-  [<RequireQualifiedAccess>]
-  type CacheCommand =
-    | Initialization of Env
-    | EmployerByChatId of ChatId * AsyncReplyChannel<Employer option>
-    | ManagerByChatId of ChatId * AsyncReplyChannel<Manager option>
-    //| OfficeByManagerChatId of ChatId * AsyncReplyChannel<RecordedOffice   option>
-    | Offices of AsyncReplyChannel<Office list option>
-    | AddOffice of Office
-    | AddEmployer of Employer
-    | AddManager of Manager
-    | CurrentCache of AsyncReplyChannel<Cache>
-    | GetOfficeEmployers of Office * AsyncReplyChannel<Employer list option>
-    | DeleteOffice of Office
-
-  type Cache =
-    { Employers: Employer list
-      Offices: Office list
-      Managers: Manager list }
-
-  [<NoEquality>]
-  [<NoComparison>]
-  type Logging =
-    { Debug: string -> unit
-      Info: string -> unit
-      Error: string -> unit
-      Warning: string -> unit
-      Fatal: string -> unit }
 
   type Manager =
     { ChatId: ChatId
