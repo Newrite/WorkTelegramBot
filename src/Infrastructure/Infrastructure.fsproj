@@ -35,9 +35,8 @@
 
   <ItemGroup>
     <Compile Include="Env.fs" />
-    <Compile Include="DatabaseRefactor.fs" />
-    <Compile Include="HydraGenerated.fs" />
     <Compile Include="Database.fs" />
+    <Compile Include="HydraGenerated.fs" />
     <Compile Include="Cache.fs" />
   </ItemGroup>
 
