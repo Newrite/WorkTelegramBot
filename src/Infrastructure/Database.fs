@@ -153,7 +153,9 @@ module Database =
 
     tran.TryCommit()
 
-    result
+    match result with
+    | Ok _ -> Ok ()
+    | Error err -> err |> AppError.DatabaseError |> Error
 
   let internal selectMessages conn =
     genericSelectMany<MessageDto> conn MessageDto.TableName MessageDto.ofDataReader
@@ -197,6 +199,20 @@ module Database =
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
     genericSelectSingle<ManagerDto> conn sqlCommand sqlParam ManagerDto.ofDataReader
+
+  let internal selectOfficeById conn officeId =
+    let sqlCommand =
+      $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeId} = (@{Field.OfficeId})"
+
+    let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
+    genericSelectSingle<OfficeDto> conn sqlCommand sqlParam OfficeDto.ofDataReader
+
+  let internal selectOfficeByName conn officeName =
+    let sqlCommand =
+      $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeName} = (@{Field.OfficeName})"
+
+    let sqlParam = [ Field.OfficeId, SqlType.String officeName ]
+    genericSelectSingle<OfficeDto> conn sqlCommand sqlParam OfficeDto.ofDataReader
 
   let internal selectDeletionItemByTimeTicks conn (ticks: int64) =
     let sqlCommand =
