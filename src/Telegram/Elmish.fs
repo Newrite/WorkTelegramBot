@@ -1,6 +1,6 @@
 ﻿namespace WorkTelegram.Telegram
 
-open WorkTelegram.Core
+open WorkTelegram.Infrastructure
 
 open Funogram.Telegram.Types
 open Funogram.Telegram.Bot
@@ -105,7 +105,7 @@ module Elmish =
       { Init: Message -> 'Model
         Update: 'Message -> 'Model -> CallInit<'Model> -> 'Model
         View: Dispatch<'Message> -> 'Model -> RenderView
-        Log: Logging
+        Log: ILog
         GetChatStates: CallGetChatState option
         SaveChatState: CallSaveChatState option
         DelChatState: CallDelChatState option }
@@ -172,7 +172,7 @@ module Elmish =
             | MessageHandlerCommands.Finish -> (handler :> IDisposable).Dispose()
           with
           | exn ->
-            program.Log.Error $"Raise exception in render actor, message {exn.Message}"
+            Logger.error program.Log $"Raise exception in render actor, message {exn.Message}"
             return! cycle renderView
         }
 
@@ -218,7 +218,7 @@ module Elmish =
             (processor :> IDisposable).Dispose()
         with
         | exn ->
-          program.Log.Error $"Raise exception in elmish actor, message {exn.Message}"
+          Logger.error program.Log $"Raise exception in elmish actor, message {exn.Message}"
           return! cycle model
       }
 

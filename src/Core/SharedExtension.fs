@@ -20,6 +20,7 @@ module Either =
     match either with
     | Left _ -> false
     | Right _ -> true
+
 [<RequireQualifiedAccess>]
 module Option =
 

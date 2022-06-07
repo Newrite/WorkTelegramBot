@@ -3,10 +3,9 @@
 open WorkTelegram.Infrastructure
 
 module Configurer =
-  
-  let botConfig (env: #ICfg) =
-    env.Configurer.BotConfig
-    
+
+  let botConfig (env: #ICfg) = env.Configurer.BotConfig
+
   let IConfigurerBuilder config =
     { new ICfg with
         member _.Configurer =

@@ -1,7 +1,9 @@
 ﻿namespace WorkTelegram.Core
 
+open Donald
 open FSharp.UMX
 open System
+open WorkTelegram.Core
 
 [<AutoOpen>]
 module UMX =
@@ -11,8 +13,8 @@ module UMX =
   [<Measure>]
   type private serialnumber
 
-  [<Measure>]
-  type private macaddress
+  //[<Measure>]
+  //type private macaddress
 
   [<Measure>]
   type private lastname
@@ -37,7 +39,7 @@ module UMX =
 
   type ItemName = string<itemname>
   type Serial = string<serialnumber>
-  type MacAddress = string<macaddress>
+  //type MacAddress = string<macaddress>
   type LastName = string<lastname>
   type FirstName = string<firstname>
   type OfficeName = string<officename>
@@ -51,23 +53,119 @@ open UMX
 [<AutoOpen>]
 module Types =
 
+  [<NoComparison>]
   [<RequireQualifiedAccess>]
   type BusinessError =
-    | NotFoundInDatabase
-    | IncorrectMacAddress
-    | NumberMostBePositive
-    | IncorrectParseResult
+    | NotFoundInDatabase of SearchedType: Type
+    | IncorrectMacAddress of PassedIncorrectValue: string
+    | NumberMustBePositive of PassedIncorrectNumber: uint32
+    | IncorrectParsePositiveNumber of PassedIncorrectStringToParse: string
 
   [<NoComparison>]
   [<RequireQualifiedAccess>]
   type AppError =
-    | DatabaseError of Donald.DbError
+    | DatabaseError of DbError
     | BusinessError of BusinessError
+
+  module ErrorPatterns =
+
+    [<AutoOpen>]
+    module DatabasePatterns =
+
+      let (|ErrDataReaderOutOfRangeError|_|) (error: AppError) =
+        match error with
+        | AppError.DatabaseError databaseError ->
+          match databaseError with
+          | DbError.DataReaderOutOfRangeError dataReaderOutOfRangeError ->
+            Some(ErrDataReaderOutOfRangeError dataReaderOutOfRangeError)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrDataReaderCastError|_|) (error: AppError) =
+        match error with
+        | AppError.DatabaseError databaseError ->
+          match databaseError with
+          | DbError.DataReaderCastError dataReaderCastError ->
+            Some(ErrDataReaderCastError dataReaderCastError)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrDbConnectionError|_|) (error: AppError) =
+        match error with
+        | AppError.DatabaseError databaseError ->
+          match databaseError with
+          | DbError.DbConnectionError dbConnectionError ->
+            Some(ErrDbConnectionError dbConnectionError)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrDbTransactionError|_|) (error: AppError) =
+        match error with
+        | AppError.DatabaseError databaseError ->
+          match databaseError with
+          | DbError.DbTransactionError dbTransactionError ->
+            Some(ErrDbTransactionError dbTransactionError)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrDbExecutionError|_|) (error: AppError) =
+        match error with
+        | AppError.DatabaseError databaseError ->
+          match databaseError with
+          | DbError.DbExecutionError dbExecutionError -> Some(ErrDbExecutionError dbExecutionError)
+          | _ -> None
+        | _ -> None
+
+    [<AutoOpen>]
+    module BusinessPatterns =
+
+      let (|ErrNotFoundInDatabase|_|) (error: AppError) =
+        match error with
+        | AppError.BusinessError businessError ->
+          match businessError with
+          | BusinessError.NotFoundInDatabase searchedType ->
+            Some(ErrNotFoundInDatabase searchedType)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrIncorrectMacAddress|_|) (error: AppError) =
+        match error with
+        | AppError.BusinessError businessError ->
+          match businessError with
+          | BusinessError.IncorrectMacAddress incorrectMac ->
+            Some(ErrIncorrectMacAddress incorrectMac)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrNumberMustBePositive|_|) (error: AppError) =
+        match error with
+        | AppError.BusinessError businessError ->
+          match businessError with
+          | BusinessError.NumberMustBePositive incorrectNumber ->
+            Some(ErrNumberMustBePositive incorrectNumber)
+          | _ -> None
+        | _ -> None
+
+      let (|ErrIncorrectParsePositiveNumber|_|) (error: AppError) =
+        match error with
+        | AppError.BusinessError businessError ->
+          match businessError with
+          | BusinessError.IncorrectParsePositiveNumber incorrectString ->
+            Some(ErrIncorrectParsePositiveNumber incorrectString)
+          | _ -> None
+        | _ -> None
+
+  [<Struct>]
+  type MacAddress =
+    private
+      { Value: string }
+
+    member self.GetValue = self.Value
 
   [<RequireQualifiedAccess>]
   module MacAddress =
 
-    let validate (input: string) =
+    let fromString (input: string) =
 
       let rec format (chars: char []) (acc: string) counter position =
         if position > 11 then
@@ -95,8 +193,16 @@ module Types =
       match r.IsMatch(inputCleaned) with
       | true ->
         let macAddress = format (inputCleaned.ToCharArray()) "" 0 0
-        %macAddress |> Ok
-      | false -> BusinessError.IncorrectMacAddress |> Error
+        { Value = macAddress } |> Ok
+      | false ->
+        input
+        |> BusinessError.IncorrectMacAddress
+        |> Error
+
+    let fromOptionString (input: string option) =
+      match input with
+      | Some m -> fromString m |> Option.ofResult
+      | None -> None
 
   [<RequireQualifiedAccess>]
   module OfficeName =
@@ -132,12 +238,17 @@ module Types =
       if count > 0u then
         { Value = count } |> Ok
       else
-        Error BusinessError.NumberMostBePositive
+        count
+        |> BusinessError.NumberMustBePositive
+        |> Error
 
     let tryParse (str: string) =
       match UInt32.TryParse(str) with
       | true, value -> create value
-      | false, _ -> Error BusinessError.IncorrectParseResult
+      | false, _ ->
+        str
+        |> BusinessError.IncorrectParsePositiveNumber
+        |> Error
 
     let one = { Value = 1u }
 
@@ -254,7 +365,7 @@ module Types =
     override self.ToString() =
       let macText =
         if self.Item.MacAddress.IsSome then
-          %self.Item.MacAddress.Value
+          self.Item.MacAddress.Value.Value
         else
           "Нет"
 

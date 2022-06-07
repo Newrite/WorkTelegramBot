@@ -65,7 +65,8 @@ type RecordEmployer =
   { FirstName: string
     LastName: string
     ChatId: int64
-    OfficeId: int64 }
+    OfficeId: int64
+    OfficeName: string }
 
 type RecordDeletionItem =
   { ItemName: string
@@ -86,6 +87,7 @@ module Record =
 
   let createEmployer
     (officeId: OfficeId)
+    (officeName: OfficeName)
     (firstName: FirstName)
     (lastName: LastName)
     (chatId: ChatId)
@@ -93,6 +95,7 @@ module Record =
     { FirstName = %firstName
       LastName = %lastName
       OfficeId = %officeId
+      OfficeName = %officeName
       ChatId = %chatId }
 
   let createDeletionItem
@@ -105,7 +108,7 @@ module Record =
     =
     { ItemName = %item.Name
       ItemSerial = Option.map (fun s -> %s) item.Serial
-      ItemMac = Option.map (fun m -> %m) item.MacAddress
+      ItemMac = Option.map (fun (m: MacAddress) -> m.GetValue) item.MacAddress
       Count = count.GetValue
       Time = time
       Location = Option.map (fun l -> %l) location
@@ -123,7 +126,8 @@ module ChatIdDto =
 
   let toDomain (chatIdTable: ChatIdDto) : ChatId = %chatIdTable.ChatId
 
-  let [<Literal>] TableName = "chat_id"
+  [<Literal>]
+  let TableName = "chat_id"
 
 type MessageDto = { ChatId: int64; MessageJson: string }
 
@@ -134,14 +138,15 @@ module MessageDto =
     { ChatId = rd.ReadInt64 Field.ChatId
       MessageJson = rd.ReadString Field.MessageJson }
 
-  let fromDomain (chatId: ChatId) (message: Funogram.Telegram.Types.Message) =
-    { ChatId = %chatId
+  let fromDomain (message: Funogram.Telegram.Types.Message) =
+    { ChatId = message.Chat.Id
       MessageJson = Json.serialize message }
 
   let toDomain (message: MessageDto) =
     Json.deserialize<Funogram.Telegram.Types.Message> message.MessageJson
 
-  let [<Literal>] TableName = "message"
+  [<Literal>]
+  let TableName = "message"
 
 type ManagerDto =
   { ChatId: int64
@@ -166,7 +171,8 @@ module ManagerDto =
       FirstName = %manager.FirstName
       LastName = %manager.LastName }
 
-  let [<Literal>] TableName = "manager"
+  [<Literal>]
+  let TableName = "manager"
 
 type OfficeDto =
   { OfficeId: int64
@@ -204,7 +210,8 @@ module OfficeDto =
       OfficeName = %office.OfficeName
       Manager = manager }
 
-  let [<Literal>] TableName = "office"
+  [<Literal>]
+  let TableName = "office"
 
 type EmployerDto =
   { ChatId: int64
@@ -237,14 +244,15 @@ module EmployerDto =
       FirstName = %employer.FirstName
       LastName = %employer.LastName
       Office = office }
-    
+
   let toDomainWithOffice (office: Office) (employer: EmployerDto) =
     { ChatId = %employer.ChatId
       FirstName = %employer.FirstName
       LastName = %employer.LastName
       Office = office }
 
-  let [<Literal>] TableName = "employer"
+  [<Literal>]
+  let TableName = "employer"
 
 type DeletionItemDto =
   { DeletionId: int64
@@ -279,7 +287,7 @@ module DeletionItemDto =
     { DeletionId = %item.DeletionId
       ItemName = %item.Item.Name
       ItemSerial = Option.map (fun s -> %s) item.Item.Serial
-      ItemMac = Option.map (fun m -> %m) item.Item.MacAddress
+      ItemMac = Option.map (fun (m: MacAddress) -> m.GetValue) item.Item.MacAddress
       Count = item.Count.GetValue |> int64
       Date = item.Time.Ticks
       IsDeletion = item.IsDeletion
@@ -298,7 +306,7 @@ module DeletionItemDto =
 
     let itemRecorded =
       let serial = Option.map (fun s -> %s) item.ItemSerial
-      let macaddress = Option.map (fun m -> %m) item.ItemMac
+      let macaddress = MacAddress.fromOptionString item.ItemMac
       Item.create %item.ItemName serial macaddress
 
     let count =
@@ -320,7 +328,7 @@ module DeletionItemDto =
 
     let itemRecorded =
       let serial = Option.map (fun s -> %s) item.ItemSerial
-      let macaddress = Option.map (fun m -> %m) item.ItemMac
+      let macaddress = MacAddress.fromOptionString item.ItemMac
       Item.create %item.ItemName serial macaddress
 
     let count =
@@ -338,4 +346,5 @@ module DeletionItemDto =
       Location = Option.map (fun l -> %l) item.ToLocation
       Count = count.Value }
 
-  let [<Literal>] TableName = "deletion_items"
+  [<Literal>]
+  let TableName = "deletion_items"

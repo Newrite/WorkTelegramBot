@@ -78,7 +78,7 @@ module Database =
       Logger.info env $"Failed create connection to database"
       reraise ()
 
-  let initalizationTables (env: #IDb) =
+  let initTables (env: #IDb) =
     Logger.info env $"Execute schema sql script"
 
     use command = new SqliteCommand(schema, env.Db.Conn)
@@ -97,8 +97,8 @@ module Database =
     Db.newCommand sql env.Db.Conn
     |> Db.query ofDataReader
     |> function
-      | Ok list -> list
-      | Error _ -> []
+      | Ok list -> list |> Ok
+      | Error err -> err |> AppError.DatabaseError |> Error
 
   let private genericSelectManyWithWhere<'a>
     conn
@@ -110,10 +110,15 @@ module Database =
     |> Db.setParams sqlParam
     |> Db.query ofDataReader
     |> function
-      | Ok list -> list
-      | Error _ -> []
+      | Ok list -> list |> Ok
+      | Error err -> err |> AppError.DatabaseError |> Error
 
-  let private genericSelectSingle<'a> (env: #IDb) sqlCommand sqlParam (ofDataReader: IDataReader -> 'a) =
+  let private genericSelectSingle<'a>
+    (env: #IDb)
+    sqlCommand
+    sqlParam
+    (ofDataReader: IDataReader -> 'a)
+    =
     Db.newCommand sqlCommand env.Db.Conn
     |> Db.setParams sqlParam
     |> Db.querySingle ofDataReader
@@ -122,7 +127,7 @@ module Database =
         match opt with
         | Some v -> Ok v
         | None ->
-          BusinessError.NotFoundInDatabase
+          BusinessError.NotFoundInDatabase(typedefof<'a>)
           |> AppError.BusinessError
           |> Error
       | Error err -> err |> AppError.DatabaseError |> Error
@@ -140,7 +145,7 @@ module Database =
     tran.TryCommit()
 
     match result with
-    | Ok _ -> Ok ()
+    | Ok _ -> Ok()
     | Error err -> err |> AppError.DatabaseError |> Error
 
   let private transactionManyExn (env: #IDb) sqlCommand sqlParam =
@@ -155,7 +160,7 @@ module Database =
     tran.TryCommit()
 
     match result with
-    | Ok _ -> Ok ()
+    | Ok _ -> Ok()
     | Error err -> err |> AppError.DatabaseError |> Error
 
   let internal selectMessages env =
@@ -359,8 +364,24 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
+  let internal deleteMessageJson env (chatIdDto: ChatIdDto) =
+    let sqlCommand =
+      $"DELETE FROM {ChatIdDto.TableName}
+        WHERE {Field.ChatId} = (@{Field.ChatId})"
+
+    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
+
+    transactionSingleExn env sqlCommand sqlParam
+
+  let insertChatId env (chatIdDto: ChatIdDto) =
+    let sqlCommand = $"INSERT INTO OR IGNORE {ChatIdDto.TableName} ({Field.ChatId})"
+
+    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
+
+    transactionSingleExn env sqlCommand sqlParam
+
   let IDbBuilder conn =
     { new IDb with
-      member _.Db =
-        { new IDatabase with
-          member _.Conn = conn } }
+        member _.Db =
+          { new IDatabase with
+              member _.Conn = conn } }

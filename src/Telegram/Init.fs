@@ -16,11 +16,11 @@ module Init =
 
     let startInit () =
 
-      let manager = Cache.managerByChatId env chatId
-      let employer = Cache.employerByChatId env chatId
+      let manager = Cache.tryGetManagerByChatId env chatId
+      let employer = Cache.tryGetEmployerByChatId env chatId
 
       if manager.IsSome then
-        let offices = Database.selectOfficesByManagerChatId env manager.Value.ChatId
+        let offices = Cache.getOfficesByManagerId env manager.Value.ChatId
 
         match offices.Length with
         | 0 ->
@@ -42,11 +42,6 @@ module Init =
       else
         AuthProcess.Model.NoAuth |> CoreModel.Auth
 
-    match Database.insertChatId env chatId with
+    match Database.insertChatId env { ChatId = message.Chat.Id } with
     | Ok _ -> startInit ()
-    | Error err ->
-
-    match err with
-    | DatabaseError.ChatIdAlreadyExistInDatabase _ -> startInit ()
-    | DatabaseError.SQLiteException exn -> CoreModel.Error exn.Message
-    | _ -> startInit ()
+    | Error err -> CoreModel.Error(string err)
