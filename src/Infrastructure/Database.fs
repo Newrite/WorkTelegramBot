@@ -1,11 +1,12 @@
 ﻿namespace WorkTelegram.Infrastructure
 
 open WorkTelegram.Core
-open WorkTelegram.Infrastucture
 
 open Donald
 open System.Data
 open Microsoft.Data.Sqlite
+
+#nowarn "64"
 
 module Database =
 
@@ -61,8 +62,8 @@ module Database =
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
       );"
 
-  let createConnection (env: #ILog) databaseName =
-    env.Logger.Info "Start create connection to database"
+  let createConnection env databaseName =
+    Logger.info env "Start create connection to database"
 
     try
       let connectionString = SqliteConnectionStringBuilder()
@@ -70,19 +71,19 @@ module Database =
       connectionString.ForeignKeys <- System.Nullable<_>(true)
       let conn = new SqliteConnection(connectionString.ToString())
       conn.Open()
-      env.Logger.Info $"Success create connection to database = {connectionString.ToString()}"
+      Logger.info env $"Success create connection to database = {connectionString.ToString()}"
       conn
     with
     | _ ->
-      env.Logger.Error $"Failed create connection to database"
+      Logger.info env $"Failed create connection to database"
       reraise ()
 
-  let initalizationTables (env: #ILog) conn =
-    env.Logger.Info $"Execute schema sql script"
+  let initalizationTables (env: #IDb) =
+    Logger.info env $"Execute schema sql script"
 
-    use command = new SqliteCommand(schema, conn)
+    use command = new SqliteCommand(schema, env.Db.Conn)
     let result = command.ExecuteNonQuery()
-    env.Logger.Debug $"Schema executed with code: {result}"
+    Logger.debug env $"Schema executed with code: {result}"
 
   let private stringOrNull (opt: string option) =
     if opt.IsSome then
@@ -90,10 +91,10 @@ module Database =
     else
       SqlType.Null
 
-  let private genericSelectMany<'a> conn tableName (ofDataReader: IDataReader -> 'a) =
+  let private genericSelectMany<'a> (env: #IDb) tableName (ofDataReader: IDataReader -> 'a) =
     let sql = $"SELECT * FROM {tableName}"
 
-    Db.newCommand sql conn
+    Db.newCommand sql env.Db.Conn
     |> Db.query ofDataReader
     |> function
       | Ok list -> list
@@ -112,8 +113,8 @@ module Database =
       | Ok list -> list
       | Error _ -> []
 
-  let private genericSelectSingle<'a> conn sqlCommand sqlParam (ofDataReader: IDataReader -> 'a) =
-    Db.newCommand sqlCommand conn
+  let private genericSelectSingle<'a> (env: #IDb) sqlCommand sqlParam (ofDataReader: IDataReader -> 'a) =
+    Db.newCommand sqlCommand env.Db.Conn
     |> Db.setParams sqlParam
     |> Db.querySingle ofDataReader
     |> function
@@ -126,12 +127,12 @@ module Database =
           |> Error
       | Error err -> err |> AppError.DatabaseError |> Error
 
-  let private transactionSingleExn (conn: IDbConnection) sqlCommand sqlParam =
+  let private transactionSingleExn (env: #IDb) sqlCommand sqlParam =
 
-    use tran = conn.TryBeginTransaction()
+    use tran = env.Db.Conn.TryBeginTransaction()
 
     let result =
-      Db.newCommand sqlCommand conn
+      Db.newCommand sqlCommand env.Db.Conn
       |> Db.setParams sqlParam
       |> Db.setTransaction tran
       |> Db.exec
@@ -142,12 +143,12 @@ module Database =
     | Ok _ -> Ok ()
     | Error err -> err |> AppError.DatabaseError |> Error
 
-  let private transactionManyExn (conn: IDbConnection) sqlCommand sqlParam =
+  let private transactionManyExn (env: #IDb) sqlCommand sqlParam =
 
-    use tran = conn.TryBeginTransaction()
+    use tran = env.Db.Conn.TryBeginTransaction()
 
     let result =
-      Db.newCommand sqlCommand conn
+      Db.newCommand sqlCommand env.Db.Conn
       |> Db.setTransaction tran
       |> Db.execMany sqlParam
 
@@ -157,71 +158,71 @@ module Database =
     | Ok _ -> Ok ()
     | Error err -> err |> AppError.DatabaseError |> Error
 
-  let internal selectMessages conn =
-    genericSelectMany<MessageDto> conn MessageDto.TableName MessageDto.ofDataReader
+  let internal selectMessages env =
+    genericSelectMany<MessageDto> env MessageDto.TableName MessageDto.ofDataReader
 
-  let internal selectManagers conn =
-    genericSelectMany<ManagerDto> conn ManagerDto.TableName ManagerDto.ofDataReader
+  let internal selectManagers env =
+    genericSelectMany<ManagerDto> env ManagerDto.TableName ManagerDto.ofDataReader
 
-  let internal selectOffices conn =
-    genericSelectMany<OfficeDto> conn OfficeDto.TableName OfficeDto.ofDataReader
+  let internal selectOffices env =
+    genericSelectMany<OfficeDto> env OfficeDto.TableName OfficeDto.ofDataReader
 
-  let internal selectEmployers conn =
-    genericSelectMany<EmployerDto> conn EmployerDto.TableName EmployerDto.ofDataReader
+  let internal selectEmployers env =
+    genericSelectMany<EmployerDto> env EmployerDto.TableName EmployerDto.ofDataReader
 
-  let internal selectDeletionItems conn =
-    genericSelectMany<DeletionItemDto> conn DeletionItemDto.TableName DeletionItemDto.ofDataReader
+  let internal selectDeletionItems env =
+    genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
 
-  let internal selectMessageByChatId conn (chatIdDto: ChatIdDto) =
+  let internal selectMessageByChatId env (chatIdDto: ChatIdDto) =
     let sqlCommand =
       $"SELECT * FROM {MessageDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<MessageDto> conn sqlCommand sqlParam MessageDto.ofDataReader
+    genericSelectSingle<MessageDto> env sqlCommand sqlParam MessageDto.ofDataReader
 
-  let internal selectOfficesByManagerChatId conn (chatIdDto: ChatIdDto) =
+  let internal selectOfficesByManagerChatId env (chatIdDto: ChatIdDto) =
     let sqlCommand =
       $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.ManagerId} = (@{Field.ManagerId})"
 
     let sqlParam = [ Field.ManagerId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectManyWithWhere<OfficeDto> conn sqlCommand sqlParam OfficeDto.ofDataReader
+    genericSelectManyWithWhere<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
 
-  let internal selectEmployerByChatId conn (chatIdDto: ChatIdDto) =
+  let internal selectEmployerByChatId env (chatIdDto: ChatIdDto) =
     let sqlCommand =
       $"SELECT * FROM {EmployerDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<EmployerDto> conn sqlCommand sqlParam EmployerDto.ofDataReader
+    genericSelectSingle<EmployerDto> env sqlCommand sqlParam EmployerDto.ofDataReader
 
-  let internal selectManagerByChatId conn (chatIdDto: ChatIdDto) =
+  let internal selectManagerByChatId env (chatIdDto: ChatIdDto) =
     let sqlCommand =
       $"SELECT * FROM {ManagerDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<ManagerDto> conn sqlCommand sqlParam ManagerDto.ofDataReader
+    genericSelectSingle<ManagerDto> env sqlCommand sqlParam ManagerDto.ofDataReader
 
-  let internal selectOfficeById conn officeId =
+  let internal selectOfficeById env officeId =
     let sqlCommand =
       $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeId} = (@{Field.OfficeId})"
 
     let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
-    genericSelectSingle<OfficeDto> conn sqlCommand sqlParam OfficeDto.ofDataReader
+    genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
 
-  let internal selectOfficeByName conn officeName =
+  let internal selectOfficeByName env officeName =
     let sqlCommand =
       $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeName} = (@{Field.OfficeName})"
 
     let sqlParam = [ Field.OfficeId, SqlType.String officeName ]
-    genericSelectSingle<OfficeDto> conn sqlCommand sqlParam OfficeDto.ofDataReader
+    genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
 
-  let internal selectDeletionItemByTimeTicks conn (ticks: int64) =
+  let internal selectDeletionItemByTimeTicks env (ticks: int64) =
     let sqlCommand =
       $"SELECT * FROM {DeletionItemDto.TableName} WHERE {Field.Date} = (@{Field.Date})"
 
     let sqlParam = [ Field.Date, SqlType.Int64 ticks ]
-    genericSelectSingle<DeletionItemDto> conn sqlCommand sqlParam DeletionItemDto.ofDataReader
+    genericSelectSingle<DeletionItemDto> env sqlCommand sqlParam DeletionItemDto.ofDataReader
 
-  let internal insertMessage conn (messageDto: MessageDto) =
+  let internal insertMessage env (messageDto: MessageDto) =
     let sqlCommand =
       $"INSERT INTO OR IGNORE {MessageDto.TableName}
         ({Field.ChatId}, {Field.MessageJson})"
@@ -230,9 +231,9 @@ module Database =
       [ Field.ChatId, SqlType.Int64 messageDto.ChatId
         Field.MessageJson, SqlType.String messageDto.MessageJson ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertManager conn (managerDto: ManagerDto) =
+  let internal insertManager env (managerDto: ManagerDto) =
     let sqlCommand =
       $"INSERT INTO OR IGNORE {ManagerDto.TableName}
         ({Field.ChatId}, {Field.FirstName}, {Field.LastName})"
@@ -242,9 +243,9 @@ module Database =
         Field.FirstName, SqlType.String managerDto.FirstName
         Field.LastName, SqlType.String managerDto.LastName ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertOffice conn (officeRecord: RecordOffice) =
+  let internal insertOffice env (officeRecord: RecordOffice) =
     let sqlCommand =
       $"INSERT INTO OR IGNORE {OfficeDto.TableName} 
         ({Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})"
@@ -254,9 +255,9 @@ module Database =
         Field.IsHidden, SqlType.Boolean false
         Field.ManagerId, SqlType.Int64 officeRecord.ManagerChatId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertEmployer conn (employerRecord: RecordEmployer) =
+  let internal insertEmployer env (employerRecord: RecordEmployer) =
     let sqlCommand =
       $"INSERT INTO OR IGNORE {EmployerDto.TableName} 
         ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})"
@@ -268,9 +269,9 @@ module Database =
         Field.IsApproved, SqlType.Boolean false
         Field.OfficeId, SqlType.Int64 employerRecord.OfficeId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertDeletionItem conn (deletionItemRecord: RecordDeletionItem) =
+  let internal insertDeletionItem env (deletionItemRecord: RecordDeletionItem) =
     let sqlCommand =
       $"INSERT INTO OR IGNORE {DeletionItemDto.TableName}
         ({Field.ItemName},
@@ -299,9 +300,9 @@ module Database =
         Field.OfficeId, SqlType.Int64 deletionItemRecord.OfficeId
         Field.ChatId, SqlType.Int64 deletionItemRecord.EmployerChatId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal updateEmployerApprovedByChatId conn (chatIdDto: ChatIdDto) isApproved =
+  let internal updateEmployerApprovedByChatId env (chatIdDto: ChatIdDto) isApproved =
     let sqlCommand =
       $"UPDATE {EmployerDto.TableName} 
         SET {Field.IsApproved} = (@{Field.IsApproved})
@@ -311,9 +312,9 @@ module Database =
       [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId
         Field.IsApproved, SqlType.Boolean isApproved ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal setTrueForDeletionFieldOfOfficeItems conn officeId =
+  let internal setTrueForDeletionFieldOfOfficeItems env officeId =
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
@@ -323,9 +324,9 @@ module Database =
       [ Field.IsDeletion, SqlType.Boolean true
         Field.OfficeId, SqlType.Int64 officeId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal setTrueForHiddenFieldOfItem conn deletionId =
+  let internal setTrueForHiddenFieldOfItem env deletionId =
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsHidden} = (@{Field.IsHidden})
@@ -335,9 +336,9 @@ module Database =
       [ Field.IsHidden, SqlType.Boolean true
         Field.DeletionId, SqlType.Int64 deletionId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal updateMessage conn (messageDto: MessageDto) =
+  let internal updateMessage env (messageDto: MessageDto) =
     let sqlCommand =
       $"UPDATE {MessageDto.TableName}
         SET {Field.MessageJson} = (@{Field.MessageJson})
@@ -347,13 +348,19 @@ module Database =
       [ Field.MessageJson, SqlType.String messageDto.MessageJson
         Field.ChatId, SqlType.Int64 messageDto.ChatId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
 
-  let internal deleteOffice conn officeId =
+  let internal deleteOffice env officeId =
     let sqlCommand =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
 
     let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
 
-    transactionSingleExn conn sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParam
+
+  let IDbBuilder conn =
+    { new IDb with
+      member _.Db =
+        { new IDatabase with
+          member _.Conn = conn } }

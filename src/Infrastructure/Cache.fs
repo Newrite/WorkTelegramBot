@@ -1,9 +1,9 @@
 ﻿namespace WorkTelegram.Infrastructure
 
 open WorkTelegram.Core
-open System.Data
 open FSharp.UMX
-open Donald
+open WorkTelegram.Infrastructure
+
 [<NoEquality>]
 [<NoComparison>]
 [<RequireQualifiedAccess>]
@@ -13,11 +13,11 @@ type CacheCommand =
   | GetEmployers of AsyncReplyChannel<Employer list>
   | GetManagers of AsyncReplyChannel<Manager list>
   | GetMessages of AsyncReplyChannel<Funogram.Telegram.Types.Message list>
-  | GetOfficesByManagerId of UMX.ChatId * AsyncReplyChannel<Office list>
-  | TryGetEmployerByChatId of UMX.ChatId * AsyncReplyChannel<Result<Employer, BusinessError>>
-  | TryGetManagerByChatId of UMX.ChatId * AsyncReplyChannel<Result<Manager, BusinessError>>
+  | GetOfficesByManagerId of ChatId * AsyncReplyChannel<Office list>
+  | TryGetEmployerByChatId of ChatId * AsyncReplyChannel<Result<Employer, BusinessError>>
+  | TryGetManagerByChatId of ChatId * AsyncReplyChannel<Result<Manager, BusinessError>>
   | TryGetMessageByChatId of
-    UMX.ChatId *
+    ChatId *
     AsyncReplyChannel<Result<Funogram.Telegram.Types.Message, BusinessError>>
   | TryAddOfficeInDb of RecordOffice * AsyncReplyChannel<Result<Office, AppError>>
   | TryAddEmployerInDb of RecordEmployer * AsyncReplyChannel<Result<Employer, AppError>>
@@ -29,15 +29,13 @@ type CacheCommand =
   | TryUpdateEmployerApprovedInDb of
     Employer *
     bool *
-    AsyncReplyChannel<Result<Employer, BusinessError>>
-  | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<Result<unit, BusinessError>>
+    AsyncReplyChannel<bool>
+  | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<bool>
   | TryHideDeletionItem of DeletionId * AsyncReplyChannel<bool>
-  | TryDeleteOffice of OfficeId * AsyncReplyChannel<Result<unit, BusinessError>>
+  | TryDeleteOffice of OfficeId * AsyncReplyChannel<bool>
 
 [<NoComparison>]
-type CacheContext =
-  { Conn: IDbConnection
-    Logger: WorkTelegram.Infrastucture.AppEnv.IAppLogger }
+type CacheContext = { Database: IDb; Logger: ILog }
 
 [<NoComparison>]
 type private Cache =
@@ -51,11 +49,11 @@ module Cache =
 
   let private initializationCache (ctx: CacheContext) =
 
-    let employersDto = Database.selectEmployers ctx.Conn
-    let managersDto = Database.selectManagers ctx.Conn
-    let officesDto = Database.selectOffices ctx.Conn
-    let deletionItemsDto = Database.selectDeletionItems ctx.Conn
-    let messagesDto = Database.selectMessages ctx.Conn
+    let employersDto = Database.selectEmployers ctx.Database
+    let managersDto = Database.selectManagers ctx.Database
+    let officesDto = Database.selectOffices ctx.Database
+    let deletionItemsDto = Database.selectDeletionItems ctx.Database
+    let messagesDto = Database.selectMessages ctx.Database
 
     let findManager (id: int64) =
       List.find (fun (m: ManagerDto) -> m.ChatId = id) managersDto
@@ -174,8 +172,8 @@ module Cache =
           let result =
             result {
               let ticks = let x = item.Time in x.Ticks
-              let! _ = Database.insertDeletionItem ctx.Conn item
-              and! itemDto = Database.selectDeletionItemByTimeTicks ctx.Conn ticks
+              let! _ = Database.insertDeletionItem ctx.Database item
+              and! itemDto = Database.selectDeletionItemByTimeTicks ctx.Database ticks
               return itemDto
             }
 
@@ -198,24 +196,25 @@ module Cache =
             err |> Error |> channel.Reply
             return! cacheHandler cache
 
-        | CacheCommand.TryAddManagerInDb(managerDto, channel) ->
-              
-          let result = Database.insertManager ctx.Conn managerDto
+        | CacheCommand.TryAddManagerInDb (managerDto, channel) ->
+
+          let result = Database.insertManager ctx.Database managerDto
+
           match result with
           | Ok _ ->
-              let manager = ManagerDto.toDomain managerDto
-              manager |> Ok |> channel.Reply
-              return! cacheHandler { cache with  Cache.Managers = manager :: cache.Managers }
-          | Error err ->  err |> Error |> channel.Reply
+            let manager = ManagerDto.toDomain managerDto
+            manager |> Ok |> channel.Reply
+            return! cacheHandler { cache with Cache.Managers = manager :: cache.Managers }
+          | Error err -> err |> Error |> channel.Reply
 
-        | CacheCommand.TryAddOfficeInDb(officeRecord, channel) ->
-              
+        | CacheCommand.TryAddOfficeInDb (officeRecord, channel) ->
+
           let result =
             result {
-              let! _ = Database.insertOffice ctx.Conn officeRecord
+              let! _ = Database.insertOffice ctx.Database officeRecord
               let chatIdDto = ChatIdDto.fromDomain %officeRecord.ManagerChatId
-              let! manager = Database.selectManagerByChatId ctx.Conn chatIdDto
-              and! officeDto = Database.selectOfficeByName ctx.Conn officeRecord.OfficeName
+              let! manager = Database.selectManagerByChatId ctx.Database chatIdDto
+              and! officeDto = Database.selectOfficeByName ctx.Database officeRecord.OfficeName
               return (ManagerDto.toDomain manager, officeDto)
             }
 
@@ -228,14 +227,39 @@ module Cache =
             err |> Error |> channel.Reply
             return! cacheHandler cache
 
-        | CacheCommand.TryHideDeletionItem(deletionId, channel) ->
-          let result = Database.setTrueForHiddenFieldOfItem ctx.Conn %deletionId
+        | CacheCommand.TryAddEmployerInDb (employerRecord, channel) ->
+          let result = Database.insertEmployer ctx.Database employerRecord
+          match result with
+          | Ok _ ->
+            let office = cache.Offices |> List.find (fun o -> %o.OfficeId = employerRecord.OfficeId)
+            let employer =
+              { ChatId = employerRecord.ChatId
+                FirstName = employerRecord.FirstName
+                LastName = employerRecord.LastName
+                IsApproved = false
+                OfficeId = employerRecord.OfficeId }
+              |> EmployerDto.toDomainWithOffice office
+            employer |> Ok |> channel.Reply
+            return! cacheHandler { cache with Cache.Employers = employer :: cache.Employers }
+          | Error err ->
+            err |> Error |> channel.Reply
+            return! cacheHandler cache
+
+        | CacheCommand.TryHideDeletionItem (deletionId, channel) ->
+          let result = Database.setTrueForHiddenFieldOfItem ctx.Database %deletionId
+
           match result with
           | Ok _ ->
             channel.Reply true
+
             let updatedList =
               cache.DeletionItems
-              |> List.map (fun di -> if di.DeletionId = deletionId then { di with IsHidden = true } else di)
+              |> List.map (fun di ->
+                if di.DeletionId = deletionId then
+                  { di with IsHidden = true }
+                else
+                  di)
+
             return! cacheHandler { cache with Cache.DeletionItems = updatedList }
           | Error _ ->
             channel.Reply false
@@ -266,284 +290,211 @@ module Cache =
               cacheHandler cache
 
           if isExist then
-            let result = Database.updateMessage ctx.Conn message
+            let result = Database.updateMessage ctx.Database message
             return! resultHandler result
           else
 
-            let result = Database.insertMessage ctx.Conn message
+            let result = Database.insertMessage ctx.Database message
             return! resultHandler result
-
+            
+        | CacheCommand.TryDeleteOffice (officeId, channel) ->
+          let result = Database.deleteOffice ctx.Database %officeId
+          match result with
+          | Ok _ ->
+            let updatedList =
+              cache.Offices
+              |> List.filter (fun o -> o.OfficeId <> officeId)
+            channel.Reply true
+            return! cacheHandler { cache with Cache.Offices = updatedList }
+          | Error _ ->
+            channel.Reply false
+            return! cacheHandler cache
+            
+        | CacheCommand.TrySetDeletionOnItemsOfOffice(officeId, channel) ->
+          let result = Database.setTrueForDeletionFieldOfOfficeItems ctx.Database %officeId
+          match result with
+          | Ok _ ->
+            channel.Reply true
+            let updatedList =
+              cache.DeletionItems
+              |> List.map (fun di ->
+                if di.Employer.Office.OfficeId = officeId then
+                  { di with IsDeletion = true }
+                else
+                  di)
+            return! cacheHandler { cache with Cache.DeletionItems = updatedList }
+          | Error _ ->
+            channel.Reply false
+            return! cacheHandler cache
+            
+        | CacheCommand.TryUpdateEmployerApprovedInDb(employer, isApproved, channel) ->
+          let chatIdDto = ChatIdDto.fromDomain employer.ChatId
+          let result = Database.updateEmployerApprovedByChatId ctx.Database chatIdDto isApproved
+          match result with
+          | Ok _ ->
+            channel.Reply true
+            return! cacheHandler cache
+          | Error _ ->
+            channel.Reply false
+            return! cacheHandler cache
       }
 
     cacheHandler cache
 
-  let inline private reply (cacheActor: MailboxProcessor<CacheCommand>) asyncReplyChannel =
-    cacheActor.PostAndReply(asyncReplyChannel)
+  let inline private reply (env: #ICache<_>) asyncReplyChannel =
+    env.Cache.Mailbox.PostAndReply(asyncReplyChannel)
 
-  let getOffices
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
-    env.Logger.Debug $"Get offices from cache"
+  let getOffices env =
+    Logger.debug env $"Get offices from cache"
 
-    reply cacheActor
-    ^ fun channel -> CacheCommand.GetOffices(channel)
+    reply env CacheCommand.GetOffices
 
-  let getOfficesAsync env cacheActor = task { return getOffices env cacheActor }
+  let getOfficesAsync env = task { return getOffices env }
 
-  let getDeletionItems
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
-    env.Logger.Debug $"Get deletion items from cache"
+  let getDeletionItems env =
+    Logger.debug env $"Get deletion items from cache"
 
-    reply cacheActor
-    ^ fun channel -> CacheCommand.GetDeletionItems(channel)
+    reply env CacheCommand.GetDeletionItems
 
-  let getDeletionItemsAsync env cacheActor = task { return getDeletionItems env cacheActor }
+  let getDeletionItemsAsync env = task { return getDeletionItems env }
 
-  let getEmployers
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
-    env.Logger.Debug $"Get employers from cache"
+  let getEmployers env =
+    Logger.debug env $"Get employers from cache"
 
-    reply cacheActor
-    ^ fun channel -> CacheCommand.GetEmployers(channel)
+    reply env CacheCommand.GetEmployers
 
-  let getEmployersAsync env cacheActor = task { return getEmployers env cacheActor }
+  let getEmployersAsync env = task { return getEmployers env }
 
-  let getManagers
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
-    env.Logger.Debug $"Get managers from cache"
+  let getManagers env =
+    Logger.debug env $"Get managers from cache"
 
-    reply cacheActor
-    ^ fun channel -> CacheCommand.GetManagers(channel)
+    reply env CacheCommand.GetManagers
 
-  let getMangersAsync env cacheActor = task { return getManagers env cacheActor }
+  let getMangersAsync env = task { return getManagers env }
 
-  let getMessages
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
-    env.Logger.Debug $"Get messages from cache"
+  let getMessages env =
+    Logger.debug env $"Get messages from cache"
 
-    reply cacheActor
-    ^ fun channel -> CacheCommand.GetMessages(channel)
+    reply env CacheCommand.GetMessages
 
-  let getMessagesAsync env cacheActor = task { return getMessages env cacheActor }
+  let getMessagesAsync env = task { return getMessages env }
 
-  let getOfficesByManagerId
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (chatId: UMX.ChatId)
-    =
-    env.Logger.Debug $"Get offices by manager id {chatId} from cache"
+  let getOfficesByManagerId env (chatId: ChatId) =
+    Logger.debug env $"Get offices by manager id {chatId} from cache"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.GetOfficesByManagerId(chatId, channel)
 
-  let getOfficesByManagerIdAsync env cacheActor chatId =
-    task { return getOfficesByManagerId env cacheActor chatId }
+  let getOfficesByManagerIdAsync env chatId = task { return getOfficesByManagerId env chatId }
 
-  let tryGetEmployerByChatId
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (chatId: UMX.ChatId)
-    =
-    env.Logger.Debug $"Get employer by chat id {chatId} from cache"
+  let tryGetEmployerByChatId env (chatId: ChatId) =
+    Logger.debug env $"Get employer by chat id {chatId} from cache"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryGetEmployerByChatId(chatId, channel)
 
-  let tryGetEmployerByChatIdAsync env cacheActor chatId =
-    task { return tryGetEmployerByChatId env cacheActor chatId }
+  let tryGetEmployerByChatIdAsync env chatId = task { return tryGetEmployerByChatId env chatId }
 
-  let tryGetManagerByChatId
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (chatId: UMX.ChatId)
-    =
-    env.Logger.Debug $"Get manager by chat id {chatId} from cache"
+  let tryGetManagerByChatId env (chatId: ChatId) =
+    Logger.debug env $"Get manager by chat id {chatId} from cache"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryGetManagerByChatId(chatId, channel)
 
-  let tryGetManagerByChatIdAsync env cacheActor chatId =
-    task { return tryGetManagerByChatId env cacheActor chatId }
+  let tryGetManagerByChatIdAsync env chatId = task { return tryGetManagerByChatId env chatId }
 
-  let tryGetMessageByChatId
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (chatId: UMX.ChatId)
-    =
-    env.Logger.Debug $"Get message by chat id {chatId} from cache"
+  let tryGetMessageByChatId env (chatId: ChatId) =
+    Logger.debug env $"Get message by chat id {chatId} from cache"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryGetMessageByChatId(chatId, channel)
 
-  let tryGetMessageByChatIdAsync env cacheActor chatId =
-    task { return tryGetMessageByChatId env cacheActor chatId }
+  let tryGetMessageByChatIdAsync env chatId = task { return tryGetMessageByChatId env chatId }
 
-  let tryAddOfficeInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (recordOffice: RecordOffice)
-    =
-    env.Logger.Debug $"Try add office in database name {recordOffice.OfficeName}"
+  let tryAddOfficeInDb env (recordOffice: RecordOffice) =
+    Logger.debug env $"Try add office in database name {recordOffice.OfficeName}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryAddOfficeInDb(recordOffice, channel)
 
-  let tryAddOfficeInDbAsync env cacheActor recordOffice =
-    task { return tryAddOfficeInDb env cacheActor recordOffice }
+  let tryAddOfficeInDbAsync env recordOffice = task { return tryAddOfficeInDb env recordOffice }
 
-  let tryAddEmployerInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (recordEmployer: RecordEmployer)
-    =
-    env.Logger.Debug $"Try add employer in database chat id {recordEmployer.ChatId}"
+  let tryAddEmployerInDb env (recordEmployer: RecordEmployer) =
+    Logger.debug env $"Try add employer in database chat id {recordEmployer.ChatId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryAddEmployerInDb(recordEmployer, channel)
 
-  let tryAddEmployerInDbAsync env cacheActor recordEmployer =
-    task { return tryAddEmployerInDb env cacheActor recordEmployer }
+  let tryAddEmployerInDbAsync env recordEmployer =
+    task { return tryAddEmployerInDb env recordEmployer }
 
-  let tryAddManagerInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (managerDto: ManagerDto)
-    =
-    env.Logger.Debug $"Try add manager in database chat id {managerDto.ChatId}"
+  let tryAddManagerInDb env (managerDto: ManagerDto) =
+    Logger.debug env $"Try add manager in database chat id {managerDto.ChatId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryAddManagerInDb(managerDto, channel)
 
-  let tryAddManagerInDbAsync env cacheActor managerDto =
-    task { return tryAddManagerInDb env cacheActor managerDto }
+  let tryAddManagerInDbAsync env managerDto = task { return tryAddManagerInDb env managerDto }
 
 
-  let tryAddDeletionItemInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (recordDeletionItem: RecordDeletionItem)
-    =
-    env.Logger.Debug
+  let tryAddDeletionItemInDb env (recordDeletionItem: RecordDeletionItem) =
+    Logger.debug
+      env
       $"Try add deletion item in database name {recordDeletionItem.ItemName} office id {recordDeletionItem.OfficeId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryAddDeletionItemInDb(recordDeletionItem, channel)
 
-  let tryAddDeletionItemInDbAsync env cacheActor recordDeletionItem =
-    task { return tryAddDeletionItemInDb env cacheActor recordDeletionItem }
+  let tryAddDeletionItemInDbAsync env recordDeletionItem =
+    task { return tryAddDeletionItemInDb env recordDeletionItem }
 
-  let tryUpdateEmployerApprovedInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (employer: Employer)
-    isApproved
-    =
-    env.Logger.Debug $"Chage approved for employer chat id {employer.ChatId} to {isApproved}"
+  let tryUpdateEmployerApprovedInDb env (employer: Employer) isApproved =
+    Logger.debug env $"Change approved for employer chat id {employer.ChatId} to {isApproved}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryUpdateEmployerApprovedInDb(employer, isApproved, channel)
 
-  let tryUpdateEmployerApprovedInDbAsync env cacheActor employer isApproved =
-    task { return tryUpdateEmployerApprovedInDb env cacheActor employer isApproved }
+  let tryUpdateEmployerApprovedInDbAsync env employer isApproved =
+    task { return tryUpdateEmployerApprovedInDb env employer isApproved }
 
-  let trySetDeletionOnItemsOfOffice
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (officeId: OfficeId)
-    =
-    env.Logger.Debug $"Try deletion all items in office with id {officeId}"
+  let trySetDeletionOnItemsOfOffice env (officeId: OfficeId) =
+    Logger.debug env $"Try deletion all items in office with id {officeId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TrySetDeletionOnItemsOfOffice(officeId, channel)
 
-  let trySetDeletionOnItemsOfOfficeAsync env cacheActor officeId =
-    task { return trySetDeletionOnItemsOfOffice env cacheActor officeId }
+  let trySetDeletionOnItemsOfOfficeAsync env officeId =
+    task { return trySetDeletionOnItemsOfOffice env officeId }
 
-  let tryHideDeletionItem
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (deletionId: DeletionId)
-    =
-    env.Logger.Debug $"Try hide item with id {deletionId}"
+  let tryHideDeletionItem env (deletionId: DeletionId) =
+    Logger.debug env $"Try hide item with id {deletionId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryHideDeletionItem(deletionId, channel)
 
-  let tryHideDeletionItemAsync env cacheActor deletionId =
-    task { return tryHideDeletionItem env cacheActor deletionId }
+  let tryHideDeletionItemAsync env deletionId =
+    task { return tryHideDeletionItem env deletionId }
 
-  let tryDeleteOffice
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (officeId: OfficeId)
-    =
-    env.Logger.Debug $"Try delete office with id {officeId}"
+  let tryDeleteOffice env (officeId: OfficeId) =
+    Logger.debug env $"Try delete office with id {officeId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryDeleteOffice(officeId, channel)
 
-  let tryDeleteOfficeAsync env cacheActor officeId =
-    task { return tryDeleteOffice env cacheActor officeId }
+  let tryDeleteOfficeAsync env officeId = task { return tryDeleteOffice env officeId }
 
-  let tryAddOrUpdateMessageInDb
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    (message: MessageDto)
-    =
-    env.Logger.Debug $"Try add or update message in db with id {message.ChatId}"
+  let tryAddOrUpdateMessageInDb env (message: MessageDto) =
+    Logger.debug env $"Try add or update message in db with id {message.ChatId}"
 
-    reply cacheActor
+    reply env
     ^ fun channel -> CacheCommand.TryAddOrUpdateMessageInDb(message, channel)
 
-  let tryAddOrUpdateMessageInDbAsync env cacheActor message =
-    task { return tryAddOrUpdateMessageInDb env cacheActor message }
+  let tryAddOrUpdateMessageInDbAsync env message =
+    task { return tryAddOrUpdateMessageInDb env message }
 
-  let buildCacheInterface
-    (env: #WorkTelegram.Infrastucture.AppEnv.ILog)
-    (cacheActor: MailboxProcessor<CacheCommand>)
-    =
+  let ICacheBuilder (mailbox: MailboxProcessor<'a>) =
 
-    { new WorkTelegram.Infrastucture.AppEnv.ICache with
-        member __.Cache =
-          { new WorkTelegram.Infrastucture.AppEnv.IAppCache with
-              member __.GetOffices() = getOffices env cacheActor
-              member __.GetDeletionItems() = getDeletionItems env cacheActor
-              member __.GetEmployers() = getEmployers env cacheActor
-              member __.GetManagers() = getManagers env cacheActor
-              member __.GetMessages() = getMessages env cacheActor
-              member __.GetOfficesByManagerId chatId = getOfficesByManagerId env cacheActor chatId
-              member __.TryGetEmployerByChatId chatId = tryGetEmployerByChatId env cacheActor chatId
-              member __.TryGetManagerByChatId chatId = tryGetManagerByChatId env cacheActor chatId
-              member __.TryGetMessageByChatId chatId = tryGetMessageByChatId env cacheActor chatId
-              member __.TryAddOfficeInDb officeRecord = tryAddOfficeInDb env cacheActor officeRecord
-
-              member __.TryAddEmployerInDb employerRecord =
-                tryAddEmployerInDb env cacheActor employerRecord
-
-              member __.TryAddManagerInDb managerDto = tryAddManagerInDb env cacheActor managerDto
-
-              member __.TryAddDeletionItemInDb deletionItemRecord =
-                tryAddDeletionItemInDb env cacheActor deletionItemRecord
-
-              member __.TryAddOrUpdateMessageInDb messageDto =
-                tryAddOrUpdateMessageInDb env cacheActor messageDto
-
-              member __.TryUpdateEmployerApprovedInDb employer isApproved =
-                tryUpdateEmployerApprovedInDb env cacheActor employer isApproved
-
-              member __.TrySetDeletionOnItemsOfOffice officeId =
-                trySetDeletionOnItemsOfOffice env cacheActor officeId
-
-              member __.TryHideDeletionItem deletionId =
-                tryHideDeletionItem env cacheActor deletionId
-
-              member __.TryDeleteOffice officeId = tryDeleteOffice env cacheActor officeId } }
+    { new ICache<'a> with
+        member _.Cache =
+          { new IAppCache<'a> with
+              member _.Mailbox = mailbox } }

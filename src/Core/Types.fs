@@ -1,8 +1,6 @@
 ﻿namespace WorkTelegram.Core
 
 open FSharp.UMX
-open Funogram.Types
-open Microsoft.Data.Sqlite
 open System
 
 [<AutoOpen>]
