@@ -7,6 +7,7 @@ open WorkTelegram.Infrastructure
 open Serilog
 open System.Threading
 open Funogram.Telegram.Bot
+open FSharp.UMX
 
 [<EntryPoint>]
 let main _ =
@@ -21,28 +22,25 @@ let main _ =
       .CreateLogger()
 
   let iLog =
-    Logger.ILogBuilder
-      logger.Information
-      logger.Warning
-      logger.Error
-      logger.Fatal
-      logger.Debug
+    Logger.ILogBuilder logger.Information logger.Warning logger.Error logger.Fatal logger.Debug
 
   let databaseName = "WorkBotDatabase.sqlite3"
 
   let iDb =
     let conn = Database.createConnection iLog databaseName
     Database.IDbBuilder conn
-    
+
   let iCache =
-    let mailbox = MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
+    let mailbox =
+      MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
+
     Cache.ICacheBuilder mailbox
-  
+
   let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken }
-  
+
   let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
 
-  Database.initalizationTables env
+  Database.initTables env
 
   // Wait for initialization cache
   Thread.Sleep(1000)
@@ -61,7 +59,7 @@ let main _ =
   |> function
     | Ok response ->
       if response then
-        Logger.debug env "Succes set bot commands"
+        Logger.debug env "Success set bot commands"
       else
         Logger.warning env "Set commands return false, maybe just don't update?"
     | Error err -> Logger.warning env $"Setting bot commands return ApiResponseError {err}"
@@ -83,16 +81,23 @@ let main _ =
 
     try
 
-      let getState = fun () -> Database.selectMessages env
-      let setState = Database.insertMessage env
-      let delState = Database.deleteMessageJson env
+      let getState = fun () -> Cache.getMessages env
+
+      let setState message =
+        Cache.tryAddOrUpdateMessageInDb env message
+        |> ignore
+
+      let delState (message: Funogram.Telegram.Types.Message) =
+        Cache.tryDeleteMessageJson env %message.Chat.Id
+        |> ignore
+
       let view = View.view env history
-      let update = Update.update history
+      let update = Update.update env history
       let init = Init.init env history
 
-      Elmish.Program.mkProgram env.Log view update init
+      Elmish.Program.mkProgram env view update init
       |> Elmish.Program.withState getState setState delState
-      |> Elmish.Program.startProgram env.Config botUpdate
+      |> Elmish.Program.startProgram env.Configurer.BotConfig botUpdate
       |> Async.RunSynchronously
 
     with
@@ -106,7 +111,8 @@ let main _ =
         else
           sleepTime * sleepTime
 
-      Logger.fatal env
+      Logger.fatal
+        env
         $"App loop exception
           Message: {exn.Message}
           Stacktrace: {exn.StackTrace}

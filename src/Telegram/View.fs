@@ -9,23 +9,25 @@ open Elmish
 
 module View =
 
+  exception private ViewUnmatchedError of string
+
   open EmployerProcess
   open ManagerProcess
   open AuthProcess
 
   [<NoEquality>]
   [<NoComparison>]
-  type private ViewContext =
+  type private ViewContext<'a> =
     { Dispatch: UpdateMessage -> unit
       BackCancelKeyboard: Keyboard
-      Env: Env }
+      AppEnv: IAppEnv<'a> }
 
 
-  let private employerProcess (ctx: ViewContext) (employerState: EmployerProcess.EmployerContext) =
+  let private employerProcess (ctx: ViewContext<_>) (employerState: EmployerContext) =
 
     let waitChoice () =
 
-      if Database.isApproved ctx.Env employerState.Employer then
+      if Cache.isApprovedEmployer ctx.AppEnv employerState.Employer then
 
         let text =
           sprintf
@@ -44,7 +46,7 @@ module View =
                                 |> ctx.Dispatch) ]
             Keyboard.create [ Button.create "Удалить запись" (fun _ ->
                                 employerState
-                                |> UpdateMessage.StartEditRecordedItems
+                                |> UpdateMessage.StartEditDeletionItems
                                 |> ctx.Dispatch) ]
             ctx.BackCancelKeyboard ]
           []
@@ -112,7 +114,7 @@ module View =
                                 |> ctx.Dispatch) ]
             ctx.BackCancelKeyboard ]
           [ fun message ->
-              match MacAddress.validate (message.Text.Value.ToUpper()) with
+              match MacAddress.fromString (message.Text.Value.ToUpper()) with
               | Ok macaddress ->
                 let itemWithMacaddress = Item.createWithMacAddress item.Name item.Serial macaddress
 
@@ -123,7 +125,7 @@ module View =
                 |> ctx.Dispatch
               | Error _ ->
                 let text = "Некорректный ввод мак адреса, попробуйте еще раз"
-                Utils.sendMessageAndDeleteAfterDelay ctx.Env %message.Chat.Id text 3000 ]
+                Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000 ]
 
       | Deletion.EnteringCount item ->
 
@@ -140,18 +142,21 @@ module View =
                 |> ctx.Dispatch
               | Error err ->
                 match err with
-                | PositiveIntError.NumberMustBePositive ->
+                | BusinessError.NumberMustBePositive incorrectNumber ->
                   Utils.sendMessageAndDeleteAfterDelay
-                    ctx.Env
+                    ctx.AppEnv
                     %message.Chat.Id
-                    "Значение должно быть больше нуля, попробуйте еще раз"
+                    $"Значение должно быть больше нуля, попробуйте еще раз: Введенное значение {incorrectNumber}"
                     3000
-                | PositiveIntError.CantParseStringToPositiveInt ->
+                | BusinessError.IncorrectParsePositiveNumber incorrectString ->
                   Utils.sendMessageAndDeleteAfterDelay
-                    ctx.Env
+                    ctx.AppEnv
                     %message.Chat.Id
-                    "Некорректный ввод, попробуйте еще раз"
-                    3000 ]
+                    $"Некорректный ввод, попробуйте еще раз: Введенное значение {incorrectString}"
+                    3000
+                | _ ->
+                  ViewUnmatchedError($"Unmatched error in view function: error {err}")
+                  |> raise ]
 
       | Deletion.EnteringLocation (item, count) ->
 
@@ -159,11 +164,13 @@ module View =
           "Введите для чего либо куда"
           [ Keyboard.create [ Button.create "Пропустить" (fun _ ->
                                 let recordedDeletion =
-                                  { Item = item
-                                    Count = count
-                                    Time = System.DateTime.Now
-                                    Location = None
-                                    Employer = employerState.Employer }
+                                  Record.createDeletionItem
+                                    item
+                                    count
+                                    System.DateTime.Now
+                                    None
+                                    employerState.Employer.Office.OfficeId
+                                    employerState.Employer.ChatId
 
                                 UpdateMessage.DeletionProcessChange(
                                   employerState,
@@ -175,11 +182,13 @@ module View =
               let location: Location option = %message.Text.Value |> Some
 
               let recordedDeletion =
-                { Item = item
-                  Count = count
-                  Time = System.DateTime.Now
-                  Location = location
-                  Employer = employerState.Employer }
+                Record.createDeletionItem
+                  item
+                  count
+                  System.DateTime.Now
+                  location
+                  employerState.Employer.Office.OfficeId
+                  employerState.Employer.ChatId
 
               UpdateMessage.DeletionProcessChange(
                 employerState,
@@ -197,8 +206,7 @@ module View =
         [ Keyboard.create [ Button.create "Внести" (fun _ ->
                               UpdateMessage.FinishDeletionProcess(
                                 employerState,
-                                recordedDeletionItem,
-                                ctx.Env
+                                recordedDeletionItem
                               )
                               |> ctx.Dispatch) ]
           ctx.BackCancelKeyboard ]
@@ -208,9 +216,23 @@ module View =
     | Model.WaitChoice -> waitChoice ()
 
     | Model.Deletion dprocess -> deletionProcess dprocess
-    | Model.EditRecordedDeletions ->
+    | Model.EditDeletionItems ->
 
-    let items = Database.selectDeletionItems ctx.Env employerState.Employer
+    let items =
+      query {
+        for item in Cache.getDeletionItems ctx.AppEnv do
+          let notInspired =
+            let since = (System.DateTime.Now - item.Time)
+            since.TotalHours < 24.
+
+          where (
+            item.Employer.ChatId = employerState.Employer.ChatId
+            && notInspired
+          )
+
+          select item
+      }
+      |> List.ofSeq
 
     if items.Length < 1 then
       RenderView.create
@@ -220,7 +242,7 @@ module View =
     else
       RenderView.create
         "Выберите запись для удаления"
-        [ for (item, itemId) in items do
+        [ for item in items do
             Keyboard.create [ let text =
                                 let serial =
                                   match item.Item.Serial with
@@ -229,63 +251,64 @@ module View =
 
                                 let mac =
                                   match item.Item.MacAddress with
-                                  | Some macaddress -> %macaddress
+                                  | Some macaddress -> macaddress.GetValue
                                   | None -> "_"
 
                                 $"{item.Item.Name} - Serial {serial} - Mac {mac}"
 
                               Button.create text (fun _ ->
-                                match Database.setIsHiddenTrueForItem ctx.Env itemId with
-                                | Ok _ -> ctx.Dispatch UpdateMessage.Back
-                                | Error err ->
-
-                                match err with
-                                | DatabaseError.CantDeleteRecordedItem _
-                                | DatabaseError.SQLiteException _ ->
-                                  let text = $"Error when try delete item with id {itemId}"
+                                match Cache.tryHideDeletionItem ctx.AppEnv item.DeletionId with
+                                | true ->
+                                  let text = "Запись успешно удалена"
 
                                   Utils.sendMessageAndDeleteAfterDelay
-                                    ctx.Env
+                                    ctx.AppEnv
                                     employerState.Employer.ChatId
                                     text
-                                    5000
+                                    3000
 
-                                  ctx.Dispatch UpdateMessage.Back
-                                | _ -> ctx.Dispatch UpdateMessage.Back) ]
+                                  ctx.Dispatch UpdateMessage.ReRender
+                                | false ->
+                                  let text =
+                                    "Не удалось удалить запись, попробуйте еще раз или попозже"
+
+                                  Utils.sendMessageAndDeleteAfterDelay
+                                    ctx.AppEnv
+                                    employerState.Employer.ChatId
+                                    text
+                                    3000
+
+                                  ctx.Dispatch UpdateMessage.ReRender) ]
           ctx.BackCancelKeyboard ]
         []
 
 
-  let private authProcess (ctx: ViewContext) authModel =
+  let private authProcess (ctx: ViewContext<_>) authModel =
 
     let authEmployer eauth =
 
       let renderOffices (offices: Office list) =
 
-        if offices.Length > 0 then
-
-          RenderView.create
-            "Выберите офис из списка"
-            [ for office in offices do
-                Keyboard.create [ Button.create %office.OfficeName (fun _ ->
-                                    office
-                                    |> Employer.EnteringLastFirstName
-                                    |> UpdateMessage.AuthEmployerChange
-                                    |> ctx.Dispatch) ]
-              ctx.BackCancelKeyboard ]
-            []
-
-        else
-
-          RenderView.create "Нет офисов" [ ctx.BackCancelKeyboard ] []
+        RenderView.create
+          "Выберите офис из списка"
+          [ for office in offices do
+              Keyboard.create [ Button.create %office.OfficeName (fun _ ->
+                                  office
+                                  |> Employer.EnteringLastFirstName
+                                  |> UpdateMessage.AuthEmployerChange
+                                  |> ctx.Dispatch) ]
+            ctx.BackCancelKeyboard ]
+          []
 
       match eauth with
 
       | Employer.EnteringOffice ->
-        match Cache.offices ctx.Env with
-        | Some offices -> renderOffices offices
-        | None ->
-          RenderView.create "Не удалось получить данные из кеша" [ ctx.BackCancelKeyboard ] []
+        let offices = Cache.getOffices ctx.AppEnv
+
+        if offices.Length > 0 then
+          renderOffices offices
+        else
+          RenderView.create "Нет офисов" [ ctx.BackCancelKeyboard ] []
 
       | Employer.EnteringLastFirstName office ->
         RenderView.create
@@ -296,7 +319,14 @@ module View =
 
               if array.Length = 2 then
                 let firstName, lastName: FirstName * LastName = %array[0], %array[1]
-                let employer = Employer.create firstName lastName office %message.Chat.Id
+
+                let employer =
+                  Record.createEmployer
+                    office.OfficeId
+                    office.OfficeName
+                    firstName
+                    lastName
+                    %message.Chat.Id
 
                 employer
                 |> Employer.AskingFinish
@@ -304,16 +334,16 @@ module View =
                 |> ctx.Dispatch
               else
                 let text = "Некорректный ввод, попробуйте еще раз"
-                Utils.sendMessageAndDeleteAfterDelay ctx.Env %message.Chat.Id text 3000 ]
+                Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000 ]
 
       | Employer.AskingFinish employer ->
         RenderView.create
           $"Авторизоваться с этими данными?
             Имя     : {employer.FirstName}
             Фамилия : {employer.LastName}
-            Оффис   : {employer.Office.OfficeName}"
+            Оффис   : {employer.OfficeName}"
           [ Keyboard.create [ Button.create "Принять" (fun _ ->
-                                UpdateMessage.FinishEmployerAuth(employer, ctx.Env)
+                                UpdateMessage.FinishEmployerAuth employer
                                 |> ctx.Dispatch) ]
             ctx.BackCancelKeyboard ]
           []
@@ -343,7 +373,7 @@ module View =
                 |> ctx.Dispatch
               else
                 let text = "Некорректный ввод, попробуйте еще раз"
-                Utils.sendMessageAndDeleteAfterDelay ctx.Env %message.Chat.Id text 3000 ]
+                Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000 ]
 
       | Manager.AskingFinish manager ->
         RenderView.create
@@ -351,7 +381,7 @@ module View =
             Имя     : {manager.FirstName}
             Фамилия : {manager.LastName}"
           [ Keyboard.create [ Button.create "Принять" (fun _ ->
-                                UpdateMessage.FinishManagerAuth(manager, ctx.Env)
+                                UpdateMessage.FinishManagerAuth(manager, ctx.AppEnv)
                                 |> ctx.Dispatch) ]
             ctx.BackCancelKeyboard ]
           []
@@ -373,7 +403,7 @@ module View =
           ctx.BackCancelKeyboard ]
         []
 
-  let view (env: Env) (history: System.Collections.Generic.Stack<_>) dispatch model =
+  let view env (history: System.Collections.Generic.Stack<_>) dispatch model =
 
     let backCancelKeyboard =
       Keyboard.create [ if history.Count > 0 then
@@ -384,7 +414,7 @@ module View =
     let ctx =
       { Dispatch = dispatch
         BackCancelKeyboard = backCancelKeyboard
-        Env = env }
+        AppEnv = env }
 
     match model with
     | CoreModel.Error message ->
@@ -580,12 +610,12 @@ module View =
                                           let now = System.DateTime.Now
                                           $"{now.Day}.{now.Month}.{now.Year} {now.Hour}:{now.Minute}:{now.Second}"
 
-                                        ctx.Env.Log.Debug
+                                        ctx.AppEnv.Log.Debug
                                           $"Generated string from datetime for document is {dateString}"
 
                                         let name = "ActualItemsTable" + dateString + ".xlsx"
 
-                                        ctx.Env.Log.Debug
+                                        ctx.AppEnv.Log.Debug
                                           $"Generated document name of items is {name}"
 
                                         name
@@ -601,7 +631,7 @@ module View =
                                         "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
 
                                       Utils.sendMessageAndDeleteAfterDelay
-                                        ctx.Env
+                                        ctx.AppEnv
                                         managerState.Manager.ChatId
                                         text
                                         5000
@@ -611,12 +641,12 @@ module View =
                                         $"Произошла ошибка во время создания таблицы {exn.Message}"
 
                                       Utils.sendMessageAndDeleteAfterDelay
-                                        ctx.Env
+                                        ctx.AppEnv
                                         managerState.Manager.ChatId
                                         text
                                         5000
 
-                                      ctx.Env.Log.Error
+                                      ctx.AppEnv.Log.Error
                                         $"Exception when try send document excel message = {exn.Message}
                           Trace: {exn.StackTrace}"
                                   else
@@ -624,7 +654,7 @@ module View =
                                       $"Не обнаружено актуальных записей для создания таблицы"
 
                                     Utils.sendMessageAndDeleteAfterDelay
-                                      ctx.Env
+                                      ctx.AppEnv
                                       managerState.Manager.ChatId
                                       text
                                       5000
@@ -632,12 +662,12 @@ module View =
                                   let text = $"Произошла ошибка во время сбора записей {err}"
 
                                   Utils.sendMessageAndDeleteAfterDelay
-                                    ctx.Env
+                                    ctx.AppEnv
                                     managerState.Manager.ChatId
                                     text
                                     5000
 
-                                UpdateMessage.NothingChange |> ctx.Dispatch) ]
+                                UpdateMessage.ReRender |> ctx.Dispatch) ]
             Keyboard.create [ Button.create "Добавить запись" (fun _ ->
                                 UpdateMessage.DeletionProcessChange(
                                   asEmployerState,
@@ -646,7 +676,7 @@ module View =
                                 |> ctx.Dispatch)
                               Button.create "Удалить запись" (fun _ ->
                                 asEmployerState
-                                |> UpdateMessage.StartEditRecordedItems
+                                |> UpdateMessage.StartEditDeletionItems
                                 |> ctx.Dispatch) ]
             Keyboard.create [ Button.create "Списать все записи" (fun _ ->
                                 match Database.setIsDeletionTrueForAllItemsInOffice env office with
@@ -739,7 +769,7 @@ module View =
                     let text = "Офис с таким названием уже существует, попробуйте другое"
 
                     Utils.sendMessageAndDeleteAfterDelay
-                      ctx.Env
+                      ctx.AppEnv
                       managerState.Manager.ChatId
                       text
                       3000
