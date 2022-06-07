@@ -6,7 +6,6 @@ open WorkTelegram.Infrastructure
 
 open Serilog
 open System.Threading
-open Funogram.Types
 open Funogram.Telegram.Bot
 
 [<EntryPoint>]
@@ -21,24 +20,29 @@ let main _ =
       .MinimumLevel.Verbose()
       .CreateLogger()
 
-  let logging =
-    { Debug = logger.Debug
-      Info = logger.Information
-      Error = logger.Error
-      Warning = logger.Warning
-      Fatal = logger.Fatal }
+  let iLog =
+    Logger.ILogBuilder
+      logger.Information
+      logger.Warning
+      logger.Error
+      logger.Fatal
+      logger.Debug
 
   let databaseName = "WorkBotDatabase.sqlite3"
 
-  let env =
-    { Log = logging
-      Config = { defaultConfig with Token = tgToken }
-      DBConn = Database.createConnection logging databaseName
-      CacheActor = MailboxProcessor.Start(Cache.cacheActor) }
+  let iDb =
+    let conn = Database.createConnection iLog databaseName
+    Database.IDbBuilder conn
+    
+  let iCache =
+    let mailbox = MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
+    Cache.ICacheBuilder mailbox
+  
+  let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken }
+  
+  let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
 
   Database.initalizationTables env
-
-  Cache.initialization env
 
   // Wait for initialization cache
   Thread.Sleep(1000)
@@ -52,15 +56,15 @@ let main _ =
          Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" } |]
 
   Funogram.Telegram.Api.setMyCommands commands
-  |> Funogram.Api.api env.Config
+  |> Funogram.Api.api env.Configurer.BotConfig
   |> Async.RunSynchronously
   |> function
     | Ok response ->
       if response then
-        env.Log.Debug "Succes set bot commands"
+        Logger.debug env "Succes set bot commands"
       else
-        env.Log.Warning "Set commands return false, maybe just don't update?"
-    | Error err -> env.Log.Warning $"Setting bot commands return ApiResponseError {err}"
+        Logger.warning env "Set commands return false, maybe just don't update?"
+    | Error err -> Logger.warning env $"Setting bot commands return ApiResponseError {err}"
 
   let botUpdate (ctx: UpdateContext) =
     if ctx.Update.Message.IsSome then
@@ -73,7 +77,7 @@ let main _ =
 
   let rec appLoop (sleepTime: int) =
 
-    env.Log.Info $"Start application, sleep before start {sleepTime}"
+    Logger.info env $"Start application, sleep before start {sleepTime}"
 
     Thread.Sleep(sleepTime)
 
@@ -102,7 +106,7 @@ let main _ =
         else
           sleepTime * sleepTime
 
-      env.Log.Fatal
+      Logger.fatal env
         $"App loop exception
           Message: {exn.Message}
           Stacktrace: {exn.StackTrace}

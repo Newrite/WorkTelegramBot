@@ -29,15 +29,15 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Env.fs" />
+    <Compile Include="Logger.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Cache.fs" />
-    <Compile Include="HydraGenerated.fs" />
+    <Compile Include="Configurer.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Donald" Version="7.1.0" />
     <PackageReference Include="FSharp.Json" Version="0.4.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.5" />
-    <PackageReference Include="SqlHydra.Query" Version="1.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.fsproj" />

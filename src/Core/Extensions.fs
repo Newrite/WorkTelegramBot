@@ -27,19 +27,19 @@ module Funogram =
 
       type SetMyCommandsReq =
         { Commands: BotCommand array
-          LaungeageCode: string option }
+          LanguageCode: string option }
 
         interface IRequestBase<bool> with
           member __.MethodName = "setMyCommands"
 
       type DeleteMyCommandsReq =
-        { LaungeageCode: string option }
+        { LanguageCode: string option }
 
         interface IRequestBase<bool> with
           member __.MethodName = "deleteMyCommands"
 
       type GetMyCommandsReq =
-        { LaungeageCode: string option }
+        { LanguageCode: string option }
 
         interface IRequestBase<BotCommand array> with
           member __.MethodName = "getMyCommands"
@@ -50,21 +50,21 @@ module Funogram =
 
       let private setMyCommandsBase commands languageCode =
         { SetMyCommandsReq.Commands = commands
-          SetMyCommandsReq.LaungeageCode = languageCode }
+          SetMyCommandsReq.LanguageCode = languageCode }
 
       let setMyCommands commands = setMyCommandsBase commands None
 
       let setMyCommandsWithLanguageCode commands languageCode =
         setMyCommandsBase commands (Some languageCode)
 
-      let private getMyCommandsBase languageCode = { GetMyCommandsReq.LaungeageCode = languageCode }
+      let private getMyCommandsBase languageCode = { GetMyCommandsReq.LanguageCode = languageCode }
 
       let getMyCommands () = getMyCommandsBase None
 
       let getMyCommandsWithLanguageCode languageCode = getMyCommandsBase (Some languageCode)
 
       let private deleteMyCommandsBase languageCode =
-        { DeleteMyCommandsReq.LaungeageCode = languageCode }
+        { DeleteMyCommandsReq.LanguageCode = languageCode }
 
       let deleteMyCommands () = deleteMyCommandsBase None
 

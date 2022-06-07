@@ -5,6 +5,7 @@ open Donald
 open FSharp.UMX
 open FSharp.Json
 open System
+open WorkTelegram.Core
 
 module Field =
   [<Literal>]
@@ -58,8 +59,6 @@ module Field =
   [<Literal>]
   let ToLocation = "to_location"
 
-open Field
-
 type RecordOffice = { OfficeName: string; ManagerChatId: int64 }
 
 type RecordEmployer =
@@ -81,7 +80,7 @@ type RecordDeletionItem =
 [<RequireQualifiedAccess>]
 module Record =
 
-  let createOffice (officeName: OfficeName) (managerChatId: UMX.ChatId) =
+  let createOffice (officeName: OfficeName) (managerChatId: ChatId) =
     { OfficeName = %officeName
       ManagerChatId = %managerChatId }
 
@@ -89,7 +88,7 @@ module Record =
     (officeId: OfficeId)
     (firstName: FirstName)
     (lastName: LastName)
-    (chatId: UMX.ChatId)
+    (chatId: ChatId)
     =
     { FirstName = %firstName
       LastName = %lastName
@@ -102,7 +101,7 @@ module Record =
     time
     (location: Location option)
     (officeId: OfficeId)
-    (employerChatId: UMX.ChatId)
+    (employerChatId: ChatId)
     =
     { ItemName = %item.Name
       ItemSerial = Option.map (fun s -> %s) item.Serial
@@ -120,9 +119,9 @@ module ChatIdDto =
 
   let ofDataReader (rd: IDataReader) = { ChatId = rd.ReadInt64 Field.ChatId }
 
-  let fromDomain (chatId: UMX.ChatId) = { ChatId = %chatId }
+  let fromDomain (chatId: ChatId) = { ChatId = %chatId }
 
-  let toDomain (chatIdTable: ChatIdDto) : UMX.ChatId = %chatIdTable.ChatId
+  let toDomain (chatIdTable: ChatIdDto) : ChatId = %chatIdTable.ChatId
 
   let [<Literal>] TableName = "chat_id"
 
@@ -135,7 +134,7 @@ module MessageDto =
     { ChatId = rd.ReadInt64 Field.ChatId
       MessageJson = rd.ReadString Field.MessageJson }
 
-  let fromDomain (chatId: UMX.ChatId) (message: Funogram.Telegram.Types.Message) =
+  let fromDomain (chatId: ChatId) (message: Funogram.Telegram.Types.Message) =
     { ChatId = %chatId
       MessageJson = Json.serialize message }
 
@@ -238,6 +237,12 @@ module EmployerDto =
       FirstName = %employer.FirstName
       LastName = %employer.LastName
       Office = office }
+    
+  let toDomainWithOffice (office: Office) (employer: EmployerDto) =
+    { ChatId = %employer.ChatId
+      FirstName = %employer.FirstName
+      LastName = %employer.LastName
+      Office = office }
 
   let [<Literal>] TableName = "employer"
 
@@ -307,7 +312,7 @@ module DeletionItemDto =
       IsDeletion = item.IsDeletion
       IsHidden = item.IsHidden
       Employer = employer
-      Time = System.DateTime.FromBinary(item.Date)
+      Time = DateTime.FromBinary(item.Date)
       Location = Option.map (fun l -> %l) item.ToLocation
       Count = count.Value }
 
@@ -329,7 +334,7 @@ module DeletionItemDto =
       IsDeletion = item.IsDeletion
       IsHidden = item.IsHidden
       Employer = employer
-      Time = System.DateTime.FromBinary(item.Date)
+      Time = DateTime.FromBinary(item.Date)
       Location = Option.map (fun l -> %l) item.ToLocation
       Count = count.Value }
 
