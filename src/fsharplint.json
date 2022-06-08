@@ -34,7 +34,7 @@
     }
   },
   "cyclomaticComplexity": {
-    "enabled": true,
+    "enabled": false,
     "config": {
       "maxComplexity": 40
     }

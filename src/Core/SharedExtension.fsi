@@ -1,4 +1,9 @@
 
+type ExtBool =
+    | True
+    | False
+    | Partial
+
 type Either<'LeftValue,'RightValue> =
     | Left of 'LeftValue
     | Right of 'RightValue
