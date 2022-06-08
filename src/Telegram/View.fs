@@ -669,7 +669,7 @@ module View =
             Keyboard.create [ Button.create "Списать все записи" (fun _ ->
                                 match Cache.trySetDeletionOnItemsOfOffice ctx.AppEnv office.OfficeId
                                   with
-                                | true ->
+                                | True ->
                                   let text = "Операция прошла успешно"
 
                                   Utils.sendMessageAndDeleteAfterDelay
@@ -677,8 +677,17 @@ module View =
                                     office.Manager.ChatId
                                     text
                                     3000
-                                | false ->
-                                  let text = $"Не удалось списать записи, попробуйте попозже"
+                                | False ->
+                                  let text = "Не удалось списать записи, попробуйте попозже"
+
+                                  Utils.sendMessageAndDeleteAfterDelay
+                                    env
+                                    office.Manager.ChatId
+                                    text
+                                    5000
+
+                                | Partial ->
+                                  let text = "Нет записей для списания"
 
                                   Utils.sendMessageAndDeleteAfterDelay
                                     env
