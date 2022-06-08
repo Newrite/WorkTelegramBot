@@ -7,7 +7,7 @@ open System
 type ExtBool =
   | True
   | False
-  | Comment of string
+  | Partial
 
 type Either<'LeftValue, 'RightValue> =
   | Left of 'LeftValue

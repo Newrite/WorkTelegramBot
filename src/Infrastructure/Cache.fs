@@ -23,7 +23,7 @@ type CacheCommand =
   | TryAddDeletionItemInDb of RecordDeletionItem * AsyncReplyChannel<DeletionItem option>
   | TryAddOrUpdateMessageInDb of Funogram.Telegram.Types.Message * AsyncReplyChannel<bool>
   | TryUpdateEmployerApprovedInDb of Employer * bool * AsyncReplyChannel<bool>
-  | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<bool>
+  | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<ExtBool>
   | TryHideDeletionItem of DeletionId * AsyncReplyChannel<bool>
   | TryDeleteOffice of OfficeId * AsyncReplyChannel<bool>
   | TryDeleteMessageJson of ChatId * AsyncReplyChannel<bool>
@@ -394,25 +394,34 @@ module Cache =
               return! cacheHandler cache
 
           | CacheCommand.TrySetDeletionOnItemsOfOffice (officeId, channel) ->
-            let result = Database.setTrueForDeletionFieldOfOfficeItems ctx.Database %officeId
 
-            match result with
-            | Ok _ ->
-              channel.Reply true
-
-              let updatedList =
-                cache.DeletionItems
-                |> List.map (fun di ->
-                  if di.Employer.Office.OfficeId = officeId then
-                    { di with IsDeletion = true }
-                  else
-                    di)
-
-              return! cacheHandler { cache with Cache.DeletionItems = updatedList }
-            | Error err ->
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
+            if cache.DeletionItems
+               |> List.tryFind (fun di -> di.IsDeletion |> not && di.IsHidden |> not)
+               |> Option.isSome
+               |> not then
+              channel.Reply Partial
               return! cacheHandler cache
+            else
+
+              let result = Database.setTrueForDeletionFieldOfOfficeItems ctx.Database %officeId
+
+              match result with
+              | Ok _ ->
+                channel.Reply True
+
+                let updatedList =
+                  cache.DeletionItems
+                  |> List.map (fun di ->
+                    if di.Employer.Office.OfficeId = officeId then
+                      { di with IsDeletion = true }
+                    else
+                      di)
+
+                return! cacheHandler { cache with Cache.DeletionItems = updatedList }
+              | Error err ->
+                channel.Reply False
+                errorHandler ctx.Logger err (line ())
+                return! cacheHandler cache
 
           | CacheCommand.TryUpdateEmployerApprovedInDb (employer, isApproved, channel) ->
             let chatIdDto = ChatIdDto.fromDomain employer.ChatId
