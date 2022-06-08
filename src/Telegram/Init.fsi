@@ -2,6 +2,8 @@ namespace WorkTelegram.Telegram
     
     module Init =
         
+        exception private NegativeOfficesCountException of string
+        
         val init:
           env: 'a -> history: System.Collections.Generic.Stack<'b>
           -> message: Funogram.Telegram.Types.Message -> CoreModel

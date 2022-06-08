@@ -8,6 +8,8 @@ open WorkTelegram.Infrastructure
 
 module Init =
 
+  exception private NegativeOfficesCountException of string
+
   let init env (history: System.Collections.Generic.Stack<_>) message =
 
     let chatId = %message.Chat.Id
@@ -31,10 +33,13 @@ module Init =
           { ManagerProcess.ManagerContext.Manager = manager.Value
             ManagerProcess.ManagerContext.Model = ManagerProcess.Model.InOffice offices[0] }
           |> CoreModel.Manager
-        | _ ->
+        | _ when offices.Length > 1 ->
           { ManagerProcess.ManagerContext.Manager = manager.Value
             ManagerProcess.ManagerContext.Model = ManagerProcess.Model.ChooseOffice offices }
           |> CoreModel.Manager
+        | _ ->
+          NegativeOfficesCountException($"Offices count is {offices.Length}")
+          |> raise
       elif employer.IsSome then
         { EmployerProcess.EmployerContext.Employer = employer.Value
           EmployerProcess.EmployerContext.Model = EmployerProcess.Model.WaitChoice }

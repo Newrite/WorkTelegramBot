@@ -224,7 +224,7 @@ module Database =
     let sqlCommand =
       $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeName} = (@{Field.OfficeName})"
 
-    let sqlParam = [ Field.OfficeId, SqlType.String officeName ]
+    let sqlParam = [ Field.OfficeName, SqlType.String officeName ]
     genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
 
   let internal selectDeletionItemByTimeTicks env (ticks: int64) =
@@ -392,7 +392,7 @@ module Database =
 
   let internal deleteMessageJson env (chatIdDto: ChatIdDto) =
     let sqlCommand =
-      $"DELETE FROM {ChatIdDto.TableName}
+      $"DELETE FROM {MessageDto.TableName}
         WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]

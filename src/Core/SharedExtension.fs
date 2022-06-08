@@ -4,6 +4,11 @@ namespace global
 
 open System
 
+type ExtBool =
+  | True
+  | False
+  | Comment of string
+
 type Either<'LeftValue, 'RightValue> =
   | Left of 'LeftValue
   | Right of 'RightValue
@@ -26,7 +31,7 @@ module Option =
 
   let inline string optionValue =
     match optionValue with
-    | Some v -> string v
+    | Some v -> v.ToString()
     | None -> "None"
 
   let inline ofValueOption (vopt: 'value voption) : 'value option =

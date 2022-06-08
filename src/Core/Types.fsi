@@ -99,6 +99,8 @@ namespace WorkTelegram.Core
         type MacAddress =
             private { Value: string }
             
+            override ToString: unit -> string
+            
             member GetValue: string
         
         module MacAddress =
