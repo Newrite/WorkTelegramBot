@@ -37,13 +37,13 @@ module Database =
       );
 
       CREATE TABLE IF NOT EXISTS {EmployerDto.TableName} (
-	      {Field.ChatId} INTEGER NOT NULL PRIMARY KEY,
-	      first_name TEXT NOT NULL,
-	      {Field.LastName} TEXT NOT NULL,
+        {Field.ChatId} INTEGER NOT NULL PRIMARY KEY,
+        first_name TEXT NOT NULL,
+        {Field.LastName} TEXT NOT NULL,
         {Field.IsApproved} BOOL NOT NULL,
         {Field.OfficeId} INTEGER NOT NULL,
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId}),
-	      FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId})
+        FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId})
       );
       
       CREATE TABLE IF NOT EXISTS {DeletionItemDto.TableName} (
@@ -177,6 +177,13 @@ module Database =
 
   let internal selectDeletionItems env =
     genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
+
+  let internal selectDeletionItemsByOfficeId env officeId =
+    let sqlCommand =
+      $"SELECT * FROM {DeletionItemDto.TableName} WHERE {Field.OfficeId} = (@{Field.OfficeId})"
+
+    let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
+    genericSelectManyWithWhere env sqlCommand sqlParam DeletionItemDto.ofDataReader
 
   let internal selectMessageByChatId env (chatIdDto: ChatIdDto) =
     let sqlCommand =

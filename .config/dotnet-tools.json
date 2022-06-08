@@ -2,12 +2,6 @@
   "version": 1,
   "isRoot": true,
   "tools": {
-    "sqlhydra.sqlite": {
-      "version": "1.0.0",
-      "commands": [
-        "sqlhydra-sqlite"
-      ]
-    },
     "fantomas-tool": {
       "version": "4.7.9",
       "commands": [
