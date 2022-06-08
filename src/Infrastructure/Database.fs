@@ -237,7 +237,9 @@ module Database =
   let internal insertMessage env (messageDto: MessageDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {MessageDto.TableName}
-        ({Field.ChatId}, {Field.MessageJson})"
+        ({Field.ChatId}, {Field.MessageJson})
+        VALUES
+        (@{Field.ChatId}, @{Field.MessageJson})"
 
     let sqlParam =
       [ Field.ChatId, SqlType.Int64 messageDto.ChatId
@@ -248,7 +250,9 @@ module Database =
   let internal insertManager env (managerDto: ManagerDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {ManagerDto.TableName}
-        ({Field.ChatId}, {Field.FirstName}, {Field.LastName})"
+        ({Field.ChatId}, {Field.FirstName}, {Field.LastName})
+        VALUES
+        (@{Field.ChatId}, @{Field.FirstName}, @{Field.LastName})"
 
     let sqlParam =
       [ Field.ChatId, SqlType.Int64 managerDto.ChatId
@@ -260,7 +264,9 @@ module Database =
   let internal insertOffice env (officeRecord: RecordOffice) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {OfficeDto.TableName} 
-        ({Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})"
+        ({Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})
+        VALUES
+        (@{Field.OfficeName}, @{Field.IsHidden}, @{Field.ManagerId})"
 
     let sqlParam =
       [ Field.OfficeName, SqlType.String officeRecord.OfficeName
@@ -272,7 +278,9 @@ module Database =
   let internal insertEmployer env (employerRecord: RecordEmployer) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {EmployerDto.TableName} 
-        ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})"
+        ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})
+        VALUES
+        (@{Field.ChatId}, @first_name, @{Field.LastName}, @{Field.IsApproved}, @{Field.OfficeId})"
 
     let sqlParam =
       [ Field.ChatId, SqlType.Int64 employerRecord.ChatId
@@ -295,7 +303,18 @@ module Database =
          {Field.IsHidden},
          {Field.ToLocation},
          {Field.OfficeId},
-         {Field.ChatId})"
+         {Field.ChatId})
+         VALUES
+        (@{Field.ItemName},
+         @{Field.ItemSerial},
+         @{Field.ItemMac},
+         @{Field.Count},
+         @{Field.Date},
+         @{Field.IsDeletion},
+         @{Field.IsHidden},
+         @{Field.ToLocation},
+         @{Field.OfficeId},
+         @{Field.ChatId})"
 
     let sqlParam =
 
@@ -381,7 +400,8 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let insertChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand = $"INSERT OR IGNORE INTO {ChatIdDto.TableName} ({Field.ChatId})"
+    let sqlCommand =
+      $"INSERT OR IGNORE INTO {ChatIdDto.TableName} ({Field.ChatId}) VALUES (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
 
