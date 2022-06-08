@@ -87,7 +87,7 @@ namespace WorkTelegram.Telegram
                       Init: Funogram.Telegram.Types.Message -> 'Model
                       Update: 'Message -> 'Model -> CallInit<'Model> -> 'Model
                       View: Dispatch<'Message> -> 'Model -> RenderView
-                      Log: Core.Types.Logging
+                      Log: Infrastructure.AppEnv.ILog
                       GetChatStates: CallGetChatState option
                       SaveChatState: CallSaveChatState option
                       DelChatState: CallDelChatState option
@@ -99,19 +99,16 @@ namespace WorkTelegram.Telegram
         
         module Program =
             
-            val mkSimple:
-              logger: Core.Types.Logging
+            val mkProgram:
+              logger: Infrastructure.AppEnv.ILog
               -> view: (Dispatch<'a> -> 'b -> RenderView)
               -> update: ('a -> 'b -> CallInit<'b> -> 'b)
               -> init: (Funogram.Telegram.Types.Message -> 'b) -> Program<'b,'a>
             
-            val mkWithState:
-              logger: Core.Types.Logging
-              -> view: (Dispatch<'a> -> 'b -> RenderView)
-              -> update: ('a -> 'b -> CallInit<'b> -> 'b)
-              -> init: (Funogram.Telegram.Types.Message -> 'b)
-              -> getState: CallGetChatState -> saveState: CallSaveChatState
-              -> delState: CallDelChatState -> Program<'b,'a>
+            val withState:
+              getState: CallGetChatState -> saveState: CallSaveChatState
+              -> delState: CallDelChatState -> program: Program<'a,'b>
+                -> Program<'a,'b>
             
             val isWithStateFunctions: program: Program<'a,'b> -> bool
             

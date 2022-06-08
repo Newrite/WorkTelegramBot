@@ -19,7 +19,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 		Directory.Build.props = Directory.Build.props
 		..\.config\dotnet-tools.json = ..\.config\dotnet-tools.json
 		fsharplint.json = fsharplint.json
-		..\sqlhydra-sqlite.toml = ..\sqlhydra-sqlite.toml
 		Prototypes.fsx = Prototypes.fsx
 	EndProjectSection
 EndProject

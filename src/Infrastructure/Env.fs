@@ -28,12 +28,12 @@ module AppEnv =
     abstract Db: IDatabase
 
   [<Interface>]
-  type IAppCache<'a> =
-    abstract Mailbox: MailboxProcessor<'a>
+  type IAppCache<'Command> =
+    abstract Mailbox: MailboxProcessor<'Command>
 
   [<Interface>]
-  type ICache<'a> =
-    abstract Cache: IAppCache<'a>
+  type ICache<'Command> =
+    abstract Cache: IAppCache<'Command>
 
   [<Interface>]
   type IConfigurer =
@@ -43,10 +43,10 @@ module AppEnv =
   type ICfg =
     abstract Configurer: IConfigurer
 
-  type IAppEnv<'a> =
+  type IAppEnv<'Command> =
     inherit ILog
     inherit IDb
-    inherit ICache<'a>
+    inherit ICache<'Command>
     inherit ICfg
 
   let IAppEnvBuilder iLog iDb iCache iCfg =

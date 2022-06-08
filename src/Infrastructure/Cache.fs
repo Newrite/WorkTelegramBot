@@ -40,7 +40,7 @@ type private Cache =
     DeletionItems: DeletionItem list
     Messages: Funogram.Telegram.Types.Message list }
 
-exception private CacheUnmatchedError of string
+exception private CacheUnmatchedException of string
 
 module Cache =
 
@@ -92,7 +92,7 @@ module Cache =
 
     Logger.fatal env $"{source} Error: {error} not matched in cache error handler"
 
-    CacheUnmatchedError($"{source} Error: {error} not matched in cache error handler")
+    CacheUnmatchedException($"{source} Error: {error} not matched in cache error handler")
     |> raise
 
   let private initializationCache (ctx: CacheContext) =

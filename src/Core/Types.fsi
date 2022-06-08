@@ -9,9 +9,6 @@ namespace WorkTelegram.Core
         type private serialnumber
         
         [<Measure>]
-        type private macaddress
-        
-        [<Measure>]
         type private lastname
         
         [<Measure>]
@@ -26,11 +23,15 @@ namespace WorkTelegram.Core
         [<Measure>]
         type private chatid
         
+        [<Measure>]
+        type private officeid
+        
+        [<Measure>]
+        type private deletionid
+        
         type ItemName = FSharp.UMX.string<itemname>
         
         type Serial = FSharp.UMX.string<serialnumber>
-        
-        type MacAddress = FSharp.UMX.string<macaddress>
         
         type LastName = FSharp.UMX.string<lastname>
         
@@ -41,143 +42,81 @@ namespace WorkTelegram.Core
         type Location = FSharp.UMX.string<location>
         
         type ChatId = int64<chatid>
+        
+        type OfficeId = int64<officeid>
+        
+        type DeletionId = int64<deletionid>
     
     module Types =
         
-        [<RequireQualifiedAccess>]
+        [<NoComparison; RequireQualifiedAccess>]
         type BusinessError =
-            | NotFoundInDatabase
-            | IncorrectMacAddress
-            | NumberMostBePositive
-            | IncorrectParseResult
-        
-        [<Struct>]
-        and Inter = int32
+            | NotFoundInDatabase of SearchedType: System.Type
+            | IncorrectMacAddress of PassedIncorrectValue: string
+            | NumberMustBePositive of PassedIncorrectNumber: uint32
+            | IncorrectParsePositiveNumber of
+              PassedIncorrectStringToParse: string
         
         [<NoComparison; RequireQualifiedAccess>]
-        and AppError =
+        type AppError =
             | DatabaseError of Donald.DbError
             | BusinessError of BusinessError
         
+        module ErrorPatterns =
+            
+            module DatabasePatterns =
+                
+                val (|ErrDataReaderOutOfRangeError|_|) :
+                  error: AppError -> Donald.DataReaderOutOfRangeError option
+                
+                val (|ErrDataReaderCastError|_|) :
+                  error: AppError -> Donald.DataReaderCastError option
+                
+                val (|ErrDbConnectionError|_|) :
+                  error: AppError -> Donald.DbConnectionError option
+                
+                val (|ErrDbTransactionError|_|) :
+                  error: AppError -> Donald.DbTransactionError option
+                
+                val (|ErrDbExecutionError|_|) :
+                  error: AppError -> Donald.DbExecutionError option
+            
+            module BusinessPatterns =
+                
+                val (|ErrNotFoundInDatabase|_|) :
+                  error: AppError -> System.Type option
+                
+                val (|ErrIncorrectMacAddress|_|) :
+                  error: AppError -> string option
+                
+                val (|ErrNumberMustBePositive|_|) :
+                  error: AppError -> uint32 option
+                
+                val (|ErrIncorrectParsePositiveNumber|_|) :
+                  error: AppError -> string option
+        
         [<Struct>]
-        and PositiveInt =
-            private { Value: uint }
+        type MacAddress =
+            private { Value: string }
             
-            member GetValue: uint
-        
-        and ItemWithSerial =
-            {
-              Name: UMX.ItemName
-              Serial: UMX.Serial
-            }
-        
-        and ItemWithMacAddress =
-            {
-              Name: UMX.ItemName
-              Serial: UMX.Serial
-              MacAddress: UMX.MacAddress
-            }
-        
-        and ItemWithOnlyName =
-            { Name: UMX.ItemName }
-        
-        [<RequireQualifiedAccess>]
-        and Item =
-            | ItemWithSerial of ItemWithSerial
-            | ItemWithMacAddress of ItemWithMacAddress
-            | ItemWithOnlyName of ItemWithOnlyName
-            
-            member MacAddress: UMX.MacAddress option
-            
-            member Name: UMX.ItemName
-            
-            member Serial: UMX.Serial option
-        
-        [<NoEquality; NoComparison; RequireQualifiedAccess>]
-        and CacheCommand =
-            | Initialization of Env
-            | EmployerByChatId of
-              UMX.ChatId * AsyncReplyChannel<RecordedEmployer option>
-            | ManagerByChatId of
-              UMX.ChatId * AsyncReplyChannel<RecordedManager option>
-            | Offices of AsyncReplyChannel<RecordedOffice list option>
-            | AddOffice of RecordedOffice
-            | AddEmployer of RecordedEmployer
-            | AddManager of RecordedManager
-            | CurrentCache of AsyncReplyChannel<Cache>
-            | GetOfficeEmployers of
-              RecordedOffice * AsyncReplyChannel<RecordedEmployer list option>
-            | DeleteOffice of RecordedOffice
-        
-        and Cache =
-            {
-              Employers: RecordedEmployer list
-              Offices: RecordedOffice list
-              Managers: RecordedManager list
-            }
-        
-        [<NoEquality; NoComparison>]
-        and Logging =
-            {
-              Debug: string -> unit
-              Info: string -> unit
-              Error: string -> unit
-              Warning: string -> unit
-              Fatal: string -> unit
-            }
-        
-        [<NoEquality; NoComparison>]
-        and Env =
-            {
-              Log: Logging
-              Config: Funogram.Types.BotConfig
-              DBConn: Microsoft.Data.Sqlite.SqliteConnection
-              CacheActor: MailboxProcessor<CacheCommand>
-            }
-        
-        and RecordedManager =
-            {
-              ChatId: UMX.ChatId
-              FirstName: UMX.FirstName
-              LastName: UMX.LastName
-            }
-        
-        and RecordedOffice =
-            {
-              OfficeName: UMX.OfficeName
-              Manager: RecordedManager
-            }
-        
-        and RecordedEmployer =
-            {
-              FirstName: UMX.FirstName
-              LastName: UMX.LastName
-              Office: RecordedOffice
-              ChatId: UMX.ChatId
-            }
-        
-        and RecordedDeletionItem =
-            {
-              Item: Item
-              Count: PositiveInt
-              Time: System.DateTime
-              Location: UMX.Location option
-              Employer: RecordedEmployer
-            }
-            
-            override ToString: unit -> string
-        
-        val a: i: Inter -> unit
+            member GetValue: string
         
         module MacAddress =
             
-            val validate:
-              input: string -> Result<FSharp.UMX.string<'u>,BusinessError>
+            val fromString: input: string -> Result<MacAddress,BusinessError>
+            
+            val fromOptionString: input: string option -> MacAddress option
         
         module OfficeName =
             
             val equals:
               officeOne: UMX.OfficeName -> officeTwo: UMX.OfficeName -> bool
+        
+        [<Struct>]
+        type PositiveInt =
+            private { Value: uint }
+            
+            member GetValue: uint
         
         module PositiveInt =
             
@@ -187,20 +126,48 @@ namespace WorkTelegram.Core
             
             val one: PositiveInt
         
+        type ItemWithSerial =
+            {
+              Name: UMX.ItemName
+              Serial: UMX.Serial
+            }
+        
         module ItemWithSerial =
             
             val create:
               name: UMX.ItemName -> serial: UMX.Serial -> ItemWithSerial
         
+        type ItemWithMacAddress =
+            {
+              Name: UMX.ItemName
+              Serial: UMX.Serial
+              MacAddress: MacAddress
+            }
+        
         module ItemWithMacAddress =
             
             val create:
-              name: UMX.ItemName -> serial: UMX.Serial
-              -> macaddress: UMX.MacAddress -> ItemWithMacAddress
+              name: UMX.ItemName -> serial: UMX.Serial -> macaddress: MacAddress
+                -> ItemWithMacAddress
+        
+        type ItemWithOnlyName =
+            { Name: UMX.ItemName }
         
         module ItemWithOnlyName =
             
             val create: name: UMX.ItemName -> ItemWithOnlyName
+        
+        [<RequireQualifiedAccess>]
+        type Item =
+            | ItemWithSerial of ItemWithSerial
+            | ItemWithMacAddress of ItemWithMacAddress
+            | ItemWithOnlyName of ItemWithOnlyName
+            
+            member MacAddress: MacAddress option
+            
+            member Name: UMX.ItemName
+            
+            member Serial: UMX.Serial option
         
         module Item =
             
@@ -208,19 +175,55 @@ namespace WorkTelegram.Core
               name: UMX.ItemName -> serial: UMX.Serial -> Item
             
             val createWithMacAddress:
-              name: UMX.ItemName -> serial: UMX.Serial
-              -> macaddress: UMX.MacAddress -> Item
+              name: UMX.ItemName -> serial: UMX.Serial -> macaddress: MacAddress
+                -> Item
             
             val createWithOnlyName: name: UMX.ItemName -> Item
             
             val create:
               name: UMX.ItemName -> serial: UMX.Serial option
-              -> macaddress: UMX.MacAddress option -> Item
+              -> macaddress: MacAddress option -> Item
         
-        module RecordedEmployer =
+        type Manager =
+            {
+              ChatId: UMX.ChatId
+              FirstName: UMX.FirstName
+              LastName: UMX.LastName
+            }
+        
+        type Office =
+            {
+              OfficeId: UMX.OfficeId
+              IsHidden: bool
+              OfficeName: UMX.OfficeName
+              Manager: Manager
+            }
+        
+        type Employer =
+            {
+              FirstName: UMX.FirstName
+              LastName: UMX.LastName
+              Office: Office
+              ChatId: UMX.ChatId
+            }
+        
+        module Employer =
             
             val create:
               firstName: UMX.FirstName -> lastName: UMX.LastName
-              -> office: RecordedOffice -> chatId: UMX.ChatId
-                -> RecordedEmployer
+              -> office: Office -> chatId: UMX.ChatId -> Employer
+        
+        type DeletionItem =
+            {
+              DeletionId: UMX.DeletionId
+              Item: Item
+              Count: PositiveInt
+              Time: System.DateTime
+              IsDeletion: bool
+              IsHidden: bool
+              Location: UMX.Location option
+              Employer: Employer
+            }
+            
+            override ToString: unit -> string
 

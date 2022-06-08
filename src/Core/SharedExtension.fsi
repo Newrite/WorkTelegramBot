@@ -1,4 +1,14 @@
 
+type Either<'LeftValue,'RightValue> =
+    | Left of 'LeftValue
+    | Right of 'RightValue
+
+module Either
+
+val ifLeft: either: Either<'a,'b> -> bool
+
+val ifRight: either: Either<'a,'b> -> bool
+
 module Option
 
 val inline string: optionValue: 'a option -> string

@@ -5,13 +5,13 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type Employer =
             | EnteringOffice
-            | EnteringLastFirstName of Core.Types.RecordedOffice
-            | AskingFinish of Core.Types.RecordedEmployer
+            | EnteringLastFirstName of Core.Types.Office
+            | AskingFinish of Core.RecordEmployer
         
         [<RequireQualifiedAccess>]
         type Manager =
             | EnteringLastFirstName
-            | AskingFinish of Core.Types.RecordedManager
+            | AskingFinish of Core.ManagerDto
         
         [<RequireQualifiedAccess>]
         type Model =
@@ -28,17 +28,17 @@ namespace WorkTelegram.Telegram
             | EnteringSerial of Core.Types.ItemWithOnlyName
             | EnteringCount of Core.Types.Item
             | EnteringLocation of Core.Types.Item * Core.Types.PositiveInt
-            | AskingFinish of Core.Types.RecordedDeletionItem
+            | AskingFinish of Core.RecordDeletionItem
         
         [<RequireQualifiedAccess>]
         type Model =
             | Deletion of Deletion
             | WaitChoice
-            | EditRecordedDeletions
+            | EditDeletionItems
         
         type EmployerContext =
             {
-              Employer: Core.Types.RecordedEmployer
+              Employer: Core.Types.Employer
               Model: Model
             }
             
@@ -49,20 +49,20 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type MakeOffice =
             | EnteringName
-            | AskingFinish of Core.Types.RecordedOffice
+            | AskingFinish of Core.RecordOffice
         
         [<RequireQualifiedAccess>]
         type Model =
             | NoOffices
             | MakeOffice of MakeOffice
-            | ChooseOffice of Core.Types.RecordedOffice list
-            | InOffice of Core.Types.RecordedOffice
-            | AuthEmployers of Core.Types.RecordedOffice
-            | DeAuthEmployers of Core.Types.RecordedOffice
+            | ChooseOffice of Core.Types.Office list
+            | InOffice of Core.Types.Office
+            | AuthEmployers of Core.Types.Office
+            | DeAuthEmployers of Core.Types.Office
         
         type ManagerContext =
             {
-              Manager: Core.Types.RecordedManager
+              Manager: Core.Types.Manager
               Model: Model
             }
             

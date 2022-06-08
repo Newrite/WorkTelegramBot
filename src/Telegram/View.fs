@@ -6,10 +6,11 @@ open WorkTelegram.Core
 open WorkTelegram.Infrastructure
 
 open Elmish
+open WorkTelegram.Telegram
 
 module View =
 
-  exception private ViewUnmatchedError of string
+  exception private ViewUnmatchedException of string
 
   open EmployerProcess
   open ManagerProcess
@@ -17,10 +18,10 @@ module View =
 
   [<NoEquality>]
   [<NoComparison>]
-  type private ViewContext<'a> =
+  type private ViewContext<'Command> =
     { Dispatch: UpdateMessage -> unit
       BackCancelKeyboard: Keyboard
-      AppEnv: IAppEnv<'a> }
+      AppEnv: IAppEnv<'Command> }
 
 
   let private employerProcess (ctx: ViewContext<_>) (employerState: EmployerContext) =
@@ -60,7 +61,7 @@ module View =
         [ Keyboard.create [ Button.create "Обновить" (fun _ -> ctx.Dispatch UpdateMessage.Cancel) ] ]
         []
 
-    let deletionProcess (dprocess: EmployerProcess.Deletion) =
+    let deletionProcess (dprocess: Deletion) =
 
       match dprocess with
       | Deletion.EnteringName ->
@@ -133,7 +134,7 @@ module View =
           "Введите количество"
           [ ctx.BackCancelKeyboard ]
           [ fun message ->
-              match PositiveInt.tryParse (message.Text.Value) with
+              match PositiveInt.tryParse message.Text.Value with
               | Ok pint ->
                 UpdateMessage.DeletionProcessChange(
                   employerState,
@@ -155,7 +156,7 @@ module View =
                     $"Некорректный ввод, попробуйте еще раз: Введенное значение {incorrectString}"
                     3000
                 | _ ->
-                  ViewUnmatchedError($"Unmatched error in view function: error {err}")
+                  ViewUnmatchedException($"Unmatched error in view function: error {err}")
                   |> raise ]
 
       | Deletion.EnteringLocation (item, count) ->
@@ -360,12 +361,12 @@ module View =
               let array = message.Text.Value.Split(' ')
 
               if array.Length = 2 then
-                let firstName, lastName: FirstName * LastName = %array[0], %array[1]
+                let firstName, lastName = array[0], array[1]
 
-                let manager: Manager =
+                let manager: ManagerDto =
                   { FirstName = firstName
                     LastName = lastName
-                    ChatId = %message.Chat.Id }
+                    ChatId = message.Chat.Id }
 
                 manager
                 |> Manager.AskingFinish
@@ -381,7 +382,7 @@ module View =
             Имя     : {manager.FirstName}
             Фамилия : {manager.LastName}"
           [ Keyboard.create [ Button.create "Принять" (fun _ ->
-                                UpdateMessage.FinishManagerAuth(manager, ctx.AppEnv)
+                                UpdateMessage.FinishManagerAuth manager
                                 |> ctx.Dispatch) ]
             ctx.BackCancelKeyboard ]
           []
@@ -426,34 +427,26 @@ module View =
     | CoreModel.Employer employerState -> employerProcess ctx employerState
     | CoreModel.Manager managerState ->
       match managerState.Model with
-      | Model.DeAuthEmployers office ->
+      | Model.DeAuthEmployers _ ->
         let employers =
-          match Cache.officeEmployers env office with
-          | Some employers ->
-            employers
-            |> List.filter (fun e -> Database.isApproved env e)
-          | None -> []
+          query {
+            for employer in Cache.getEmployers ctx.AppEnv do
+              where (Cache.isApprovedEmployer ctx.AppEnv employer)
+              select employer
+          }
 
         let buttonHandler employer _ =
-          match Database.updateIsApprovedEmployer env false employer with
-          | Error err ->
-            match err with
-            | DatabaseError.CantUpdateEmployerApproved _ ->
-              let text = $"Database Error: {DatabaseError.CantUpdateEmployerApproved}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-            | DatabaseError.SQLiteException exn ->
-              let text = $"Database Error: {exn.Message}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-            | err ->
-              let text = $"Database Error: {err}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-          | Ok _ ->
+          match Cache.tryUpdateEmployerApprovedInDb ctx.AppEnv employer false with
+          | false ->
+            let text =
+              "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
+
+            Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
+            ctx.Dispatch UpdateMessage.ReRender
+          | true ->
             let text = "Авторизация сотрудника успешно убрана"
             Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 3000
-            ctx.Dispatch UpdateMessage.Back
+            ctx.Dispatch UpdateMessage.ReRender
 
         RenderView.create
           "Выберите сотрудника для которого хотите убрать авторизацию"
@@ -464,35 +457,32 @@ module View =
             ctx.BackCancelKeyboard ]
           []
 
-      | Model.AuthEmployers office ->
+      | Model.AuthEmployers _ ->
 
         let employers =
-          match Cache.officeEmployers env office with
-          | Some employers ->
-            employers
-            |> List.filter (fun e -> Database.isApproved env e |> not)
-          | None -> []
+          query {
+            for employer in Cache.getEmployers ctx.AppEnv do
+              where (
+                Cache.isApprovedEmployer ctx.AppEnv employer
+                |> not
+              )
+
+              select employer
+          }
+          |> List.ofSeq
 
         let buttonHandler employer _ =
-          match Database.updateIsApprovedEmployer env true employer with
-          | Error err ->
-            match err with
-            | DatabaseError.CantUpdateEmployerApproved _ ->
-              let text = $"Database Error: {DatabaseError.CantUpdateEmployerApproved}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-            | DatabaseError.SQLiteException exn ->
-              let text = $"Database Error: {exn.Message}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-            | err ->
-              let text = $"Database Error: {err}"
-              Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
-              ctx.Dispatch UpdateMessage.Back
-          | Ok _ ->
-            let text = "Сотрудник успешно авторизован"
+          match Cache.tryUpdateEmployerApprovedInDb ctx.AppEnv employer true with
+          | false ->
+            let text =
+              "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
+
+            Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 5000
+            ctx.Dispatch UpdateMessage.ReRender
+          | true ->
+            let text = "Авторизация прошла успешно"
             Utils.sendMessageAndDeleteAfterDelay env managerState.Manager.ChatId text 3000
-            ctx.Dispatch UpdateMessage.Back
+            ctx.Dispatch UpdateMessage.ReRender
 
         RenderView.create
           "Выберите сотрудника которого хотите авторизовать"
@@ -532,9 +522,8 @@ module View =
                                 )
                                 |> ctx.Dispatch)
                               Button.create "Удалить офис" (fun _ ->
-                                match Database.tryDeleteOfficeByOfficeNameAndUpdateCache env office
-                                  with
-                                | Ok _ ->
+                                match Cache.tryDeleteOffice ctx.AppEnv office.OfficeId with
+                                | true ->
                                   let text = $"Офис {office.OfficeName} успешно удален"
 
                                   Utils.sendMessageAndDeleteAfterDelay
@@ -544,9 +533,10 @@ module View =
                                     3000
 
                                   ctx.Dispatch UpdateMessage.Cancel
-                                | Error err ->
+                                | false ->
                                   let text =
-                                    $"Нет возможности удалить офис, возможно с офисом уже связаны какая либо запись либо сотрудник"
+                                    "Нет возможности удалить офис,
+                                      возможно с офисом уже связаны какая либо запись либо сотрудник"
 
                                   Utils.sendMessageAndDeleteAfterDelay
                                     env
@@ -591,75 +581,74 @@ module View =
                                 |> FsExcel.Render.AsStreamBytes
 
                               Button.create "Получить таблицу актуальных записей" (fun _ ->
-                                match Database.selectAllItemsByOffice env office with
-                                | Ok items ->
-                                  let recordedItems =
-                                    items
-                                    |> List.filter (fun i ->
-                                      (i.IsDeletion |> not) && (i.IsHidden |> not))
-                                    |> List.map (fun i -> i.RecordedItem)
+                                let items =
+                                  query {
+                                    for item in Cache.getDeletionItems ctx.AppEnv do
+                                      where (
+                                        item.IsDeletion |> not
+                                        && item.IsHidden |> not
+                                        && item.Employer.Office.OfficeId = office.OfficeId
+                                      )
 
-                                  if recordedItems.Length > 0 then
-                                    try
-                                      let streamWithDocument =
-                                        let bytes = createExcelTableFromItemsAsBytes recordedItems
-                                        new System.IO.MemoryStream(bytes)
+                                      select item
+                                  }
+                                  |> List.ofSeq
 
-                                      let documentName =
-                                        let dateString =
-                                          let now = System.DateTime.Now
-                                          $"{now.Day}.{now.Month}.{now.Year} {now.Hour}:{now.Minute}:{now.Second}"
+                                if items.Length > 0 then
+                                  try
+                                    let streamWithDocument =
+                                      let bytes = createExcelTableFromItemsAsBytes items
+                                      new System.IO.MemoryStream(bytes)
 
-                                        ctx.AppEnv.Log.Debug
-                                          $"Generated string from datetime for document is {dateString}"
+                                    let documentName =
+                                      let dateString =
+                                        let now = System.DateTime.Now
+                                        $"{now.Day}.{now.Month}.{now.Year} {now.Hour}:{now.Minute}:{now.Second}"
 
-                                        let name = "ActualItemsTable" + dateString + ".xlsx"
-
-                                        ctx.AppEnv.Log.Debug
-                                          $"Generated document name of items is {name}"
-
-                                        name
-
-                                      Utils.sendDocumentAndDeleteAfterDelay
-                                        env
-                                        managerState.Manager.ChatId
-                                        documentName
-                                        streamWithDocument
-                                        90000
-
-                                      let text =
-                                        "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
-
-                                      Utils.sendMessageAndDeleteAfterDelay
+                                      Logger.debug
                                         ctx.AppEnv
-                                        managerState.Manager.ChatId
-                                        text
-                                        5000
-                                    with
-                                    | exn ->
-                                      let text =
-                                        $"Произошла ошибка во время создания таблицы {exn.Message}"
+                                        $"Generated string from datetime for document is {dateString}"
 
-                                      Utils.sendMessageAndDeleteAfterDelay
+                                      let name = "ActualItemsTable" + dateString + ".xlsx"
+
+                                      Logger.debug
                                         ctx.AppEnv
-                                        managerState.Manager.ChatId
-                                        text
-                                        5000
+                                        $"Generated document name of items is {name}"
 
-                                      ctx.AppEnv.Log.Error
-                                        $"Exception when try send document excel message = {exn.Message}
-                          Trace: {exn.StackTrace}"
-                                  else
+                                      name
+
+                                    Utils.sendDocumentAndDeleteAfterDelay
+                                      env
+                                      managerState.Manager.ChatId
+                                      documentName
+                                      streamWithDocument
+                                      90000
+
                                     let text =
-                                      $"Не обнаружено актуальных записей для создания таблицы"
+                                      "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
 
                                     Utils.sendMessageAndDeleteAfterDelay
                                       ctx.AppEnv
                                       managerState.Manager.ChatId
                                       text
                                       5000
-                                | Error err ->
-                                  let text = $"Произошла ошибка во время сбора записей {err}"
+                                  with
+                                  | exn ->
+                                    let text =
+                                      $"Произошла ошибка во время создания таблицы {exn.Message}"
+
+                                    Utils.sendMessageAndDeleteAfterDelay
+                                      ctx.AppEnv
+                                      managerState.Manager.ChatId
+                                      text
+                                      5000
+
+                                    Logger.error
+                                      ctx.AppEnv
+                                      $"Exception when try send document excel message = {exn.Message}
+                                          Trace: {exn.StackTrace}"
+                                else
+                                  let text = "Не обнаружено актуальных записей для создания таблицы"
 
                                   Utils.sendMessageAndDeleteAfterDelay
                                     ctx.AppEnv
@@ -679,31 +668,26 @@ module View =
                                 |> UpdateMessage.StartEditDeletionItems
                                 |> ctx.Dispatch) ]
             Keyboard.create [ Button.create "Списать все записи" (fun _ ->
-                                match Database.setIsDeletionTrueForAllItemsInOffice env office with
-                                | Ok deleted ->
-                                  let text =
-                                    if deleted > 0 then
-                                      $"Успешно списано {deleted} записей"
-                                    else
-                                      "Нет записей для списния"
+                                match Cache.trySetDeletionOnItemsOfOffice ctx.AppEnv office.OfficeId
+                                  with
+                                | true ->
+                                  let text = "Операция прошла успешно"
 
                                   Utils.sendMessageAndDeleteAfterDelay
                                     env
                                     office.Manager.ChatId
                                     text
                                     3000
-                                | Error err ->
-                                  match err with
-                                  | DatabaseError.SQLiteException exn ->
-                                    let text =
-                                      $"Произошла ошибка при попытке списать записи: {exn.Message}"
+                                | false ->
+                                  let text = $"Не удалось списать записи, попробуйте попозже"
 
-                                    Utils.sendMessageAndDeleteAfterDelay
-                                      env
-                                      office.Manager.ChatId
-                                      text
-                                      5000
-                                  | _ -> ()) ]
+                                  Utils.sendMessageAndDeleteAfterDelay
+                                    env
+                                    office.Manager.ChatId
+                                    text
+                                    5000
+
+                                ctx.Dispatch UpdateMessage.ReRender) ]
             ctx.BackCancelKeyboard ]
           []
 
@@ -744,9 +728,7 @@ module View =
 
                 let dispatch () =
 
-                  let office =
-                    { OfficeName = officeName
-                      Manager = managerState.Manager }
+                  let office = Record.createOffice officeName managerState.Manager.ChatId
 
                   UpdateMessage.ManagerMakeOfficeChange(
                     managerState,
@@ -763,26 +745,25 @@ module View =
                       officeAlreadyExist officeName tail
                   | [] -> false
 
-                match Cache.offices ctx.Env with
-                | Some offices ->
-                  if officeAlreadyExist officeName offices then
-                    let text = "Офис с таким названием уже существует, попробуйте другое"
+                let offices = Cache.getOffices ctx.AppEnv
 
-                    Utils.sendMessageAndDeleteAfterDelay
-                      ctx.AppEnv
-                      managerState.Manager.ChatId
-                      text
-                      3000
-                  else
-                    dispatch ()
-                | None -> dispatch () ]
+                if officeAlreadyExist officeName offices then
+                  let text = "Офис с таким названием уже существует, попробуйте другое"
+
+                  Utils.sendMessageAndDeleteAfterDelay
+                    ctx.AppEnv
+                    managerState.Manager.ChatId
+                    text
+                    3000
+                else
+                  dispatch () ]
 
         | MakeOffice.AskingFinish office ->
           RenderView.create
             $"Все ли правильно
               Название офиса: {office.OfficeName}"
             [ Keyboard.create [ Button.create "Внести" (fun _ ->
-                                  UpdateMessage.FinishMakeOfficeProcess(office, env)
+                                  UpdateMessage.FinishMakeOfficeProcess office
                                   |> ctx.Dispatch) ]
               ctx.BackCancelKeyboard ]
             []
