@@ -127,7 +127,7 @@ module ChatIdDto =
   let toDomain (chatIdTable: ChatIdDto) : ChatId = %chatIdTable.ChatId
 
   [<Literal>]
-  let TableName = "chat_id"
+  let TableName = "chat_id_table"
 
 type MessageDto = { ChatId: int64; MessageJson: string }
 
