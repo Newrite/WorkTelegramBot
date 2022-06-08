@@ -78,6 +78,33 @@ type RecordDeletionItem =
     OfficeId: int64
     EmployerChatId: int64 }
 
+  override self.ToString() =
+    let macText =
+      if self.ItemMac.IsSome then
+        self.ItemMac.Value
+      else
+        "Нет"
+
+    let serialText =
+      if self.ItemSerial.IsSome then
+        %self.ItemSerial.Value
+      else
+        "Нет"
+
+    let locationText =
+      if self.Location.IsSome then
+        %self.Location.Value
+      else
+        "Не указано"
+
+    $"""
+        Имя позиции    : {self.ItemName}
+        Мак адрес      : {macText}
+        Серийный номер : {serialText}
+        Куда или зачем : {locationText}
+        Количество     : {self.Count}
+        Дата           : {self.Time}"""
+
 [<RequireQualifiedAccess>]
 module Record =
 

@@ -162,6 +162,8 @@ module Types =
 
     member self.GetValue = self.Value
 
+    override self.ToString() = self.Value
+
   [<RequireQualifiedAccess>]
   module MacAddress =
 

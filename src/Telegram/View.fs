@@ -204,12 +204,9 @@ module View =
 
       RenderView.create
         messageText
-        [ Keyboard.create [ Button.create "Внести" (fun _ ->
-                              UpdateMessage.FinishDeletionProcess(
-                                employerState,
-                                recordedDeletionItem
-                              )
-                              |> ctx.Dispatch) ]
+        [ Keyboard.createSingle "Внести" (fun _ ->
+            UpdateMessage.FinishDeletionProcess(employerState, recordedDeletionItem)
+            |> ctx.Dispatch)
           ctx.BackCancelKeyboard ]
         []
 
@@ -542,7 +539,9 @@ module View =
                                     env
                                     office.Manager.ChatId
                                     text
-                                    5000) ]
+                                    5000
+
+                                  ctx.Dispatch UpdateMessage.ReRender) ]
             Keyboard.create [ let createExcelTableFromItemsAsBytes items =
                                 let headers =
                                   [ "Имя"

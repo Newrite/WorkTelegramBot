@@ -208,8 +208,7 @@ module Cache =
             channel.Reply cache.Messages
             return! cacheHandler cache
           | CacheCommand.GetOfficesByManagerId (chatId, channel) ->
-            List.tryFind (fun o -> o.Manager.ChatId = chatId) cache.Offices
-            |> Option.toList
+            List.filter (fun o -> o.Manager.ChatId = chatId) cache.Offices
             |> channel.Reply
 
             return! cacheHandler cache
