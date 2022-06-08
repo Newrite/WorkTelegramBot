@@ -236,7 +236,7 @@ module Database =
 
   let internal insertMessage env (messageDto: MessageDto) =
     let sqlCommand =
-      $"INSERT IGNORE INTO {MessageDto.TableName}
+      $"INSERT OR IGNORE INTO {MessageDto.TableName}
         ({Field.ChatId}, {Field.MessageJson})"
 
     let sqlParam =
@@ -247,7 +247,7 @@ module Database =
 
   let internal insertManager env (managerDto: ManagerDto) =
     let sqlCommand =
-      $"INSERT IGNORE INTO {ManagerDto.TableName}
+      $"INSERT OR IGNORE INTO {ManagerDto.TableName}
         ({Field.ChatId}, {Field.FirstName}, {Field.LastName})"
 
     let sqlParam =
@@ -259,7 +259,7 @@ module Database =
 
   let internal insertOffice env (officeRecord: RecordOffice) =
     let sqlCommand =
-      $"INSERT IGNORE INTO {OfficeDto.TableName} 
+      $"INSERT OR IGNORE INTO {OfficeDto.TableName} 
         ({Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})"
 
     let sqlParam =
@@ -271,7 +271,7 @@ module Database =
 
   let internal insertEmployer env (employerRecord: RecordEmployer) =
     let sqlCommand =
-      $"INSERT IGNORE INTO {EmployerDto.TableName} 
+      $"INSERT OR IGNORE INTO {EmployerDto.TableName} 
         ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})"
 
     let sqlParam =
@@ -285,7 +285,7 @@ module Database =
 
   let internal insertDeletionItem env (deletionItemRecord: RecordDeletionItem) =
     let sqlCommand =
-      $"INSERT IGNORE INTO {DeletionItemDto.TableName}
+      $"INSERT OR IGNORE INTO {DeletionItemDto.TableName}
         ({Field.ItemName},
          {Field.ItemSerial},
          {Field.ItemMac},
@@ -381,7 +381,7 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let insertChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand = $"INSERT IGNORE INTO {ChatIdDto.TableName} ({Field.ChatId})"
+    let sqlCommand = $"INSERT OR IGNORE INTO {ChatIdDto.TableName} ({Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
 
