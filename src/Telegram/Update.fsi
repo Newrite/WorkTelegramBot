@@ -27,9 +27,9 @@ namespace WorkTelegram.Telegram
     module Update =
         
         val update:
-          env: 'a -> history: System.Collections.Generic.Stack<CoreModel>
-          -> message: UpdateMessage -> model: CoreModel
-          -> callInitModelFunction: (unit -> CoreModel) -> CoreModel
+          env: 'a -> history: System.Collections.Generic.Stack<Model.CoreModel>
+          -> message: UpdateMessage -> model: Model.CoreModel
+          -> callInitModelFunction: (unit -> Model.CoreModel) -> Model.CoreModel
             when 'a :> Infrastructure.AppEnv.ILog and
                  'a :> Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
                  'a :> Infrastructure.AppEnv.ICfg

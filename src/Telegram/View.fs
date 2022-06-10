@@ -51,9 +51,7 @@ module View =
           FsExcel.Cell [ FsExcel.String(Option.string item.Location) ]
           FsExcel.Cell [ FsExcel.Integer(int count) ]
 
-          FsExcel.Cell [ FsExcel.String(
-                           $"{item.Employer.FirstName} {item.Employer.LastName}"
-                         ) ]
+          FsExcel.Cell [ FsExcel.String($"{item.Employer.FirstName} {item.Employer.LastName}") ]
 
           FsExcel.Cell [ FsExcel.DateTime item.Time ]
           FsExcel.Go FsExcel.NewRow

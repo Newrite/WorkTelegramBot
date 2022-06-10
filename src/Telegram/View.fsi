@@ -415,6 +415,6 @@ namespace WorkTelegram.Telegram
         val view:
           env: Infrastructure.AppEnv.IAppEnv<Infrastructure.CacheCommand>
           -> history: System.Collections.Generic.Stack<'a>
-          -> dispatch: (UpdateMessage -> unit) -> model: CoreModel
+          -> dispatch: (UpdateMessage -> unit) -> model: Model.CoreModel
             -> Elmish.RenderView
 
