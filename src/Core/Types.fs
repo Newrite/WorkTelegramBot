@@ -354,6 +354,15 @@ module Types =
         Office = office
         ChatId = chatId }
 
+  [<RequireQualifiedAccess>]
+  module Manager =
+
+    let asEmployer (manager: Manager) office =
+      { FirstName = manager.FirstName
+        LastName = manager.LastName
+        Office = office
+        ChatId = manager.ChatId }
+
   type DeletionItem =
     { DeletionId: DeletionId
       Item: Item
