@@ -42,9 +42,6 @@ let main _ =
 
   Database.initTables env
 
-  // Wait for initialization cache
-  Thread.Sleep(1000)
-
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"
          Description = "Что бы начать взаимодействие с ботом выберите эту комманду" }
