@@ -6,12 +6,12 @@ namespace WorkTelegram.Telegram
         type Employer =
             | EnteringOffice
             | EnteringLastFirstName of Core.Types.Office
-            | AskingFinish of Core.RecordEmployer
+            | AskingFinish of Core.Types.Employer
         
         [<RequireQualifiedAccess>]
         type Manager =
             | EnteringLastFirstName
-            | AskingFinish of Core.ManagerDto
+            | AskingFinish of Core.Types.Manager
         
         [<RequireQualifiedAccess>]
         type Model =
@@ -28,7 +28,7 @@ namespace WorkTelegram.Telegram
             | EnteringSerial of Core.Types.ItemWithOnlyName
             | EnteringCount of Core.Types.Item
             | EnteringLocation of Core.Types.Item * Core.Types.PositiveInt
-            | AskingFinish of Core.RecordDeletionItem
+            | AskingFinish of Core.Types.DeletionItem
         
         [<RequireQualifiedAccess>]
         type Model =
@@ -49,7 +49,7 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type MakeOffice =
             | EnteringName
-            | AskingFinish of Core.RecordOffice
+            | AskingFinish of Core.Types.Office
         
         [<RequireQualifiedAccess>]
         type Model =

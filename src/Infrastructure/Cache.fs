@@ -17,10 +17,10 @@ type CacheCommand =
   | TryGetEmployerByChatId of ChatId * AsyncReplyChannel<Employer option>
   | TryGetManagerByChatId of ChatId * AsyncReplyChannel<Manager option>
   | TryGetMessageByChatId of ChatId * AsyncReplyChannel<Funogram.Telegram.Types.Message option>
-  | TryAddOfficeInDb of RecordOffice * AsyncReplyChannel<Office option>
-  | TryAddEmployerInDb of RecordEmployer * AsyncReplyChannel<Employer option>
-  | TryAddManagerInDb of ManagerDto * AsyncReplyChannel<Manager option>
-  | TryAddDeletionItemInDb of RecordDeletionItem * AsyncReplyChannel<DeletionItem option>
+  | TryAddOfficeInDb of Office * AsyncReplyChannel<Office option>
+  | TryAddEmployerInDb of Employer * AsyncReplyChannel<Employer option>
+  | TryAddManagerInDb of Manager * AsyncReplyChannel<Manager option>
+  | TryAddDeletionItemInDb of DeletionItem * AsyncReplyChannel<DeletionItem option>
   | TryAddOrUpdateMessageInDb of Funogram.Telegram.Types.Message * AsyncReplyChannel<bool>
   | TryUpdateEmployerApprovedInDb of Employer * bool * AsyncReplyChannel<bool>
   | TrySetDeletionOnItemsOfOffice of OfficeId * AsyncReplyChannel<ExtBool>
@@ -128,7 +128,7 @@ module Cache =
     let findManager (id: int64) =
       List.find (fun (m: ManagerDto) -> m.ChatId = id) managersDto
 
-    let findOffice (id: int64) =
+    let findOffice (id: System.Guid) =
       List.find (fun (o: OfficeDto) -> o.OfficeId = id) officesDto
 
     let findEmployer (id: int64) =
@@ -235,41 +235,28 @@ module Cache =
 
           | CacheCommand.TryAddDeletionItemInDb (item, channel) ->
 
-            let result =
-              result {
-                let ticks = let x = item.Time in x.Ticks
-                let! _ = Database.insertDeletionItem ctx.Database item
-                and! itemDto = Database.selectDeletionItemByTimeTicks ctx.Database ticks
-                return itemDto
-              }
+            let itemDto = DeletionItemDto.fromDomain item
+
+            let result = Database.insertDeletionItem ctx.Database itemDto
 
             match result with
-            | Ok itemDto ->
-              let employer =
-                match List.tryFind (fun (m: Manager) -> %m.ChatId = itemDto.ChatId) cache.Managers
-                  with
-                | Some m ->
-                  let office = List.find (fun o -> %o.OfficeId = itemDto.OfficeId) cache.Offices
-                  Employer.create m.FirstName m.LastName office m.ChatId
-                | None -> List.find (fun e -> %e.ChatId = itemDto.ChatId) cache.Employers
+            | Ok _ ->
+              item |> Some |> channel.Reply
 
-              let itemDomain = DeletionItemDto.toDomainWithEmployer itemDto employer
-              itemDomain |> Some |> channel.Reply
-
-              return!
-                cacheHandler { cache with Cache.DeletionItems = itemDomain :: cache.DeletionItems }
+              return! cacheHandler { cache with Cache.DeletionItems = item :: cache.DeletionItems }
             | Error err ->
               channel.Reply None
               errorHandler ctx.Logger err (line ())
               return! cacheHandler cache
 
-          | CacheCommand.TryAddManagerInDb (managerDto, channel) ->
+          | CacheCommand.TryAddManagerInDb (manager, channel) ->
+
+            let managerDto = ManagerDto.fromDomain manager
 
             let result = Database.insertManager ctx.Database managerDto
 
             match result with
             | Ok _ ->
-              let manager = ManagerDto.toDomain managerDto
               manager |> Some |> channel.Reply
               return! cacheHandler { cache with Cache.Managers = manager :: cache.Managers }
             | Error err ->
@@ -277,20 +264,14 @@ module Cache =
               errorHandler ctx.Logger err (line ())
               return! cacheHandler cache
 
-          | CacheCommand.TryAddOfficeInDb (officeRecord, channel) ->
+          | CacheCommand.TryAddOfficeInDb (office, channel) ->
 
-            let result =
-              result {
-                let! _ = Database.insertOffice ctx.Database officeRecord
-                let chatIdDto = ChatIdDto.fromDomain %officeRecord.ManagerChatId
-                let! manager = Database.selectManagerByChatId ctx.Database chatIdDto
-                and! officeDto = Database.selectOfficeByName ctx.Database officeRecord.OfficeName
-                return (ManagerDto.toDomain manager, officeDto)
-              }
+            let officeDto = OfficeDto.fromDomain office
+
+            let result = Database.insertOffice ctx.Database officeDto
 
             match result with
-            | Ok (m, o) ->
-              let office = OfficeDto.toDomainWithManager o m
+            | Ok _ ->
               office |> Some |> channel.Reply
               return! cacheHandler { cache with Cache.Offices = office :: cache.Offices }
             | Error err ->
@@ -298,22 +279,13 @@ module Cache =
               errorHandler ctx.Logger err (line ())
               return! cacheHandler cache
 
-          | CacheCommand.TryAddEmployerInDb (employerRecord, channel) ->
-            let result = Database.insertEmployer ctx.Database employerRecord
+          | CacheCommand.TryAddEmployerInDb (employer, channel) ->
+            let employerDto = EmployerDto.fromDomain employer false
+
+            let result = Database.insertEmployer ctx.Database employerDto
 
             match result with
             | Ok _ ->
-              let office =
-                cache.Offices
-                |> List.find (fun o -> %o.OfficeId = employerRecord.OfficeId)
-
-              let employer =
-                { ChatId = employerRecord.ChatId
-                  FirstName = employerRecord.FirstName
-                  LastName = employerRecord.LastName
-                  IsApproved = false
-                  OfficeId = employerRecord.OfficeId }
-                |> EmployerDto.toDomainWithOffice office
 
               employer |> Some |> channel.Reply
               return! cacheHandler { cache with Cache.Employers = employer :: cache.Employers }
@@ -546,39 +518,40 @@ module Cache =
 
   let tryGetMessageByChatIdAsync env chatId = task { return tryGetMessageByChatId env chatId }
 
-  let tryAddOfficeInDb env (recordOffice: RecordOffice) =
-    Logger.debug env $"Try add office in database name {recordOffice.OfficeName}"
+  let tryAddOfficeInDb env (office: Office) =
+    Logger.debug env $"Try add office in database name {office.OfficeName}"
 
     reply env
-    ^ fun channel -> CacheCommand.TryAddOfficeInDb(recordOffice, channel)
+    ^ fun channel -> CacheCommand.TryAddOfficeInDb(office, channel)
 
   let tryAddOfficeInDbAsync env recordOffice = task { return tryAddOfficeInDb env recordOffice }
 
-  let tryAddEmployerInDb env (recordEmployer: RecordEmployer) =
-    Logger.debug env $"Try add employer in database chat id {recordEmployer.ChatId}"
+  let tryAddEmployerInDb env (employer: Employer) =
+    Logger.debug env $"Try add employer in database chat id {employer.ChatId}"
 
     reply env
-    ^ fun channel -> CacheCommand.TryAddEmployerInDb(recordEmployer, channel)
+    ^ fun channel -> CacheCommand.TryAddEmployerInDb(employer, channel)
 
   let tryAddEmployerInDbAsync env recordEmployer =
     task { return tryAddEmployerInDb env recordEmployer }
 
-  let tryAddManagerInDb env (managerDto: ManagerDto) =
-    Logger.debug env $"Try add manager in database chat id {managerDto.ChatId}"
+  let tryAddManagerInDb env (manager: Manager) =
+    Logger.debug env $"Try add manager in database chat id {manager.ChatId}"
 
     reply env
-    ^ fun channel -> CacheCommand.TryAddManagerInDb(managerDto, channel)
+    ^ fun channel -> CacheCommand.TryAddManagerInDb(manager, channel)
 
   let tryAddManagerInDbAsync env managerDto = task { return tryAddManagerInDb env managerDto }
 
 
-  let tryAddDeletionItemInDb env (recordDeletionItem: RecordDeletionItem) =
+  let tryAddDeletionItemInDb env (deletionItem: DeletionItem) =
     Logger.debug
       env
-      $"Try add deletion item in database name {recordDeletionItem.ItemName} office id {recordDeletionItem.OfficeId}"
+      $"Try add deletion item in database name {deletionItem.Item.Name}
+        office id {deletionItem.Employer.Office.OfficeId}"
 
     reply env
-    ^ fun channel -> CacheCommand.TryAddDeletionItemInDb(recordDeletionItem, channel)
+    ^ fun channel -> CacheCommand.TryAddDeletionItemInDb(deletionItem, channel)
 
   let tryAddDeletionItemInDbAsync env recordDeletionItem =
     task { return tryAddDeletionItemInDb env recordDeletionItem }

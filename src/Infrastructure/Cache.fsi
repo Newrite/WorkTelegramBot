@@ -17,13 +17,13 @@ namespace WorkTelegram.Infrastructure
           Core.UMX.ChatId *
           AsyncReplyChannel<Funogram.Telegram.Types.Message option>
         | TryAddOfficeInDb of
-          Core.RecordOffice * AsyncReplyChannel<Core.Types.Office option>
+          Core.Types.Office * AsyncReplyChannel<Core.Types.Office option>
         | TryAddEmployerInDb of
-          Core.RecordEmployer * AsyncReplyChannel<Core.Types.Employer option>
+          Core.Types.Employer * AsyncReplyChannel<Core.Types.Employer option>
         | TryAddManagerInDb of
-          Core.ManagerDto * AsyncReplyChannel<Core.Types.Manager option>
+          Core.Types.Manager * AsyncReplyChannel<Core.Types.Manager option>
         | TryAddDeletionItemInDb of
-          Core.RecordDeletionItem *
+          Core.Types.DeletionItem *
           AsyncReplyChannel<Core.Types.DeletionItem option>
         | TryAddOrUpdateMessageInDb of
           Funogram.Telegram.Types.Message * AsyncReplyChannel<bool>
@@ -151,40 +151,39 @@ namespace WorkTelegram.Infrastructure
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddOfficeInDb:
-          env: 'a -> recordOffice: Core.RecordOffice -> Core.Types.Office option
+          env: 'a -> office: Core.Types.Office -> Core.Types.Office option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddOfficeInDbAsync:
-          env: 'a -> recordOffice: Core.RecordOffice
+          env: 'a -> recordOffice: Core.Types.Office
             -> System.Threading.Tasks.Task<Core.Types.Office option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddEmployerInDb:
-          env: 'a -> recordEmployer: Core.RecordEmployer
-            -> Core.Types.Employer option
+          env: 'a -> employer: Core.Types.Employer -> Core.Types.Employer option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddEmployerInDbAsync:
-          env: 'a -> recordEmployer: Core.RecordEmployer
+          env: 'a -> recordEmployer: Core.Types.Employer
             -> System.Threading.Tasks.Task<Core.Types.Employer option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddManagerInDb:
-          env: 'a -> managerDto: Core.ManagerDto -> Core.Types.Manager option
+          env: 'a -> manager: Core.Types.Manager -> Core.Types.Manager option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddManagerInDbAsync:
-          env: 'a -> managerDto: Core.ManagerDto
+          env: 'a -> managerDto: Core.Types.Manager
             -> System.Threading.Tasks.Task<Core.Types.Manager option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddDeletionItemInDb:
-          env: 'a -> recordDeletionItem: Core.RecordDeletionItem
+          env: 'a -> deletionItem: Core.Types.DeletionItem
             -> Core.Types.DeletionItem option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryAddDeletionItemInDbAsync:
-          env: 'a -> recordDeletionItem: Core.RecordDeletionItem
+          env: 'a -> recordDeletionItem: Core.Types.DeletionItem
             -> System.Threading.Tasks.Task<Core.Types.DeletionItem option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         

@@ -10,17 +10,17 @@ open FSharp.UMX
 [<RequireQualifiedAccess>]
 type UpdateMessage =
   | AuthManagerChange of AuthProcess.Manager
-  | FinishEmployerAuth of RecordEmployer
-  | FinishManagerAuth of ManagerDto
+  | FinishEmployerAuth of Employer
+  | FinishManagerAuth of Manager
   | ManagerChooseOffice of ManagerProcess.ManagerContext * Office
   | ManagerMakeOfficeChange of ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
-  | FinishMakeOfficeProcess of RecordOffice
+  | FinishMakeOfficeProcess of Office
   | StartEditDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
   | AuthEmployerChange of AuthProcess.Employer
-  | FinishDeletionProcess of EmployerProcess.EmployerContext * RecordDeletionItem
+  | FinishDeletionProcess of EmployerProcess.EmployerContext * DeletionItem
   | Back
   | Cancel
   | ReRender
@@ -95,10 +95,10 @@ module Update =
       match Cache.tryAddOfficeInDb env office with
       | Some _ ->
         let text = "Офис успешно создан"
-        Utils.sendMessageAndDeleteAfterDelay env %office.ManagerChatId text 5000
+        Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 5000
       | None ->
         let text = "Произошла ошибка при создании офиса, попробуйте попозже"
-        Utils.sendMessageAndDeleteAfterDelay env %office.ManagerChatId text 3000
+        Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
 
       callInitModelFunction ()
     | UpdateMessage.Cancel -> callInitModelFunction ()

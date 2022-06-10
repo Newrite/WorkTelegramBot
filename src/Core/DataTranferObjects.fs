@@ -15,7 +15,7 @@ module Field =
   let MessageJson = "message_json"
 
   [<Literal>]
-  let FirstName = "firt_name"
+  let FirstName = "first_name"
 
   [<Literal>]
   let LastName = "last_name"
@@ -58,89 +58,6 @@ module Field =
 
   [<Literal>]
   let ToLocation = "to_location"
-
-type RecordOffice = { OfficeName: string; ManagerChatId: int64 }
-
-type RecordEmployer =
-  { FirstName: string
-    LastName: string
-    ChatId: int64
-    OfficeId: int64
-    OfficeName: string }
-
-type RecordDeletionItem =
-  { ItemName: string
-    ItemSerial: string option
-    ItemMac: string option
-    Count: uint32
-    Time: DateTime
-    Location: string option
-    OfficeId: int64
-    EmployerChatId: int64 }
-
-  override self.ToString() =
-    let macText =
-      if self.ItemMac.IsSome then
-        self.ItemMac.Value
-      else
-        "Нет"
-
-    let serialText =
-      if self.ItemSerial.IsSome then
-        %self.ItemSerial.Value
-      else
-        "Нет"
-
-    let locationText =
-      if self.Location.IsSome then
-        %self.Location.Value
-      else
-        "Не указано"
-
-    $"""
-        Имя позиции    : {self.ItemName}
-        Мак адрес      : {macText}
-        Серийный номер : {serialText}
-        Куда или зачем : {locationText}
-        Количество     : {self.Count}
-        Дата           : {self.Time}"""
-
-[<RequireQualifiedAccess>]
-module Record =
-
-  let createOffice (officeName: OfficeName) (managerChatId: ChatId) =
-    { OfficeName = %officeName
-      ManagerChatId = %managerChatId }
-
-  let createEmployer
-    (officeId: OfficeId)
-    (officeName: OfficeName)
-    (firstName: FirstName)
-    (lastName: LastName)
-    (chatId: ChatId)
-    =
-    { FirstName = %firstName
-      LastName = %lastName
-      OfficeId = %officeId
-      OfficeName = %officeName
-      ChatId = %chatId }
-
-  let createDeletionItem
-    (item: Item)
-    (count: PositiveInt)
-    time
-    (location: Location option)
-    (officeId: OfficeId)
-    (employerChatId: ChatId)
-    =
-    { ItemName = %item.Name
-      ItemSerial = Option.map (fun s -> %s) item.Serial
-      ItemMac = Option.map (fun (m: MacAddress) -> m.GetValue) item.MacAddress
-      Count = count.GetValue
-      Time = time
-      Location = Option.map (fun l -> %l) location
-      OfficeId = %officeId
-      EmployerChatId = %employerChatId }
 
 type ChatIdDto = { ChatId: int64 }
 
@@ -202,7 +119,7 @@ module ManagerDto =
   let TableName = "manager"
 
 type OfficeDto =
-  { OfficeId: int64
+  { OfficeId: Guid
     OfficeName: string
     IsHidden: bool
     ManagerId: int64 }
@@ -211,7 +128,7 @@ type OfficeDto =
 module OfficeDto =
 
   let ofDataReader (rd: IDataReader) =
-    { OfficeId = rd.ReadInt64 Field.OfficeId
+    { OfficeId = rd.ReadGuid Field.OfficeId
       OfficeName = rd.ReadString Field.OfficeName
       IsHidden = rd.ReadBoolean Field.IsHidden
       ManagerId = rd.ReadInt64 Field.ManagerId }
@@ -245,17 +162,17 @@ type EmployerDto =
     FirstName: string
     LastName: string
     IsApproved: bool
-    OfficeId: int64 }
+    OfficeId: Guid }
 
 [<RequireQualifiedAccess>]
 module EmployerDto =
 
   let ofDataReader (rd: IDataReader) =
     { ChatId = rd.ReadInt64 Field.ChatId
-      FirstName = rd.ReadString "first_name"
+      FirstName = rd.ReadString Field.FirstName
       LastName = rd.ReadString Field.LastName
       IsApproved = rd.ReadBoolean Field.IsApproved
-      OfficeId = rd.ReadInt64 Field.OfficeId }
+      OfficeId = rd.ReadGuid Field.OfficeId }
 
   let fromDomain (employer: Employer) isApproved =
     { ChatId = %employer.ChatId
@@ -282,7 +199,7 @@ module EmployerDto =
   let TableName = "employer"
 
 type DeletionItemDto =
-  { DeletionId: int64
+  { DeletionId: Guid
     ItemName: string
     ItemSerial: string option
     ItemMac: string option
@@ -291,14 +208,14 @@ type DeletionItemDto =
     IsDeletion: bool
     IsHidden: bool
     ToLocation: string option
-    OfficeId: int64
+    OfficeId: Guid
     ChatId: int64 }
 
 [<RequireQualifiedAccess>]
 module DeletionItemDto =
 
   let ofDataReader (rd: IDataReader) =
-    { DeletionId = rd.ReadInt64 Field.DeletionId
+    { DeletionId = rd.ReadGuid Field.DeletionId
       ItemName = rd.ReadString Field.ItemName
       ItemSerial = rd.ReadStringOption Field.ItemSerial
       ItemMac = rd.ReadStringOption Field.ItemMac
@@ -307,7 +224,7 @@ module DeletionItemDto =
       IsDeletion = rd.ReadBoolean Field.IsDeletion
       IsHidden = rd.ReadBoolean Field.IsHidden
       ToLocation = rd.ReadStringOption Field.ToLocation
-      OfficeId = rd.ReadInt64 Field.OfficeId
+      OfficeId = rd.ReadGuid Field.OfficeId
       ChatId = rd.ReadInt64 Field.ChatId }
 
   let fromDomain (item: DeletionItem) =
