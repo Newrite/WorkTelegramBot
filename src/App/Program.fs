@@ -93,7 +93,7 @@ let main _ =
 
       let view = View.view env history
       let update = Update.update env history
-      let init = Init.init env history
+      let init = CoreModel.Init env history
 
       Elmish.Program.mkProgram env view update init
       |> Elmish.Program.withState getState setState delState

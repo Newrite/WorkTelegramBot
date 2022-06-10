@@ -68,10 +68,22 @@ namespace WorkTelegram.Telegram
             
             member UpdateModel: model: Model -> ManagerContext
     
-    [<RequireQualifiedAccess>]
-    type CoreModel =
-        | Employer of EmployerProcess.EmployerContext
-        | Manager of ManagerProcess.ManagerContext
-        | Auth of AuthProcess.Model
-        | Error of string
+    module Model =
+        
+        exception private NegativeOfficesCountException of string
+        
+        [<RequireQualifiedAccess>]
+        type CoreModel =
+            | Employer of EmployerProcess.EmployerContext
+            | Manager of ManagerProcess.ManagerContext
+            | Auth of AuthProcess.Model
+            | Error of string
+            
+            static member
+              Init: env: 'a -> history: System.Collections.Generic.Stack<'b>
+                    -> message: Funogram.Telegram.Types.Message -> CoreModel
+                      when 'a :> Infrastructure.AppEnv.ILog and
+                           'a :>
+                                Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
+                           'a :> Infrastructure.AppEnv.IDb
 
