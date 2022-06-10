@@ -30,7 +30,7 @@ namespace WorkTelegram.Infrastructure
         | TryUpdateEmployerApprovedInDb of
           Core.Types.Employer * bool * AsyncReplyChannel<bool>
         | TrySetDeletionOnItemsOfOffice of
-          Core.UMX.OfficeId * AsyncReplyChannel<bool>
+          Core.UMX.OfficeId * AsyncReplyChannel<ExtBool>
         | TryHideDeletionItem of Core.UMX.DeletionId * AsyncReplyChannel<bool>
         | TryDeleteOffice of Core.UMX.OfficeId * AsyncReplyChannel<bool>
         | TryDeleteMessageJson of Core.UMX.ChatId * AsyncReplyChannel<bool>
@@ -198,12 +198,12 @@ namespace WorkTelegram.Infrastructure
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val trySetDeletionOnItemsOfOffice:
-          env: 'a -> officeId: Core.UMX.OfficeId -> bool
+          env: 'a -> officeId: Core.UMX.OfficeId -> ExtBool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val trySetDeletionOnItemsOfOfficeAsync:
           env: 'a -> officeId: Core.UMX.OfficeId
-            -> System.Threading.Tasks.Task<bool>
+            -> System.Threading.Tasks.Task<ExtBool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val tryHideDeletionItem:

@@ -215,6 +215,10 @@ namespace WorkTelegram.Core
               firstName: UMX.FirstName -> lastName: UMX.LastName
               -> office: Office -> chatId: UMX.ChatId -> Employer
         
+        module Manager =
+            
+            val asEmployer: manager: Manager -> office: Office -> Employer
+        
         type DeletionItem =
             {
               DeletionId: UMX.DeletionId
