@@ -54,8 +54,7 @@ module Elmish =
 
     let create buttonList = { Buttons = Seq.ofList buttonList }
 
-    let createSingle buttonText onClick =
-      { Buttons = seq { Button.create buttonText onClick } }
+    let createSingle buttonText onClick = create [ Button.create buttonText onClick ]
 
   [<NoComparison>]
   type RenderView =
