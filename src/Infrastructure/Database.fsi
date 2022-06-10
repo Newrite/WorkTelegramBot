@@ -82,10 +82,6 @@ namespace WorkTelegram.Infrastructure
           env: AppEnv.IDb -> officeName: string
             -> Result<Core.OfficeDto,Core.Types.AppError>
         
-        val internal selectDeletionItemByTimeTicks:
-          env: AppEnv.IDb -> ticks: int64
-            -> Result<Core.DeletionItemDto,Core.Types.AppError>
-        
         val internal insertMessage:
           env: AppEnv.IDb -> messageDto: Core.MessageDto
             -> Result<unit,Core.Types.AppError>
@@ -95,15 +91,15 @@ namespace WorkTelegram.Infrastructure
             -> Result<unit,Core.Types.AppError>
         
         val internal insertOffice:
-          env: AppEnv.IDb -> officeRecord: Core.RecordOffice
+          env: AppEnv.IDb -> officeDto: Core.OfficeDto
             -> Result<unit,Core.Types.AppError>
         
         val internal insertEmployer:
-          env: AppEnv.IDb -> employerRecord: Core.RecordEmployer
+          env: AppEnv.IDb -> employerDto: Core.EmployerDto
             -> Result<unit,Core.Types.AppError>
         
         val internal insertDeletionItem:
-          env: AppEnv.IDb -> deletionItemRecord: Core.RecordDeletionItem
+          env: AppEnv.IDb -> deletionItemDto: Core.DeletionItemDto
             -> Result<unit,Core.Types.AppError>
         
         val internal updateEmployerApprovedByChatId:
@@ -111,10 +107,11 @@ namespace WorkTelegram.Infrastructure
             -> Result<unit,Core.Types.AppError>
         
         val internal setTrueForDeletionFieldOfOfficeItems:
-          env: AppEnv.IDb -> officeId: int64 -> Result<unit,Core.Types.AppError>
+          env: AppEnv.IDb -> officeId: System.Guid
+            -> Result<unit,Core.Types.AppError>
         
         val internal setTrueForHiddenFieldOfItem:
-          env: AppEnv.IDb -> deletionId: int64
+          env: AppEnv.IDb -> deletionId: System.Guid
             -> Result<unit,Core.Types.AppError>
         
         val internal updateMessage:
@@ -122,7 +119,8 @@ namespace WorkTelegram.Infrastructure
             -> Result<unit,Core.Types.AppError>
         
         val internal deleteOffice:
-          env: AppEnv.IDb -> officeId: int64 -> Result<unit,Core.Types.AppError>
+          env: AppEnv.IDb -> officeId: System.Guid
+            -> Result<unit,Core.Types.AppError>
         
         val internal deleteMessageJson:
           env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto

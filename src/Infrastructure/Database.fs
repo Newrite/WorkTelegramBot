@@ -14,7 +14,7 @@ module Database =
     $@"CREATE TABLE IF NOT EXISTS {ChatIdDto.TableName} (
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY
       );
-
+  
       CREATE TABLE IF NOT EXISTS {MessageDto.TableName} (
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY,
         {Field.MessageJson} TEXT NOT NULL,
@@ -29,25 +29,25 @@ module Database =
       );
     
       CREATE TABLE IF NOT EXISTS {OfficeDto.TableName} (
-        {Field.OfficeId} INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        {Field.OfficeId} GUID NOT NULL PRIMARY KEY,
         {Field.OfficeName} TEXT NOT NULL UNIQUE,
         {Field.IsHidden} BOOL NOT NULL,
         {Field.ManagerId} INTEGER NOT NULL,
         FOREIGN KEY({Field.ManagerId}) REFERENCES {ManagerDto.TableName}({Field.ChatId})
       );
-
+  
       CREATE TABLE IF NOT EXISTS {EmployerDto.TableName} (
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY,
-        first_name TEXT NOT NULL,
+        {Field.FirstName} TEXT NOT NULL,
         {Field.LastName} TEXT NOT NULL,
         {Field.IsApproved} BOOL NOT NULL,
-        {Field.OfficeId} INTEGER NOT NULL,
+        {Field.OfficeId} GUID NOT NULL,
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId}),
         FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId})
       );
       
       CREATE TABLE IF NOT EXISTS {DeletionItemDto.TableName} (
-        {Field.DeletionId} INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        {Field.DeletionId} GUID NOT NULL PRIMARY KEY,
         {Field.ItemName} TEXT NOT NULL,
         {Field.ItemSerial} TEXT DEFAULT(NULL),
         {Field.ItemMac} TEXT DEFAULT(NULL),
@@ -56,7 +56,7 @@ module Database =
         {Field.IsDeletion} BOOL NOT NULL,
         {Field.IsHidden} BOOL NOT NULL,
         {Field.ToLocation} TEXT DEFAULT(NULL),
-        {Field.OfficeId} INTEGER NOT NULL,
+        {Field.OfficeId} GUID NOT NULL,
         {Field.ChatId} INTEGER NOT NULL,
         FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId}),
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
@@ -227,13 +227,6 @@ module Database =
     let sqlParam = [ Field.OfficeName, SqlType.String officeName ]
     genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
 
-  let internal selectDeletionItemByTimeTicks env (ticks: int64) =
-    let sqlCommand =
-      $"SELECT * FROM {DeletionItemDto.TableName} WHERE {Field.Date} = (@{Field.Date})"
-
-    let sqlParam = [ Field.Date, SqlType.Int64 ticks ]
-    genericSelectSingle<DeletionItemDto> env sqlCommand sqlParam DeletionItemDto.ofDataReader
-
   let internal insertMessage env (messageDto: MessageDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {MessageDto.TableName}
@@ -261,21 +254,22 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertOffice env (officeRecord: RecordOffice) =
+  let internal insertOffice env (officeDto: OfficeDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {OfficeDto.TableName} 
-        ({Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})
+        ({Field.OfficeId}, {Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})
         VALUES
-        (@{Field.OfficeName}, @{Field.IsHidden}, @{Field.ManagerId})"
+        (@{Field.OfficeId}, @{Field.OfficeName}, @{Field.IsHidden}, @{Field.ManagerId})"
 
     let sqlParam =
-      [ Field.OfficeName, SqlType.String officeRecord.OfficeName
-        Field.IsHidden, SqlType.Boolean false
-        Field.ManagerId, SqlType.Int64 officeRecord.ManagerChatId ]
+      [ Field.OfficeId, SqlType.Guid officeDto.OfficeId
+        Field.OfficeName, SqlType.String officeDto.OfficeName
+        Field.IsHidden, SqlType.Boolean officeDto.IsHidden
+        Field.ManagerId, SqlType.Int64 officeDto.ManagerId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertEmployer env (employerRecord: RecordEmployer) =
+  let internal insertEmployer env (employerDto: EmployerDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {EmployerDto.TableName} 
         ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})
@@ -283,18 +277,19 @@ module Database =
         (@{Field.ChatId}, @first_name, @{Field.LastName}, @{Field.IsApproved}, @{Field.OfficeId})"
 
     let sqlParam =
-      [ Field.ChatId, SqlType.Int64 employerRecord.ChatId
-        "first_name", SqlType.String employerRecord.FirstName
-        Field.LastName, SqlType.String employerRecord.LastName
-        Field.IsApproved, SqlType.Boolean false
-        Field.OfficeId, SqlType.Int64 employerRecord.OfficeId ]
+      [ Field.ChatId, SqlType.Int64 employerDto.ChatId
+        Field.FirstName, SqlType.String employerDto.FirstName
+        Field.LastName, SqlType.String employerDto.LastName
+        Field.IsApproved, SqlType.Boolean employerDto.IsApproved
+        Field.OfficeId, SqlType.Guid employerDto.OfficeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertDeletionItem env (deletionItemRecord: RecordDeletionItem) =
+  let internal insertDeletionItem env (deletionItemDto: DeletionItemDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {DeletionItemDto.TableName}
-        ({Field.ItemName},
+        ({Field.DeletionId},
+         {Field.ItemName},
          {Field.ItemSerial},
          {Field.ItemMac},
          {Field.Count},
@@ -305,7 +300,8 @@ module Database =
          {Field.OfficeId},
          {Field.ChatId})
          VALUES
-        (@{Field.ItemName},
+        (@{Field.DeletionId},
+         @{Field.ItemName},
          @{Field.ItemSerial},
          @{Field.ItemMac},
          @{Field.Count},
@@ -318,18 +314,18 @@ module Database =
 
     let sqlParam =
 
-      let time = let x = deletionItemRecord.Time in x.Ticks
 
-      [ Field.ItemName, SqlType.String deletionItemRecord.ItemName
-        Field.ItemSerial, stringOrNull deletionItemRecord.ItemSerial
-        Field.ItemMac, stringOrNull deletionItemRecord.ItemMac
-        Field.Count, deletionItemRecord.Count |> int64 |> SqlType.Int64
-        Field.Date, SqlType.Int64 time
+      [ Field.DeletionId, SqlType.Guid deletionItemDto.DeletionId
+        Field.ItemName, SqlType.String deletionItemDto.ItemName
+        Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial
+        Field.ItemMac, stringOrNull deletionItemDto.ItemMac
+        Field.Count, deletionItemDto.Count |> int64 |> SqlType.Int64
+        Field.Date, SqlType.Int64 deletionItemDto.Date
         Field.IsDeletion, SqlType.Boolean false
         Field.IsHidden, SqlType.Boolean false
-        Field.ToLocation, stringOrNull deletionItemRecord.Location
-        Field.OfficeId, SqlType.Int64 deletionItemRecord.OfficeId
-        Field.ChatId, SqlType.Int64 deletionItemRecord.EmployerChatId ]
+        Field.ToLocation, stringOrNull deletionItemDto.ToLocation
+        Field.OfficeId, SqlType.Guid deletionItemDto.OfficeId
+        Field.ChatId, SqlType.Int64 deletionItemDto.ChatId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
@@ -353,7 +349,7 @@ module Database =
 
     let sqlParam =
       [ Field.IsDeletion, SqlType.Boolean true
-        Field.OfficeId, SqlType.Int64 officeId ]
+        Field.OfficeId, SqlType.Guid officeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
@@ -365,7 +361,7 @@ module Database =
 
     let sqlParam =
       [ Field.IsHidden, SqlType.Boolean true
-        Field.DeletionId, SqlType.Int64 deletionId ]
+        Field.DeletionId, SqlType.Guid deletionId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
@@ -386,7 +382,7 @@ module Database =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
 
-    let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
+    let sqlParam = [ Field.OfficeId, SqlType.Guid officeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 

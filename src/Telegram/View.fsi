@@ -96,7 +96,7 @@ namespace WorkTelegram.Telegram
                 val enterDeletionItemRecord:
                   ctx: ViewContext<'a>
                   -> employerState: EmployerProcess.EmployerContext
-                  -> recordedDeletionItem: Core.RecordDeletionItem
+                  -> recordedDeletionItem: Core.Types.DeletionItem
                     -> Elmish.Keyboard
                 
                 val hideDeletionItem:
@@ -142,7 +142,7 @@ namespace WorkTelegram.Telegram
                   -> managerState: ManagerProcess.ManagerContext
                   -> office: Core.Types.Office -> Elmish.Keyboard
                 
-                val getExcelTableOfActualItems:
+                val managerMenuGetExcelTableOfActualItems:
                   ctx: ViewContext<Infrastructure.CacheCommand>
                   -> managerState: ManagerProcess.ManagerContext
                   -> office: Core.Types.Office -> Elmish.Keyboard
@@ -152,7 +152,7 @@ namespace WorkTelegram.Telegram
                   -> asEmployerState: EmployerProcess.EmployerContext
                     -> Elmish.Keyboard
                 
-                val managerMenuDeletinAllItemRecords:
+                val managerMenuDeletionAllItemRecords:
                   ctx: ViewContext<Infrastructure.CacheCommand>
                   -> office: Core.Types.Office -> Elmish.Keyboard
                 
@@ -162,7 +162,7 @@ namespace WorkTelegram.Telegram
                     -> Elmish.Keyboard
                 
                 val createOffice:
-                  ctx: ViewContext<'a> -> recordOffice: Core.RecordOffice
+                  ctx: ViewContext<'a> -> recordOffice: Core.Types.Office
                     -> Elmish.Keyboard
             
             module RenderView =
@@ -202,7 +202,7 @@ namespace WorkTelegram.Telegram
                 val delProcessAskingFinish:
                   ctx: ViewContext<'a>
                   -> employerState: EmployerProcess.EmployerContext
-                  -> recordedDeletionItem: Core.RecordDeletionItem
+                  -> recordedDeletionItem: Core.Types.DeletionItem
                     -> ((Funogram.Telegram.Types.Message -> unit) list
                           -> Elmish.RenderView)
                 
@@ -221,13 +221,13 @@ namespace WorkTelegram.Telegram
                           -> Elmish.RenderView)
                 
                 val employerAuthAskingFinish:
-                  ctx: ViewContext<'a> -> employerRecord: Core.RecordEmployer
+                  ctx: ViewContext<'a> -> employer: Core.Types.Employer
                   -> onClick: (Funogram.Telegram.Bot.UpdateContext -> unit)
                     -> ((Funogram.Telegram.Types.Message -> unit) list
                           -> Elmish.RenderView)
                 
                 val managerAuthAskingFinish:
-                  ctx: ViewContext<'a> -> managerDto: Core.ManagerDto
+                  ctx: ViewContext<'a> -> manager: Core.Types.Manager
                   -> onClick: (Funogram.Telegram.Bot.UpdateContext -> unit)
                     -> ((Funogram.Telegram.Types.Message -> unit) list
                           -> Elmish.RenderView)
@@ -266,7 +266,7 @@ namespace WorkTelegram.Telegram
                           -> Elmish.RenderView)
                 
                 val finishMakeOffice:
-                  ctx: ViewContext<'a> -> recordOffice: Core.RecordOffice
+                  ctx: ViewContext<'a> -> office: Core.Types.Office
                     -> ((Funogram.Telegram.Types.Message -> unit) list
                           -> Elmish.RenderView)
                 
@@ -318,7 +318,7 @@ namespace WorkTelegram.Telegram
                 val askingFinish:
                   ctx: ViewContext<'a>
                   -> employerState: EmployerProcess.EmployerContext
-                  -> recordedDeletionItem: Core.RecordDeletionItem
+                  -> recordedDeletionItem: Core.Types.DeletionItem
                     -> Elmish.RenderView
             
             module AuthProcess =
@@ -332,7 +332,7 @@ namespace WorkTelegram.Telegram
                     -> Elmish.RenderView
                 
                 val askingFinish:
-                  ctx: ViewContext<'a> -> employerRecord: Core.RecordEmployer
+                  ctx: ViewContext<'a> -> employerRecord: Core.Types.Employer
                     -> Elmish.RenderView
             
             val deletionProcess:
@@ -352,7 +352,7 @@ namespace WorkTelegram.Telegram
                   ctx: ViewContext<'a> -> Elmish.RenderView
                 
                 val askingFinish:
-                  ctx: ViewContext<'a> -> managerDto: Core.ManagerDto
+                  ctx: ViewContext<'a> -> manager: Core.Types.Manager
                     -> Elmish.RenderView
             
             module MakeOffice =
@@ -363,7 +363,7 @@ namespace WorkTelegram.Telegram
                     -> Elmish.RenderView
                 
                 val askingFinish:
-                  ctx: ViewContext<'a> -> recordOffice: Core.RecordOffice
+                  ctx: ViewContext<'a> -> recordOffice: Core.Types.Office
                     -> Elmish.RenderView
             
             val makeOfficeProcess:

@@ -9,7 +9,7 @@ namespace WorkTelegram.Core
         val MessageJson: string = "message_json"
         
         [<Literal>]
-        val FirstName: string = "firt_name"
+        val FirstName: string = "first_name"
         
         [<Literal>]
         val LastName: string = "last_name"
@@ -52,51 +52,6 @@ namespace WorkTelegram.Core
         
         [<Literal>]
         val ToLocation: string = "to_location"
-    
-    type RecordOffice =
-        {
-          OfficeName: string
-          ManagerChatId: int64
-        }
-    
-    type RecordEmployer =
-        {
-          FirstName: string
-          LastName: string
-          ChatId: int64
-          OfficeId: int64
-          OfficeName: string
-        }
-    
-    type RecordDeletionItem =
-        {
-          ItemName: string
-          ItemSerial: string option
-          ItemMac: string option
-          Count: uint32
-          Time: System.DateTime
-          Location: string option
-          OfficeId: int64
-          EmployerChatId: int64
-        }
-        
-        override ToString: unit -> string
-    
-    module Record =
-        
-        val createOffice:
-          officeName: UMX.OfficeName -> managerChatId: UMX.ChatId
-            -> RecordOffice
-        
-        val createEmployer:
-          officeId: UMX.OfficeId -> officeName: UMX.OfficeName
-          -> firstName: UMX.FirstName -> lastName: UMX.LastName
-          -> chatId: UMX.ChatId -> RecordEmployer
-        
-        val createDeletionItem:
-          item: Types.Item -> count: Types.PositiveInt -> time: System.DateTime
-          -> location: UMX.Location option -> officeId: UMX.OfficeId
-          -> employerChatId: UMX.ChatId -> RecordDeletionItem
     
     type ChatIdDto =
         { ChatId: int64 }
@@ -149,7 +104,7 @@ namespace WorkTelegram.Core
     
     type OfficeDto =
         {
-          OfficeId: int64
+          OfficeId: System.Guid
           OfficeName: string
           IsHidden: bool
           ManagerId: int64
@@ -175,7 +130,7 @@ namespace WorkTelegram.Core
           FirstName: string
           LastName: string
           IsApproved: bool
-          OfficeId: int64
+          OfficeId: System.Guid
         }
     
     module EmployerDto =
@@ -197,7 +152,7 @@ namespace WorkTelegram.Core
     
     type DeletionItemDto =
         {
-          DeletionId: int64
+          DeletionId: System.Guid
           ItemName: string
           ItemSerial: string option
           ItemMac: string option
@@ -206,7 +161,7 @@ namespace WorkTelegram.Core
           IsDeletion: bool
           IsHidden: bool
           ToLocation: string option
-          OfficeId: int64
+          OfficeId: System.Guid
           ChatId: int64
         }
     

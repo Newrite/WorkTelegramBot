@@ -90,13 +90,7 @@ module View =
       if array.Length = 2 then
         let lastName, firstName: LastName * FirstName = %array[0], %array[1]
 
-        let employer =
-          Record.createEmployer
-            office.OfficeId
-            office.OfficeName
-            firstName
-            lastName
-            %message.Chat.Id
+        let employer = Employer.create firstName lastName office %message.Chat.Id
 
         employer
         |> AuthProcess.Employer.AskingFinish
@@ -113,7 +107,11 @@ module View =
 
       let dispatch () =
 
-        let office = Record.createOffice officeName managerState.Manager.ChatId
+        let office: Office =
+          { OfficeName = officeName
+            OfficeId = % System.Guid.NewGuid()
+            Manager = managerState.Manager
+            IsHidden = false }
 
         UpdateMessage.ManagerMakeOfficeChange(managerState, MakeOffice.AskingFinish office)
         |> ctx.Dispatch
@@ -140,12 +138,12 @@ module View =
       let array = message.Text.Value.Split(' ')
 
       if array.Length = 2 then
-        let lastName, firstName = array[0], array[1]
+        let lastName, firstName: LastName * FirstName = %array[0], %array[1]
 
-        let manager: ManagerDto =
+        let manager: Types.Manager =
           { FirstName = firstName
             LastName = lastName
-            ChatId = message.Chat.Id }
+            ChatId = %message.Chat.Id }
 
         manager
         |> AuthProcess.Manager.AskingFinish
@@ -222,16 +220,17 @@ module View =
     let enteringLocationMessageHandle ctx employerState (item: Item) count (message: Message) =
       let location: Location option = %message.Text.Value |> Some
 
-      let recordedDeletion =
-        Record.createDeletionItem
-          item
-          count
-          System.DateTime.Now
-          location
-          employerState.Employer.Office.OfficeId
-          employerState.Employer.ChatId
+      let deletionItem: DeletionItem =
+        { DeletionId = % System.Guid.NewGuid()
+          Count = count
+          Item = item
+          Time = System.DateTime.Now
+          IsDeletion = false
+          IsHidden = false
+          Location = location
+          Employer = employerState.Employer }
 
-      UpdateMessage.DeletionProcessChange(employerState, Deletion.AskingFinish(recordedDeletion))
+      UpdateMessage.DeletionProcessChange(employerState, Deletion.AskingFinish(deletionItem))
       |> ctx.Dispatch
 
   [<RequireQualifiedAccess>]
@@ -276,19 +275,17 @@ module View =
 
       let withoutLocation ctx employerState item count =
         Keyboard.createSingle "Пропустить" (fun _ ->
-          let recordedDeletion =
-            Record.createDeletionItem
-              item
-              count
-              System.DateTime.Now
-              None
-              employerState.Employer.Office.OfficeId
-              employerState.Employer.ChatId
+          let deletionItem: DeletionItem =
+            { DeletionId = % System.Guid.NewGuid()
+              Count = count
+              Item = item
+              Time = System.DateTime.Now
+              IsDeletion = false
+              IsHidden = false
+              Location = None
+              Employer = employerState.Employer }
 
-          UpdateMessage.DeletionProcessChange(
-            employerState,
-            Deletion.AskingFinish(recordedDeletion)
-          )
+          UpdateMessage.DeletionProcessChange(employerState, Deletion.AskingFinish(deletionItem))
           |> ctx.Dispatch)
 
       let enterDeletionItemRecord ctx employerState recordedDeletionItem =
@@ -414,7 +411,7 @@ module View =
 
                               ctx.Dispatch UpdateMessage.ReRender) ]
 
-      let getExcelTableOfActualItems ctx managerState office =
+      let managerMenuGetExcelTableOfActualItems ctx managerState office =
 
         Keyboard.createSingle "Получить таблицу актуальных записей" (fun _ ->
           let items =
@@ -466,7 +463,7 @@ module View =
 
         Keyboard.create [ addButton; deleteButton ]
 
-      let managerMenuDeletinAllItemRecords ctx office =
+      let managerMenuDeletionAllItemRecords ctx office =
         Keyboard.createSingle "Списать все записи" (fun _ ->
           match Cache.trySetDeletionOnItemsOfOffice ctx.AppEnv office.OfficeId with
           | True ->
@@ -566,20 +563,20 @@ module View =
               Keyboard.renderOffice office (onClick office)
             ctx.BackCancelKeyboard ]
 
-      let employerAuthAskingFinish ctx (employerRecord: RecordEmployer) onClick =
+      let employerAuthAskingFinish ctx (employer: Types.Employer) onClick =
         RenderView.create
           $"Авторизоваться с этими данными?
-            Имя     : {employerRecord.FirstName}
-            Фамилия : {employerRecord.LastName}
-            Офис    : {employerRecord.OfficeName}"
+            Имя     : {employer.FirstName}
+            Фамилия : {employer.LastName}
+            Офис    : {employer.Office.OfficeName}"
           [ Keyboard.accept onClick
             ctx.BackCancelKeyboard ]
 
-      let managerAuthAskingFinish ctx (managerDto: ManagerDto) onClick =
+      let managerAuthAskingFinish ctx (manager: Types.Manager) onClick =
         RenderView.create
           $"Авторизоваться с этими данными?
-            Имя     : {managerDto.FirstName}
-            Фамилия : {managerDto.LastName}"
+            Имя     : {manager.FirstName}
+            Фамилия : {manager.LastName}"
           [ Keyboard.accept onClick
             ctx.BackCancelKeyboard ]
 
@@ -613,7 +610,8 @@ module View =
             Keyboard.managerMenuDeAuthEmployer ctx managerState office
             Keyboard.managerMenuOfficesOperations ctx managerState office
             Keyboard.managerMenuAddEditItemRecord ctx asEmployerState
-            Keyboard.managerMenuDeletinAllItemRecords ctx office
+            Keyboard.managerMenuGetExcelTableOfActualItems ctx managerState office
+            Keyboard.managerMenuDeletionAllItemRecords ctx office
             ctx.BackCancelKeyboard ]
 
       let makeOfficeForStartWork ctx managerState =
@@ -622,11 +620,11 @@ module View =
           [ Keyboard.startMakeOfficeProcess ctx managerState
             ctx.BackCancelKeyboard ]
 
-      let finishMakeOffice ctx (recordOffice: RecordOffice) =
+      let finishMakeOffice ctx (office: Office) =
         RenderView.create
           $"Все ли правильно
-            Название офиса: {recordOffice.OfficeName}"
-          [ Keyboard.createOffice ctx recordOffice
+            Название офиса: {office.OfficeName}"
+          [ Keyboard.createOffice ctx office
             ctx.BackCancelKeyboard ]
 
       let coreModelCatchError ctx message =
@@ -660,6 +658,8 @@ module View =
             where (
               item.Employer.ChatId = employerState.Employer.ChatId
               && notInspired item.Time
+              && item.IsDeletion |> not
+              && item.IsHidden |> not
             )
 
             select item
@@ -774,13 +774,13 @@ module View =
           [ ctx.BackCancelKeyboard ]
           [ Functions.enteringLastFirstNameManagerMessageHandle ctx ]
 
-      let askingFinish ctx managerDto =
+      let askingFinish ctx manager =
 
         let onClick _ =
-          UpdateMessage.FinishManagerAuth managerDto
+          UpdateMessage.FinishManagerAuth manager
           |> ctx.Dispatch
 
-        Forms.RenderView.managerAuthAskingFinish ctx managerDto onClick []
+        Forms.RenderView.managerAuthAskingFinish ctx manager onClick []
 
     [<RequireQualifiedAccess>]
     module MakeOffice =
@@ -847,7 +847,7 @@ module View =
     let authManager ctx managerAuth =
       match managerAuth with
       | Manager.EnteringLastFirstName -> AuthProcess.enteringLastFirstName ctx
-      | Manager.AskingFinish managerDto -> AuthProcess.askingFinish ctx managerDto
+      | Manager.AskingFinish manager -> AuthProcess.askingFinish ctx manager
 
   let private employerProcess ctx (employerState: EmployerContext) =
 

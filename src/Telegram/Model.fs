@@ -8,12 +8,12 @@ module AuthProcess =
   type Employer =
     | EnteringOffice
     | EnteringLastFirstName of Office
-    | AskingFinish of RecordEmployer
+    | AskingFinish of Types.Employer
 
   [<RequireQualifiedAccess>]
   type Manager =
     | EnteringLastFirstName
-    | AskingFinish of ManagerDto
+    | AskingFinish of Types.Manager
 
   [<RequireQualifiedAccess>]
   type Model =
@@ -30,7 +30,7 @@ module EmployerProcess =
     | EnteringSerial of ItemWithOnlyName
     | EnteringCount of Item
     | EnteringLocation of Item * PositiveInt
-    | AskingFinish of RecordDeletionItem
+    | AskingFinish of DeletionItem
 
   [<RequireQualifiedAccess>]
   type Model =
@@ -49,7 +49,7 @@ module ManagerProcess =
   [<RequireQualifiedAccess>]
   type MakeOffice =
     | EnteringName
-    | AskingFinish of RecordOffice
+    | AskingFinish of Office
 
   [<RequireQualifiedAccess>]
   type Model =

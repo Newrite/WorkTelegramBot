@@ -45,8 +45,8 @@ module UMX =
   type OfficeName = string<officename>
   type Location = string<location>
   type ChatId = int64<chatid>
-  type OfficeId = int64<officeid>
-  type DeletionId = int64<deletionid>
+  type OfficeId = Guid<officeid>
+  type DeletionId = Guid<deletionid>
 
 open UMX
 

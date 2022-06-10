@@ -43,9 +43,9 @@ namespace WorkTelegram.Core
         
         type ChatId = int64<chatid>
         
-        type OfficeId = int64<officeid>
+        type OfficeId = FSharp.UMX.Guid<officeid>
         
-        type DeletionId = int64<deletionid>
+        type DeletionId = FSharp.UMX.Guid<deletionid>
     
     module Types =
         

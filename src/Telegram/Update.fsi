@@ -3,13 +3,13 @@ namespace WorkTelegram.Telegram
     [<NoEquality; NoComparison; RequireQualifiedAccess>]
     type UpdateMessage =
         | AuthManagerChange of AuthProcess.Manager
-        | FinishEmployerAuth of Core.RecordEmployer
-        | FinishManagerAuth of Core.ManagerDto
+        | FinishEmployerAuth of Core.Types.Employer
+        | FinishManagerAuth of Core.Types.Manager
         | ManagerChooseOffice of
           ManagerProcess.ManagerContext * Core.Types.Office
         | ManagerMakeOfficeChange of
           ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
-        | FinishMakeOfficeProcess of Core.RecordOffice
+        | FinishMakeOfficeProcess of Core.Types.Office
         | StartEditDeletionItems of EmployerProcess.EmployerContext
         | StartAuthEmployers of
           ManagerProcess.ManagerContext * Core.Types.Office
@@ -19,7 +19,7 @@ namespace WorkTelegram.Telegram
           EmployerProcess.EmployerContext * EmployerProcess.Deletion
         | AuthEmployerChange of AuthProcess.Employer
         | FinishDeletionProcess of
-          EmployerProcess.EmployerContext * Core.RecordDeletionItem
+          EmployerProcess.EmployerContext * Core.Types.DeletionItem
         | Back
         | Cancel
         | ReRender
