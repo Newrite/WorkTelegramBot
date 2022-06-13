@@ -1,24 +1,25 @@
 ﻿namespace WorkTelegram.Telegram
 
 open WorkTelegram.Core
+open WorkTelegram.Telegram
 
 module AuthProcess =
 
   [<RequireQualifiedAccess>]
-  type Employer =
+  type AuthEmployer =
     | EnteringOffice
     | EnteringLastFirstName of Office
-    | AskingFinish of Types.Employer
+    | AskingFinish of Employer
 
   [<RequireQualifiedAccess>]
-  type Manager =
+  type AuthManager =
     | EnteringLastFirstName
-    | AskingFinish of Types.Manager
+    | AskingFinish of Manager
 
   [<RequireQualifiedAccess>]
-  type Model =
-    | Employer of Employer
-    | Manager of Manager
+  type AuthModel =
+    | Employer of AuthEmployer
+    | Manager of AuthManager
     | NoAuth
 
 module EmployerProcess =
@@ -33,14 +34,14 @@ module EmployerProcess =
     | AskingFinish of DeletionItem
 
   [<RequireQualifiedAccess>]
-  type Model =
+  type EmployerModel =
     | Deletion of Deletion
     | WaitChoice
     | EditDeletionItems
 
   type EmployerContext =
     { Employer: Employer
-      Model: Model }
+      Model: EmployerModel }
 
     member self.UpdateModel model = { self with Model = model }
 
@@ -52,7 +53,7 @@ module ManagerProcess =
     | AskingFinish of Office
 
   [<RequireQualifiedAccess>]
-  type Model =
+  type ManagerModel =
     | NoOffices
     | MakeOffice of MakeOffice
     | ChooseOffice of Office list
@@ -62,7 +63,7 @@ module ManagerProcess =
 
   type ManagerContext =
     { Manager: Manager
-      Model: Model }
+      Model: ManagerModel }
 
     member self.UpdateModel model = { self with Model = model }
 
@@ -79,13 +80,20 @@ module Model =
   type CoreModel =
     | Employer of EmployerProcess.EmployerContext
     | Manager of ManagerProcess.ManagerContext
-    | Auth of AuthProcess.Model
+    | Auth of AuthProcess.AuthModel
     | Error of string
 
-    static member Init env (history: System.Collections.Generic.Stack<_>) message =
+  [<NoComparison>]
+  type ModelContext<'Model> =
+    { History: System.Collections.Generic.Stack<'Model>
+      Model: CoreModel }
+
+    member self.Transform model = { self with Model = model }
+
+    static member Init env message =
       let chatId = %message.Chat.Id
 
-      history.Clear()
+      let history = System.Collections.Generic.Stack<CoreModel>()
 
       let startInit () =
 
@@ -97,27 +105,44 @@ module Model =
 
           match offices.Length with
           | 0 ->
-            { ManagerProcess.ManagerContext.Manager = manager.Value
-              ManagerProcess.ManagerContext.Model = ManagerProcess.Model.NoOffices }
-            |> CoreModel.Manager
+            let ctx =
+              { ManagerProcess.ManagerContext.Manager = manager.Value
+                ManagerProcess.ManagerContext.Model = ManagerProcess.ManagerModel.NoOffices }
+
+            { History = history
+              Model = CoreModel.Manager ctx }
           | 1 ->
-            { ManagerProcess.ManagerContext.Manager = manager.Value
-              ManagerProcess.ManagerContext.Model = ManagerProcess.Model.InOffice offices[0] }
-            |> CoreModel.Manager
+            let ctx =
+              { ManagerProcess.ManagerContext.Manager = manager.Value
+                ManagerProcess.ManagerContext.Model =
+                  ManagerProcess.ManagerModel.InOffice offices[0] }
+
+            { History = history
+              Model = CoreModel.Manager ctx }
           | _ when offices.Length > 1 ->
-            { ManagerProcess.ManagerContext.Manager = manager.Value
-              ManagerProcess.ManagerContext.Model = ManagerProcess.Model.ChooseOffice offices }
-            |> CoreModel.Manager
+            let ctx =
+              { ManagerProcess.ManagerContext.Manager = manager.Value
+                ManagerProcess.ManagerContext.Model =
+                  ManagerProcess.ManagerModel.ChooseOffice offices }
+
+            { History = history
+              Model = CoreModel.Manager ctx }
           | _ ->
             NegativeOfficesCountException($"Offices count is {offices.Length}")
             |> raise
         elif employer.IsSome then
-          { EmployerProcess.EmployerContext.Employer = employer.Value
-            EmployerProcess.EmployerContext.Model = EmployerProcess.Model.WaitChoice }
-          |> CoreModel.Employer
+          let ctx =
+            { EmployerProcess.EmployerContext.Employer = employer.Value
+              EmployerProcess.EmployerContext.Model = EmployerProcess.EmployerModel.WaitChoice }
+
+          { History = history
+            Model = CoreModel.Employer ctx }
         else
-          AuthProcess.Model.NoAuth |> CoreModel.Auth
+          { History = history
+            Model = CoreModel.Auth AuthProcess.AuthModel.NoAuth }
 
       match Database.insertChatId env { ChatId = message.Chat.Id } with
       | Result.Ok _ -> startInit ()
-      | Result.Error err -> CoreModel.Error(string err)
+      | Result.Error err ->
+        { History = history
+          Model = CoreModel.Error(string err) }

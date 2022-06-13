@@ -38,8 +38,9 @@ namespace WorkTelegram.Infrastructure
           -> sqlParam: Donald.RawDbParams list
             -> Result<unit,Core.Types.AppError>
         
-        val internal selectMessages:
-          env: AppEnv.IDb -> Result<Core.MessageDto list,Core.Types.AppError>
+        val internal selectTelegramMessages:
+          env: AppEnv.IDb
+            -> Result<Core.TelegramMessageDto list,Core.Types.AppError>
         
         val internal selectManagers:
           env: AppEnv.IDb -> Result<Core.ManagerDto list,Core.Types.AppError>
@@ -54,36 +55,8 @@ namespace WorkTelegram.Infrastructure
           env: AppEnv.IDb
             -> Result<Core.DeletionItemDto list,Core.Types.AppError>
         
-        val internal selectDeletionItemsByOfficeId:
-          env: System.Data.IDbConnection -> officeId: int64
-            -> Result<Core.DeletionItemDto list,Core.Types.AppError>
-        
-        val internal selectMessageByChatId:
-          env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto
-            -> Result<Core.MessageDto,Core.Types.AppError>
-        
-        val internal selectOfficesByManagerChatId:
-          env: System.Data.IDbConnection -> chatIdDto: Core.ChatIdDto
-            -> Result<Core.OfficeDto list,Core.Types.AppError>
-        
-        val internal selectEmployerByChatId:
-          env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto
-            -> Result<Core.EmployerDto,Core.Types.AppError>
-        
-        val internal selectManagerByChatId:
-          env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto
-            -> Result<Core.ManagerDto,Core.Types.AppError>
-        
-        val internal selectOfficeById:
-          env: AppEnv.IDb -> officeId: int64
-            -> Result<Core.OfficeDto,Core.Types.AppError>
-        
-        val internal selectOfficeByName:
-          env: AppEnv.IDb -> officeName: string
-            -> Result<Core.OfficeDto,Core.Types.AppError>
-        
-        val internal insertMessage:
-          env: AppEnv.IDb -> messageDto: Core.MessageDto
+        val internal insertTelegramMessage:
+          env: AppEnv.IDb -> messageDto: Core.TelegramMessageDto
             -> Result<unit,Core.Types.AppError>
         
         val internal insertManager:
@@ -106,23 +79,23 @@ namespace WorkTelegram.Infrastructure
           env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto -> isApproved: bool
             -> Result<unit,Core.Types.AppError>
         
-        val internal setTrueForDeletionFieldOfOfficeItems:
+        val internal deletionDeletionitemsOfOffice:
           env: AppEnv.IDb -> officeId: System.Guid
             -> Result<unit,Core.Types.AppError>
         
-        val internal setTrueForHiddenFieldOfItem:
+        val internal hideDeletionItem:
           env: AppEnv.IDb -> deletionId: System.Guid
             -> Result<unit,Core.Types.AppError>
         
-        val internal updateMessage:
-          env: AppEnv.IDb -> messageDto: Core.MessageDto
+        val internal updateTelegramMessage:
+          env: AppEnv.IDb -> messageDto: Core.TelegramMessageDto
             -> Result<unit,Core.Types.AppError>
         
         val internal deleteOffice:
           env: AppEnv.IDb -> officeId: System.Guid
             -> Result<unit,Core.Types.AppError>
         
-        val internal deleteMessageJson:
+        val internal deleteTelegramMessage:
           env: AppEnv.IDb -> chatIdDto: Core.ChatIdDto
             -> Result<unit,Core.Types.AppError>
         

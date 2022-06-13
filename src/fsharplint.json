@@ -265,7 +265,7 @@
   },
   "favourIgnoreOverLetWild": { "enabled": true },
   "wildcardNamedWithAsPattern": { "enabled": true },
-  "uselessBinding": { "enabled": false },
+  "uselessBinding": { "enabled": true },
   "tupleOfWildcards": { "enabled": true },
   "favourTypedIgnore": { "enabled": false },
   "favourReRaise": { "enabled": true },

@@ -1,11 +1,4 @@
 <Project>
-  <Target Name="Formatting" AfterTargets="BeforeBuild">
-   <Exec
-     Command="dotnet fantomas --recurse $(MSBuildProjectDirectory)"
-     ConsoleToMsBuild="true"
-     IgnoreExitCode="false"
-   />
-  </Target>
   <Target Name="FSharpLint" AfterTargets="BeforeBuild">
    <Exec
      Command="dotnet fsharplint -f msbuild lint --lint-config $(MSBuildThisFileDirectory)/fsharplint.json $(MSBuildProjectFullPath)"

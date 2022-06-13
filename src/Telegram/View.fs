@@ -7,14 +7,14 @@ open WorkTelegram.Infrastructure
 
 open Elmish
 open WorkTelegram.Telegram
-open WorkTelegram.Telegram.EmployerProcess
-open WorkTelegram.Telegram.ManagerProcess
 
 module View =
 
   exception private ViewUnmatchedException of string
 
   open AuthProcess
+  open ManagerProcess
+  open EmployerProcess
 
   [<NoEquality>]
   [<NoComparison>]
@@ -25,8 +25,6 @@ module View =
 
   [<RequireQualifiedAccess>]
   module private Functions =
-
-    type Message = Funogram.Telegram.Types.Message
 
     let createExcelTableFromItemsAsBytes items =
       let headers =
@@ -42,7 +40,7 @@ module View =
           FsExcel.Cell [ FsExcel.String head ]
         FsExcel.Go FsExcel.NewRow
         for item in items do
-          let count = let c = item.Count in c.GetValue
+          let count = let c = item.Count in c.Value
           FsExcel.Cell [ FsExcel.String %item.Item.Name ]
           FsExcel.Cell [ FsExcel.String(Option.string item.Item.Serial) ]
 
@@ -84,7 +82,7 @@ module View =
 
       Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
 
-    let enteringLastFirstNameEmployerMessageHandle ctx office (message: Message) =
+    let enteringLastFirstNameEmployerMessageHandle ctx office (message: TelegramMessage) =
       let array = message.Text.Value.Split(' ')
 
       if array.Length = 2 then
@@ -93,7 +91,7 @@ module View =
         let employer = Employer.create firstName lastName office %message.Chat.Id
 
         employer
-        |> AuthProcess.Employer.AskingFinish
+        |> AuthEmployer.AskingFinish
         |> UpdateMessage.AuthEmployerChange
         |> ctx.Dispatch
       else
@@ -101,17 +99,13 @@ module View =
       let text = "Некорректный ввод, попробуйте еще раз"
       Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
 
-    let enteringOfficeNameMessageHandle ctx managerState (message: Message) =
+    let enteringOfficeNameMessageHandle ctx managerState (message: TelegramMessage) =
 
       let officeName: OfficeName = %message.Text.Value
 
       let dispatch () =
 
-        let office: Office =
-          { OfficeName = officeName
-            OfficeId = % System.Guid.NewGuid()
-            Manager = managerState.Manager
-            IsHidden = false }
+        let office = Office.create officeName managerState.Manager
 
         UpdateMessage.ManagerMakeOfficeChange(managerState, MakeOffice.AskingFinish office)
         |> ctx.Dispatch
@@ -134,19 +128,16 @@ module View =
       else
         dispatch ()
 
-    let enteringLastFirstNameManagerMessageHandle ctx (message: Message) =
+    let enteringLastFirstNameManagerMessageHandle ctx (message: TelegramMessage) =
       let array = message.Text.Value.Split(' ')
 
       if array.Length = 2 then
         let lastName, firstName: LastName * FirstName = %array[0], %array[1]
 
-        let manager: Types.Manager =
-          { FirstName = firstName
-            LastName = lastName
-            ChatId = %message.Chat.Id }
+        let manager = Manager.create %message.Chat.Id firstName lastName
 
         manager
-        |> AuthProcess.Manager.AskingFinish
+        |> AuthManager.AskingFinish
         |> UpdateMessage.AuthManagerChange
         |> ctx.Dispatch
       else
@@ -154,7 +145,7 @@ module View =
       let text = "Некорректный ввод, попробуйте еще раз"
       Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
 
-    let enteringNameMessageHandle employerState ctx (message: Message) =
+    let enteringNameMessageHandle employerState ctx (message: TelegramMessage) =
       let name: ItemName = % message.Text.Value.ToUpper()
 
       UpdateMessage.DeletionProcessChange(
@@ -164,7 +155,12 @@ module View =
       )
       |> ctx.Dispatch
 
-    let enteringSerialMessageHandle ctx employerState (item: ItemWithOnlyName) (message: Message) =
+    let enteringSerialMessageHandle
+      ctx
+      employerState
+      (item: ItemWithOnlyName)
+      (message: TelegramMessage)
+      =
       let serial: Serial = % message.Text.Value.ToUpper()
 
       UpdateMessage.DeletionProcessChange(
@@ -178,7 +174,7 @@ module View =
       ctx
       employerState
       (item: ItemWithSerial)
-      (message: Message)
+      (message: TelegramMessage)
       =
       match MacAddress.fromString (message.Text.Value.ToUpper()) with
       | Ok macaddress ->
@@ -193,7 +189,7 @@ module View =
         let text = "Некорректный ввод мак адреса, попробуйте еще раз"
         Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
 
-    let enteringCountMessageHandleExn ctx employerState item (message: Message) =
+    let enteringCountMessageHandleExn ctx employerState item (message: TelegramMessage) =
       match PositiveInt.tryParse message.Text.Value with
       | Ok pint ->
         UpdateMessage.DeletionProcessChange(employerState, Deletion.EnteringLocation(item, pint))
@@ -217,18 +213,16 @@ module View =
         ViewUnmatchedException($"Unmatched error in view function: error {err}")
         |> raise
 
-    let enteringLocationMessageHandle ctx employerState (item: Item) count (message: Message) =
+    let enteringLocationMessageHandle
+      ctx
+      employerState
+      (item: Item)
+      count
+      (message: TelegramMessage)
+      =
       let location: Location option = %message.Text.Value |> Some
 
-      let deletionItem: DeletionItem =
-        { DeletionId = % System.Guid.NewGuid()
-          Count = count
-          Item = item
-          Time = System.DateTime.Now
-          IsDeletion = false
-          IsHidden = false
-          Location = location
-          Employer = employerState.Employer }
+      let deletionItem = DeletionItem.create item count location employerState.Employer
 
       UpdateMessage.DeletionProcessChange(employerState, Deletion.AskingFinish(deletionItem))
       |> ctx.Dispatch
@@ -275,15 +269,7 @@ module View =
 
       let withoutLocation ctx employerState item count =
         Keyboard.createSingle "Пропустить" (fun _ ->
-          let deletionItem: DeletionItem =
-            { DeletionId = % System.Guid.NewGuid()
-              Count = count
-              Item = item
-              Time = System.DateTime.Now
-              IsDeletion = false
-              IsHidden = false
-              Location = None
-              Employer = employerState.Employer }
+          let deletionItem = DeletionItem.create item count None employerState.Employer
 
           UpdateMessage.DeletionProcessChange(employerState, Deletion.AskingFinish(deletionItem))
           |> ctx.Dispatch)
@@ -302,13 +288,13 @@ module View =
 
           let mac =
             match item.Item.MacAddress with
-            | Some macaddress -> macaddress.GetValue
+            | Some macaddress -> macaddress.Value
             | None -> "_"
 
           $"{item.Item.Name} - Serial {serial} - Mac {mac}"
 
         Keyboard.createSingle text (fun _ ->
-          match Cache.tryHideDeletionItem ctx.AppEnv item.DeletionId with
+          match Cache.tryDeleteDeletionItem ctx.AppEnv item.DeletionId with
           | true ->
             let text = "Запись успешно удалена"
             Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv employerState.Employer.ChatId text 3000
@@ -325,20 +311,20 @@ module View =
 
       let noAuthManager ctx =
         Keyboard.createSingle "Менеджер" (fun _ ->
-          AuthProcess.Manager.EnteringLastFirstName
+          AuthManager.EnteringLastFirstName
           |> UpdateMessage.AuthManagerChange
           |> ctx.Dispatch)
 
       let noAuthEmployer ctx =
         Keyboard.createSingle "Сотрудник" (fun _ ->
-          AuthProcess.Employer.EnteringOffice
+          AuthEmployer.EnteringOffice
           |> UpdateMessage.AuthEmployerChange
           |> ctx.Dispatch)
 
       let deAuthEmployer ctx (managerState: ManagerContext) employer =
 
         let onClick employer _ =
-          match Cache.tryUpdateEmployerApprovedInDb ctx.AppEnv employer false with
+          match Cache.tryChangeEmployerApproved ctx.AppEnv employer false with
           | false ->
             let text =
               "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
@@ -355,7 +341,7 @@ module View =
       let authEmployer ctx (managerState: ManagerContext) employer =
 
         let onClick employer _ =
-          match Cache.tryUpdateEmployerApprovedInDb ctx.AppEnv employer true with
+          match Cache.tryChangeEmployerApproved ctx.AppEnv employer true with
           | false ->
             let text =
               "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
@@ -465,7 +451,7 @@ module View =
 
       let managerMenuDeletionAllItemRecords ctx office =
         Keyboard.createSingle "Списать все записи" (fun _ ->
-          match Cache.trySetDeletionOnItemsOfOffice ctx.AppEnv office.OfficeId with
+          match Cache.tryDeletionDeletionItemsOfOffice ctx.AppEnv office.OfficeId with
           | True ->
             let text = "Операция прошла успешно"
 
@@ -722,7 +708,7 @@ module View =
 
         let onClick office _ =
           office
-          |> Employer.EnteringLastFirstName
+          |> AuthEmployer.EnteringLastFirstName
           |> UpdateMessage.AuthEmployerChange
           |> ctx.Dispatch
 
@@ -758,9 +744,9 @@ module View =
 
     let authEmployer ctx employerAuth =
       match employerAuth with
-      | Employer.EnteringOffice -> AuthProcess.enteringOffice ctx
-      | Employer.EnteringLastFirstName office -> AuthProcess.enteringLastFirstName ctx office
-      | Employer.AskingFinish recordEmployer -> AuthProcess.askingFinish ctx recordEmployer
+      | AuthEmployer.EnteringOffice -> AuthProcess.enteringOffice ctx
+      | AuthEmployer.EnteringLastFirstName office -> AuthProcess.enteringLastFirstName ctx office
+      | AuthEmployer.AskingFinish recordEmployer -> AuthProcess.askingFinish ctx recordEmployer
 
   [<RequireQualifiedAccess>]
   module private ViewManager =
@@ -829,7 +815,7 @@ module View =
         let asEmployer = Manager.asEmployer managerState.Manager office
 
         { Employer = asEmployer
-          Model = Model.WaitChoice }
+          Model = EmployerModel.WaitChoice }
 
       Forms.RenderView.managerMenuInOffice ctx managerState office asEmployerState []
 
@@ -846,38 +832,39 @@ module View =
 
     let authManager ctx managerAuth =
       match managerAuth with
-      | Manager.EnteringLastFirstName -> AuthProcess.enteringLastFirstName ctx
-      | Manager.AskingFinish manager -> AuthProcess.askingFinish ctx manager
+      | AuthManager.EnteringLastFirstName -> AuthProcess.enteringLastFirstName ctx
+      | AuthManager.AskingFinish manager -> AuthProcess.askingFinish ctx manager
 
   let private employerProcess ctx (employerState: EmployerContext) =
 
     match employerState.Model with
-    | Model.WaitChoice -> ViewEmployer.waitChoice ctx employerState
-    | Model.Deletion delProcess -> ViewEmployer.deletionProcess ctx employerState delProcess
-    | Model.EditDeletionItems -> ViewEmployer.editDeletionItems ctx employerState
+    | EmployerModel.WaitChoice -> ViewEmployer.waitChoice ctx employerState
+    | EmployerModel.Deletion delProcess -> ViewEmployer.deletionProcess ctx employerState delProcess
+    | EmployerModel.EditDeletionItems -> ViewEmployer.editDeletionItems ctx employerState
 
-  let private managerProcess ctx managerState =
+  let private managerProcess ctx (managerState: ManagerContext) =
     match managerState.Model with
-    | Model.DeAuthEmployers _ -> ViewManager.deAuthEmployers ctx managerState
-    | Model.AuthEmployers _ -> ViewManager.authEmployers ctx managerState
-    | Model.InOffice office -> ViewManager.inOffice ctx managerState office
-    | Model.ChooseOffice offices -> ViewManager.chooseOffice ctx managerState offices
-    | Model.NoOffices -> ViewManager.noOffices ctx managerState
-    | Model.MakeOffice makeProcess -> ViewManager.makeOfficeProcess ctx managerState makeProcess
+    | ManagerModel.DeAuthEmployers _ -> ViewManager.deAuthEmployers ctx managerState
+    | ManagerModel.AuthEmployers _ -> ViewManager.authEmployers ctx managerState
+    | ManagerModel.InOffice office -> ViewManager.inOffice ctx managerState office
+    | ManagerModel.ChooseOffice offices -> ViewManager.chooseOffice ctx managerState offices
+    | ManagerModel.NoOffices -> ViewManager.noOffices ctx managerState
+    | ManagerModel.MakeOffice makeProcess ->
+      ViewManager.makeOfficeProcess ctx managerState makeProcess
 
   let private authProcess (ctx: ViewContext<_>) authModel =
 
     match authModel with
-    | Model.Employer employerAuth -> ViewEmployer.authEmployer ctx employerAuth
-    | Model.Manager managerAuth -> ViewManager.authManager ctx managerAuth
-    | Model.NoAuth -> Forms.RenderView.noAuth ctx []
+    | AuthModel.Employer employerAuth -> ViewEmployer.authEmployer ctx employerAuth
+    | AuthModel.Manager managerAuth -> ViewManager.authManager ctx managerAuth
+    | AuthModel.NoAuth -> Forms.RenderView.noAuth ctx []
 
-  let view env (history: System.Collections.Generic.Stack<_>) dispatch model =
+  let view env dispatch model =
 
     let backCancelKeyboard =
-      Keyboard.create [ if history.Count > 0 then
+      Keyboard.create [ if model.History.Count > 0 then
                           Button.create "Назад" (fun _ -> dispatch UpdateMessage.Back)
-                        if history.Count > 1 then
+                        if model.History.Count > 1 then
                           Button.create "Отмена" (fun _ -> dispatch UpdateMessage.Cancel) ]
 
     let ctx =
@@ -885,7 +872,7 @@ module View =
         BackCancelKeyboard = backCancelKeyboard
         AppEnv = env }
 
-    match model with
+    match model.Model with
     | CoreModel.Error message -> Forms.RenderView.coreModelCatchError ctx message []
     | CoreModel.Employer employerState -> employerProcess ctx employerState
     | CoreModel.Manager managerState -> managerProcess ctx managerState

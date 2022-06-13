@@ -100,7 +100,7 @@ type OfficeDto =
     OfficeName: string
     IsHidden: bool
     ManagerId: int64 }
-  
+
 type OfficeDtoNew =
   { OfficeId: System.Guid
     OfficeName: string
@@ -110,13 +110,13 @@ type OfficeDtoNew =
 [<RequireQualifiedAccess>]
 module OfficeDto =
 
-  let ofDataReader (rd: IDataReader): OfficeDto =
+  let ofDataReader (rd: IDataReader) : OfficeDto =
     { OfficeId = rd.ReadInt64 Field.OfficeId
       OfficeName = rd.ReadString Field.OfficeName
       IsHidden = rd.ReadBoolean Field.IsHidden
       ManagerId = rd.ReadInt64 Field.ManagerId }
-    
-  let ofDataReaderNew (rd: IDataReader): OfficeDtoNew =
+
+  let ofDataReaderNew (rd: IDataReader) : OfficeDtoNew =
     { OfficeId = rd.ReadGuid Field.OfficeId
       OfficeName = rd.ReadString Field.OfficeName
       IsHidden = rd.ReadBoolean Field.IsHidden
@@ -131,7 +131,7 @@ type EmployerDto =
     LastName: string
     IsApproved: bool
     OfficeId: int64 }
-  
+
 type EmployerDtoNew =
   { ChatId: int64
     FirstName: string
@@ -142,14 +142,14 @@ type EmployerDtoNew =
 [<RequireQualifiedAccess>]
 module EmployerDto =
 
-  let ofDataReader (rd: IDataReader): EmployerDto =
+  let ofDataReader (rd: IDataReader) : EmployerDto =
     { ChatId = rd.ReadInt64 Field.ChatId
       FirstName = rd.ReadString Field.FirstName
       LastName = rd.ReadString Field.LastName
       IsApproved = rd.ReadBoolean Field.IsApproved
       OfficeId = rd.ReadInt64 Field.OfficeId }
-    
-  let ofDataReaderNew (rd: IDataReader): EmployerDtoNew =
+
+  let ofDataReaderNew (rd: IDataReader) : EmployerDtoNew =
     { ChatId = rd.ReadInt64 Field.ChatId
       FirstName = rd.ReadString Field.FirstName
       LastName = rd.ReadString Field.LastName
@@ -171,7 +171,7 @@ type DeletionItemDto =
     ToLocation: string option
     OfficeId: int64
     ChatId: int64 }
-  
+
 type DeletionItemDtoNew =
   { DeletionId: System.Guid
     ItemName: string
@@ -188,7 +188,7 @@ type DeletionItemDtoNew =
 [<RequireQualifiedAccess>]
 module DeletionItemDto =
 
-  let ofDataReader (rd: IDataReader): DeletionItemDto =
+  let ofDataReader (rd: IDataReader) : DeletionItemDto =
     { DeletionId = rd.ReadInt64 Field.DeletionId
       ItemName = rd.ReadString Field.ItemName
       ItemSerial = rd.ReadStringOption Field.ItemSerial
@@ -200,8 +200,8 @@ module DeletionItemDto =
       ToLocation = rd.ReadStringOption Field.ToLocation
       OfficeId = rd.ReadInt64 Field.OfficeId
       ChatId = rd.ReadInt64 Field.ChatId }
-    
-  let ofDataReaderNew (rd: IDataReader): DeletionItemDtoNew =
+
+  let ofDataReaderNew (rd: IDataReader) : DeletionItemDtoNew =
     { DeletionId = rd.ReadGuid Field.DeletionId
       ItemName = rd.ReadString Field.ItemName
       ItemSerial = rd.ReadStringOption Field.ItemSerial
@@ -213,10 +213,10 @@ module DeletionItemDto =
       ToLocation = rd.ReadStringOption Field.ToLocation
       OfficeId = rd.ReadGuid Field.OfficeId
       ChatId = rd.ReadInt64 Field.ChatId }
-    
+
   [<Literal>]
   let TableName = "deletion_items"
- 
+
 let private newSchema =
   $@"CREATE TABLE IF NOT EXISTS {ChatIdDto.TableName} (
       {Field.ChatId} INTEGER NOT NULL PRIMARY KEY
@@ -269,9 +269,10 @@ let private newSchema =
       FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
     );"
 
-  
+
 let genericSelectMany<'a> conn tableName (ofDataReader: IDataReader -> 'a) =
   let sql = $"SELECT * FROM {tableName}"
+
   Db.newCommand sql conn
   |> Db.query ofDataReader
   |> function
@@ -279,25 +280,28 @@ let genericSelectMany<'a> conn tableName (ofDataReader: IDataReader -> 'a) =
     | Error err ->
       printfn "Error when select: %A" err
       []
-      
+
 let transactionSingleExn (conn: IDbConnection) sqlCommand sqlParam =
   use tran = conn.TryBeginTransaction()
+
   let result =
     Db.newCommand sqlCommand conn
     |> Db.setParams sqlParam
     |> Db.setTransaction tran
     |> Db.exec
+
   tran.TryCommit()
+
   match result with
   | Ok _ -> printfn "Transaction successfull complete"
   | Error err -> printfn "Error when transaction: %A" err
-  
+
 let stringOrNull (opt: string option) =
   if opt.IsSome then
     SqlType.String opt.Value
   else
     SqlType.Null
-  
+
 let insertMessage env (messageDto: MessageDto) =
   let sqlCommand =
     $"INSERT OR IGNORE INTO {MessageDto.TableName}
@@ -398,7 +402,7 @@ let insertDeletionItem env (deletionItemRecord: DeletionItemDtoNew) =
       Field.ChatId, SqlType.Int64 deletionItemRecord.ChatId ]
 
   transactionSingleExn env sqlCommand sqlParam
-  
+
 let insertChatId env (chatIdDto: ChatIdDto) =
   let sqlCommand =
     $"INSERT OR IGNORE INTO {ChatIdDto.TableName} ({Field.ChatId}) VALUES (@{Field.ChatId})"
@@ -409,6 +413,7 @@ let insertChatId env (chatIdDto: ChatIdDto) =
 
 let createConnection databaseName =
   printfn "Start create connection to database"
+
   try
     let connectionString = SqliteConnectionStringBuilder()
     connectionString.DataSource <- databaseName
@@ -439,50 +444,66 @@ initSchema newBaseConnect newSchema
 
 genericSelectMany<ChatIdDto> oldBaseConnect ChatIdDto.TableName ChatIdDto.ofDataReader
 |> List.iter (insertChatId newBaseConnect)
-  
+
 genericSelectMany<MessageDto> oldBaseConnect MessageDto.TableName MessageDto.ofDataReader
 |> List.iter (insertMessage newBaseConnect)
 
 genericSelectMany<ManagerDto> oldBaseConnect ManagerDto.TableName ManagerDto.ofDataReader
 |> List.iter (insertManager newBaseConnect)
 
-let oldOffices = genericSelectMany<OfficeDto> oldBaseConnect OfficeDto.TableName OfficeDto.ofDataReader
+let oldOffices =
+  genericSelectMany<OfficeDto> oldBaseConnect OfficeDto.TableName OfficeDto.ofDataReader
 
 let newOffices =
   oldOffices
   |> List.map (fun oldOffice ->
     let newOffice: OfficeDtoNew =
       let guid = System.Guid.NewGuid()
+
       { OfficeId = guid
         OfficeName = oldOffice.OfficeName
         IsHidden = oldOffice.IsHidden
         ManagerId = oldOffice.ManagerId }
+
     newOffice, oldOffice)
-  
+
 newOffices
 |> List.iter (fun (office, _) -> insertOffice newBaseConnect office)
 
 genericSelectMany<EmployerDto> oldBaseConnect EmployerDto.TableName EmployerDto.ofDataReader
 |> List.map (fun oldEmployer ->
   let officeGuid =
-    let newOffice, _ = newOffices |> List.find (fun (newO, oldO) -> oldO.OfficeId = oldEmployer.OfficeId)
+    let newOffice, _ =
+      newOffices
+      |> List.find (fun (newO, oldO) -> oldO.OfficeId = oldEmployer.OfficeId)
+
     newOffice.OfficeId
+
   let newEmployer: EmployerDtoNew =
     { ChatId = oldEmployer.ChatId
       FirstName = oldEmployer.FirstName
       LastName = oldEmployer.LastName
       OfficeId = officeGuid
       IsApproved = oldEmployer.IsApproved }
+
   newEmployer)
 |> List.iter (insertEmployer newBaseConnect)
 
-genericSelectMany<DeletionItemDto> oldBaseConnect DeletionItemDto.TableName DeletionItemDto.ofDataReader
+genericSelectMany<DeletionItemDto>
+  oldBaseConnect
+  DeletionItemDto.TableName
+  DeletionItemDto.ofDataReader
 |> List.map (fun oldDi ->
   let officeGuid =
-    let newOffice, _ = newOffices |> List.find (fun (newO, oldO) -> oldO.OfficeId = oldDi.OfficeId)
+    let newOffice, _ =
+      newOffices
+      |> List.find (fun (newO, oldO) -> oldO.OfficeId = oldDi.OfficeId)
+
     newOffice.OfficeId
+
   let newDi: DeletionItemDtoNew =
     let guid = System.Guid.NewGuid()
+
     { DeletionId = guid
       ItemMac = oldDi.ItemMac
       ItemName = oldDi.ItemName
@@ -494,6 +515,7 @@ genericSelectMany<DeletionItemDto> oldBaseConnect DeletionItemDto.TableName Dele
       IsDeletion = oldDi.IsDeletion
       OfficeId = officeGuid
       ChatId = oldDi.ChatId }
+
   newDi)
 |> List.iter (insertDeletionItem newBaseConnect)
 

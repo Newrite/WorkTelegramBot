@@ -1,9 +1,8 @@
 ﻿namespace WorkTelegram.Core
 
 open Donald
-open FSharp.UMX
 open System
-open WorkTelegram.Core
+open FSharp.UMX
 
 [<AutoOpen>]
 module UMX =
@@ -12,9 +11,6 @@ module UMX =
 
   [<Measure>]
   type private serialnumber
-
-  //[<Measure>]
-  //type private macaddress
 
   [<Measure>]
   type private lastname
@@ -39,7 +35,6 @@ module UMX =
 
   type ItemName = string<itemname>
   type Serial = string<serialnumber>
-  //type MacAddress = string<macaddress>
   type LastName = string<lastname>
   type FirstName = string<firstname>
   type OfficeName = string<officename>
@@ -52,6 +47,8 @@ open UMX
 
 [<AutoOpen>]
 module Types =
+
+  type TelegramMessage = Funogram.Telegram.Types.Message
 
   [<NoComparison>]
   [<RequireQualifiedAccess>]
@@ -158,11 +155,11 @@ module Types =
   [<Struct>]
   type MacAddress =
     private
-      { Value: string }
+      { MacAddress: string }
 
-    member self.GetValue = self.Value
+    member self.Value = self.MacAddress
 
-    override self.ToString() = self.Value
+    override self.ToString() = self.MacAddress
 
   [<RequireQualifiedAccess>]
   module MacAddress =
@@ -195,7 +192,7 @@ module Types =
       match r.IsMatch(inputCleaned) with
       | true ->
         let macAddress = format (inputCleaned.ToCharArray()) "" 0 0
-        { Value = macAddress } |> Ok
+        { MacAddress = macAddress } |> Ok
       | false ->
         input
         |> BusinessError.IncorrectMacAddress
@@ -229,16 +226,16 @@ module Types =
   [<Struct>]
   type PositiveInt =
     private
-      { Value: uint }
+      { PositiveInt: uint }
 
-    member self.GetValue = self.Value
+    member self.Value = self.PositiveInt
 
   [<RequireQualifiedAccess>]
   module PositiveInt =
 
     let create count =
       if count > 0u then
-        { Value = count } |> Ok
+        { PositiveInt = count } |> Ok
       else
         count
         |> BusinessError.NumberMustBePositive
@@ -252,7 +249,7 @@ module Types =
         |> BusinessError.IncorrectParsePositiveNumber
         |> Error
 
-    let one = { Value = 1u }
+    let one = { PositiveInt = 1u }
 
   type ItemWithSerial = { Name: ItemName; Serial: Serial }
 
@@ -339,11 +336,21 @@ module Types =
       OfficeName: OfficeName
       Manager: Manager }
 
+  [<RequireQualifiedAccess>]
+  module Office =
+
+    let create officeName manager =
+      { OfficeId = % Guid.NewGuid()
+        IsHidden = false
+        OfficeName = officeName
+        Manager = manager }
+
   type Employer =
     { FirstName: FirstName
       LastName: LastName
       Office: Office
-      ChatId: ChatId }
+      ChatId: ChatId
+      IsApproved: bool }
 
   [<RequireQualifiedAccess>]
   module Employer =
@@ -352,16 +359,23 @@ module Types =
       { FirstName = firstName
         LastName = lastName
         Office = office
-        ChatId = chatId }
+        ChatId = chatId
+        IsApproved = false }
 
   [<RequireQualifiedAccess>]
   module Manager =
+
+    let create chatId firstName lastName =
+      { ChatId = chatId
+        FirstName = firstName
+        LastName = lastName }
 
     let asEmployer (manager: Manager) office =
       { FirstName = manager.FirstName
         LastName = manager.LastName
         Office = office
-        ChatId = manager.ChatId }
+        ChatId = manager.ChatId
+        IsApproved = true }
 
   type DeletionItem =
     { DeletionId: DeletionId
@@ -376,7 +390,7 @@ module Types =
     override self.ToString() =
       let macText =
         if self.Item.MacAddress.IsSome then
-          self.Item.MacAddress.Value.Value
+          self.Item.MacAddress.Value.MacAddress
         else
           "Нет"
 
@@ -392,10 +406,23 @@ module Types =
         else
           "Не указано"
 
-      $"
+      $"""
         Имя позиции    : {self.Item.Name}
         Мак адрес      : {macText}
         Серийный номер : {serialText}
         Куда или зачем : {locationText}
-        Количество     : {self.Count.GetValue}
-        Дата           : {self.Time}"
+        Количество     : {self.Count.Value}
+        Дата           : {self.Time}"""
+
+  [<RequireQualifiedAccess>]
+  module DeletionItem =
+
+    let create item count location employer =
+      { DeletionId = % Guid.NewGuid()
+        Item = item
+        Count = count
+        Time = DateTime.Now
+        IsDeletion = false
+        IsHidden = false
+        Location = location
+        Employer = employer }

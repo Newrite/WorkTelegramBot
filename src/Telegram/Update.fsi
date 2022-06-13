@@ -2,7 +2,7 @@ namespace WorkTelegram.Telegram
     
     [<NoEquality; NoComparison; RequireQualifiedAccess>]
     type UpdateMessage =
-        | AuthManagerChange of AuthProcess.Manager
+        | AuthManagerChange of AuthProcess.AuthManager
         | FinishEmployerAuth of Core.Types.Employer
         | FinishManagerAuth of Core.Types.Manager
         | ManagerChooseOffice of
@@ -17,7 +17,7 @@ namespace WorkTelegram.Telegram
           ManagerProcess.ManagerContext * Core.Types.Office
         | DeletionProcessChange of
           EmployerProcess.EmployerContext * EmployerProcess.Deletion
-        | AuthEmployerChange of AuthProcess.Employer
+        | AuthEmployerChange of AuthProcess.AuthEmployer
         | FinishDeletionProcess of
           EmployerProcess.EmployerContext * Core.Types.DeletionItem
         | Back
@@ -27,9 +27,10 @@ namespace WorkTelegram.Telegram
     module Update =
         
         val update:
-          env: 'a -> history: System.Collections.Generic.Stack<Model.CoreModel>
-          -> message: UpdateMessage -> model: Model.CoreModel
-          -> callInitModelFunction: (unit -> Model.CoreModel) -> Model.CoreModel
+          env: 'a -> message: UpdateMessage
+          -> model: Model.ModelContext<Model.CoreModel>
+          -> callInitModelFunction: (unit -> Model.ModelContext<Model.CoreModel>)
+            -> Model.ModelContext<Model.CoreModel>
             when 'a :> Infrastructure.AppEnv.ILog and
                  'a :> Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
                  'a :> Infrastructure.AppEnv.ICfg

@@ -3,20 +3,20 @@ namespace WorkTelegram.Telegram
     module AuthProcess =
         
         [<RequireQualifiedAccess>]
-        type Employer =
+        type AuthEmployer =
             | EnteringOffice
             | EnteringLastFirstName of Core.Types.Office
             | AskingFinish of Core.Types.Employer
         
         [<RequireQualifiedAccess>]
-        type Manager =
+        type AuthManager =
             | EnteringLastFirstName
             | AskingFinish of Core.Types.Manager
         
         [<RequireQualifiedAccess>]
-        type Model =
-            | Employer of Employer
-            | Manager of Manager
+        type AuthModel =
+            | Employer of AuthEmployer
+            | Manager of AuthManager
             | NoAuth
     
     module EmployerProcess =
@@ -31,7 +31,7 @@ namespace WorkTelegram.Telegram
             | AskingFinish of Core.Types.DeletionItem
         
         [<RequireQualifiedAccess>]
-        type Model =
+        type EmployerModel =
             | Deletion of Deletion
             | WaitChoice
             | EditDeletionItems
@@ -39,10 +39,10 @@ namespace WorkTelegram.Telegram
         type EmployerContext =
             {
               Employer: Core.Types.Employer
-              Model: Model
+              Model: EmployerModel
             }
             
-            member UpdateModel: model: Model -> EmployerContext
+            member UpdateModel: model: EmployerModel -> EmployerContext
     
     module ManagerProcess =
         
@@ -52,7 +52,7 @@ namespace WorkTelegram.Telegram
             | AskingFinish of Core.Types.Office
         
         [<RequireQualifiedAccess>]
-        type Model =
+        type ManagerModel =
             | NoOffices
             | MakeOffice of MakeOffice
             | ChooseOffice of Core.Types.Office list
@@ -63,10 +63,10 @@ namespace WorkTelegram.Telegram
         type ManagerContext =
             {
               Manager: Core.Types.Manager
-              Model: Model
+              Model: ManagerModel
             }
             
-            member UpdateModel: model: Model -> ManagerContext
+            member UpdateModel: model: ManagerModel -> ManagerContext
     
     module Model =
         
@@ -76,14 +76,23 @@ namespace WorkTelegram.Telegram
         type CoreModel =
             | Employer of EmployerProcess.EmployerContext
             | Manager of ManagerProcess.ManagerContext
-            | Auth of AuthProcess.Model
+            | Auth of AuthProcess.AuthModel
             | Error of string
+        
+        [<NoComparison>]
+        type ModelContext<'Model> =
+            {
+              History: System.Collections.Generic.Stack<'Model>
+              Model: CoreModel
+            }
             
             static member
-              Init: env: 'a -> history: System.Collections.Generic.Stack<'b>
-                    -> message: Funogram.Telegram.Types.Message -> CoreModel
+              Init: env: 'a -> message: Funogram.Telegram.Types.Message
+                      -> ModelContext<CoreModel>
                       when 'a :> Infrastructure.AppEnv.ILog and
                            'a :>
                                 Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
                            'a :> Infrastructure.AppEnv.IDb
+            
+            member Transform: model: CoreModel -> ModelContext<'Model>
 
