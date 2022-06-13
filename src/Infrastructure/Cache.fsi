@@ -6,34 +6,34 @@ namespace WorkTelegram.Infrastructure
         | GetDeletionItems of AsyncReplyChannel<Core.Types.DeletionItem list>
         | GetEmployers of AsyncReplyChannel<Core.Types.Employer list>
         | GetManagers of AsyncReplyChannel<Core.Types.Manager list>
-        | GetMessages of AsyncReplyChannel<Funogram.Telegram.Types.Message list>
+        | GetTelegramMessages of
+          AsyncReplyChannel<Core.Types.TelegramMessage list>
         | GetOfficesByManagerId of
           Core.UMX.ChatId * AsyncReplyChannel<Core.Types.Office list>
         | TryGetEmployerByChatId of
           Core.UMX.ChatId * AsyncReplyChannel<Core.Types.Employer option>
         | TryGetManagerByChatId of
           Core.UMX.ChatId * AsyncReplyChannel<Core.Types.Manager option>
-        | TryGetMessageByChatId of
-          Core.UMX.ChatId *
-          AsyncReplyChannel<Funogram.Telegram.Types.Message option>
-        | TryAddOfficeInDb of
+        | TryGetTelegramMessageByChatId of
+          Core.UMX.ChatId * AsyncReplyChannel<Core.Types.TelegramMessage option>
+        | TryAddOffice of
           Core.Types.Office * AsyncReplyChannel<Core.Types.Office option>
-        | TryAddEmployerInDb of
+        | TryAddEmployer of
           Core.Types.Employer * AsyncReplyChannel<Core.Types.Employer option>
-        | TryAddManagerInDb of
+        | TryAddManager of
           Core.Types.Manager * AsyncReplyChannel<Core.Types.Manager option>
-        | TryAddDeletionItemInDb of
+        | TryAddDeletionItem of
           Core.Types.DeletionItem *
           AsyncReplyChannel<Core.Types.DeletionItem option>
-        | TryAddOrUpdateMessageInDb of
-          Funogram.Telegram.Types.Message * AsyncReplyChannel<bool>
-        | TryUpdateEmployerApprovedInDb of
+        | TryAddOrUpdateTelegramMessage of
+          Core.Types.TelegramMessage * AsyncReplyChannel<bool>
+        | TryChangeEmployerApproved of
           Core.Types.Employer * bool * AsyncReplyChannel<bool>
-        | TrySetDeletionOnItemsOfOffice of
+        | TryDeletionDeletionItemsOfOffice of
           Core.UMX.OfficeId * AsyncReplyChannel<ExtBool>
-        | TryHideDeletionItem of Core.UMX.DeletionId * AsyncReplyChannel<bool>
+        | TryDeleteDeletionItem of Core.UMX.DeletionId * AsyncReplyChannel<bool>
         | TryDeleteOffice of Core.UMX.OfficeId * AsyncReplyChannel<bool>
-        | TryDeleteMessageJson of Core.UMX.ChatId * AsyncReplyChannel<bool>
+        | TryDeleteTelegramMessage of Core.UMX.ChatId * AsyncReplyChannel<bool>
         | IsApprovedEmployer of Core.Types.Employer * AsyncReplyChannel<bool>
     
     [<NoComparison>]
@@ -46,11 +46,11 @@ namespace WorkTelegram.Infrastructure
     [<NoComparison>]
     type private Cache =
         {
-          Employers: Core.Types.Employer list
-          Offices: Core.Types.Office list
-          Managers: Core.Types.Manager list
-          DeletionItems: Core.Types.DeletionItem list
-          Messages: Funogram.Telegram.Types.Message list
+          Employers: Map<Core.UMX.ChatId,Core.Types.Employer>
+          Offices: Map<Core.UMX.OfficeId,Core.Types.Office>
+          Managers: Map<Core.UMX.ChatId,Core.Types.Manager>
+          DeletionItems: Map<Core.UMX.DeletionId,Core.Types.DeletionItem>
+          Messages: Map<Core.UMX.ChatId,Core.Types.TelegramMessage>
         }
     
     exception private CacheUnmatchedException of string
@@ -104,13 +104,13 @@ namespace WorkTelegram.Infrastructure
           env: 'a -> System.Threading.Tasks.Task<Core.Types.Manager list>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val getMessages:
-          env: 'a -> Funogram.Telegram.Types.Message list
+        val getTelegramMessages:
+          env: 'a -> Core.Types.TelegramMessage list
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val getMessagesAsync:
+        val getTelegramMessagesAsync:
           env: 'a
-            -> System.Threading.Tasks.Task<Funogram.Telegram.Types.Message list>
+            -> System.Threading.Tasks.Task<Core.Types.TelegramMessage list>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
         val getOfficesByManagerId:
@@ -140,76 +140,76 @@ namespace WorkTelegram.Infrastructure
             -> System.Threading.Tasks.Task<Core.Types.Manager option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryGetMessageByChatId:
+        val tryGetTelegramMessageByChatId:
           env: 'a -> chatId: Core.UMX.ChatId
-            -> Funogram.Telegram.Types.Message option
+            -> Core.Types.TelegramMessage option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryGetMessageByChatIdAsync:
+        val tryGetTelegramMessageByChatIdAsync:
           env: 'a -> chatId: Core.UMX.ChatId
-            -> System.Threading.Tasks.Task<Funogram.Telegram.Types.Message option>
+            -> System.Threading.Tasks.Task<Core.Types.TelegramMessage option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddOfficeInDb:
+        val tryAddOffice:
           env: 'a -> office: Core.Types.Office -> Core.Types.Office option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddOfficeInDbAsync:
+        val tryAddOfficeAsync:
           env: 'a -> recordOffice: Core.Types.Office
             -> System.Threading.Tasks.Task<Core.Types.Office option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddEmployerInDb:
+        val tryAddEmployer:
           env: 'a -> employer: Core.Types.Employer -> Core.Types.Employer option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddEmployerInDbAsync:
+        val tryAddEmployerAsync:
           env: 'a -> recordEmployer: Core.Types.Employer
             -> System.Threading.Tasks.Task<Core.Types.Employer option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddManagerInDb:
+        val tryAddManager:
           env: 'a -> manager: Core.Types.Manager -> Core.Types.Manager option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddManagerInDbAsync:
+        val tryAddManagerAsync:
           env: 'a -> managerDto: Core.Types.Manager
             -> System.Threading.Tasks.Task<Core.Types.Manager option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddDeletionItemInDb:
+        val tryAddDeletionItem:
           env: 'a -> deletionItem: Core.Types.DeletionItem
             -> Core.Types.DeletionItem option
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddDeletionItemInDbAsync:
+        val tryAddDeletionItemAsync:
           env: 'a -> recordDeletionItem: Core.Types.DeletionItem
             -> System.Threading.Tasks.Task<Core.Types.DeletionItem option>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryUpdateEmployerApprovedInDb:
+        val tryChangeEmployerApproved:
           env: 'a -> employer: Core.Types.Employer -> isApproved: bool -> bool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryUpdateEmployerApprovedInDbAsync:
+        val tryChangeEmployerApprovedAsync:
           env: 'a -> employer: Core.Types.Employer -> isApproved: bool
             -> System.Threading.Tasks.Task<bool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val trySetDeletionOnItemsOfOffice:
+        val tryDeletionDeletionItemsOfOffice:
           env: 'a -> officeId: Core.UMX.OfficeId -> ExtBool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val trySetDeletionOnItemsOfOfficeAsync:
+        val tryDeletionDeletionItemsOfOfficeAsync:
           env: 'a -> officeId: Core.UMX.OfficeId
             -> System.Threading.Tasks.Task<ExtBool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryHideDeletionItem:
+        val tryDeleteDeletionItem:
           env: 'a -> deletionId: Core.UMX.DeletionId -> bool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryHideDeletionItemAsync:
+        val tryDeleteDeletionItemAsync:
           env: 'a -> deletionId: Core.UMX.DeletionId
             -> System.Threading.Tasks.Task<bool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
@@ -223,20 +223,20 @@ namespace WorkTelegram.Infrastructure
             -> System.Threading.Tasks.Task<bool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddOrUpdateMessageInDb:
-          env: 'a -> message: Funogram.Telegram.Types.Message -> bool
+        val tryAddOrUpdateTelegramMessage:
+          env: 'a -> message: Core.Types.TelegramMessage -> bool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryAddOrUpdateMessageInDbAsync:
-          env: 'a -> message: Funogram.Telegram.Types.Message
+        val tryAddOrUpdateTelegramMessageAsync:
+          env: 'a -> message: Core.Types.TelegramMessage
             -> System.Threading.Tasks.Task<bool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryDeleteMessageJson:
+        val tryDeleteTelegramMessage:
           env: 'a -> chatId: Core.UMX.ChatId -> bool
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>
         
-        val tryDeleteMessageJsonAsync:
+        val tryDeleteTelegramMessageAsync:
           env: 'a -> chatId: Core.UMX.ChatId
             -> System.Threading.Tasks.Task<bool>
             when 'a :> AppEnv.ILog and 'a :> AppEnv.ICache<CacheCommand>

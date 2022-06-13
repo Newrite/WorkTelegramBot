@@ -67,19 +67,19 @@ namespace WorkTelegram.Core
         [<Literal>]
         val TableName: string = "chat_id_table"
     
-    type MessageDto =
+    type TelegramMessageDto =
         {
           ChatId: int64
           MessageJson: string
         }
     
-    module MessageDto =
+    module TelegramMessageDto =
         
-        val ofDataReader: rd: System.Data.IDataReader -> MessageDto
+        val ofDataReader: rd: System.Data.IDataReader -> TelegramMessageDto
         
-        val fromDomain: message: Funogram.Telegram.Types.Message -> MessageDto
+        val fromDomain: message: Types.TelegramMessage -> TelegramMessageDto
         
-        val toDomain: message: MessageDto -> Funogram.Telegram.Types.Message
+        val toDomain: message: TelegramMessageDto -> Types.TelegramMessage
         
         [<Literal>]
         val TableName: string = "message"
@@ -137,8 +137,7 @@ namespace WorkTelegram.Core
         
         val ofDataReader: rd: System.Data.IDataReader -> EmployerDto
         
-        val fromDomain:
-          employer: Types.Employer -> isApproved: bool -> EmployerDto
+        val fromDomain: employer: Types.Employer -> EmployerDto
         
         val toDomain:
           office: OfficeDto -> manager: ManagerDto -> employer: EmployerDto

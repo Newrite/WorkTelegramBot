@@ -68,7 +68,6 @@ let main _ =
       if message.Chat.Username <> ctx.Me.Username then
         Utils.deleteMessageBase env message |> ignore
 
-  let history = System.Collections.Generic.Stack<_>()
 
   let rec appLoop (sleepTime: int) =
 
@@ -78,19 +77,19 @@ let main _ =
 
     try
 
-      let getState = fun () -> Cache.getMessages env
+      let getState = fun () -> Cache.getTelegramMessages env
 
       let setState message =
-        Cache.tryAddOrUpdateMessageInDb env message
+        Cache.tryAddOrUpdateTelegramMessage env message
         |> ignore
 
-      let delState (message: Funogram.Telegram.Types.Message) =
-        Cache.tryDeleteMessageJson env %message.Chat.Id
+      let delState (message: TelegramMessage) =
+        Cache.tryDeleteTelegramMessage env %message.Chat.Id
         |> ignore
 
-      let view = View.view env history
-      let update = Update.update env history
-      let init = CoreModel.Init env history
+      let view = View.view env
+      let update = Update.update env
+      let init = ModelContext<CoreModel>.Init env
 
       Elmish.Program.mkProgram env view update init
       |> Elmish.Program.withState getState setState delState
@@ -99,8 +98,6 @@ let main _ =
 
     with
     | exn ->
-
-      history.Clear()
 
       let sleepTime =
         if sleepTime >= 60000 then

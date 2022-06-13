@@ -14,8 +14,6 @@ namespace WorkTelegram.Telegram
         
         module private Functions =
             
-            type Message = Funogram.Telegram.Types.Message
-            
             val createExcelTableFromItemsAsBytes:
               items: seq<Core.Types.DeletionItem> -> byte[]
             
@@ -26,40 +24,45 @@ namespace WorkTelegram.Telegram
             
             val enteringLastFirstNameEmployerMessageHandle:
               ctx: ViewContext<'a> -> office: Core.Types.Office
-              -> message: Message -> unit
+              -> message: Core.Types.TelegramMessage -> unit
             
             val enteringOfficeNameMessageHandle:
               ctx: ViewContext<Infrastructure.CacheCommand>
-              -> managerState: ManagerProcess.ManagerContext -> message: Message
-                -> unit
+              -> managerState: ManagerProcess.ManagerContext
+              -> message: Core.Types.TelegramMessage -> unit
             
             val enteringLastFirstNameManagerMessageHandle:
-              ctx: ViewContext<'a> -> message: Message -> unit
+              ctx: ViewContext<'a> -> message: Core.Types.TelegramMessage
+                -> unit
             
             val enteringNameMessageHandle:
               employerState: EmployerProcess.EmployerContext
-              -> ctx: ViewContext<'a> -> message: Message -> unit
+              -> ctx: ViewContext<'a> -> message: Core.Types.TelegramMessage
+                -> unit
             
             val enteringSerialMessageHandle:
               ctx: ViewContext<'a>
               -> employerState: EmployerProcess.EmployerContext
-              -> item: Core.Types.ItemWithOnlyName -> message: Message -> unit
+              -> item: Core.Types.ItemWithOnlyName
+              -> message: Core.Types.TelegramMessage -> unit
             
             val enteringMacAddressMessageHandle:
               ctx: ViewContext<'a>
               -> employerState: EmployerProcess.EmployerContext
-              -> item: Core.Types.ItemWithSerial -> message: Message -> unit
+              -> item: Core.Types.ItemWithSerial
+              -> message: Core.Types.TelegramMessage -> unit
             
             val enteringCountMessageHandleExn:
               ctx: ViewContext<'a>
               -> employerState: EmployerProcess.EmployerContext
-              -> item: Core.Types.Item -> message: Message -> unit
+              -> item: Core.Types.Item -> message: Core.Types.TelegramMessage
+                -> unit
             
             val enteringLocationMessageHandle:
               ctx: ViewContext<'a>
               -> employerState: EmployerProcess.EmployerContext
               -> item: Core.Types.Item -> count: Core.Types.PositiveInt
-              -> message: Message -> unit
+              -> message: Core.Types.TelegramMessage -> unit
         
         module private Forms =
             
@@ -342,7 +345,7 @@ namespace WorkTelegram.Telegram
             
             val authEmployer:
               ctx: ViewContext<Infrastructure.CacheCommand>
-              -> employerAuth: AuthProcess.Employer -> Elmish.RenderView
+              -> employerAuth: AuthProcess.AuthEmployer -> Elmish.RenderView
         
         module private ViewManager =
             
@@ -397,7 +400,7 @@ namespace WorkTelegram.Telegram
               -> offices: seq<Core.Types.Office> -> Elmish.RenderView
             
             val authManager:
-              ctx: ViewContext<'a> -> managerAuth: AuthProcess.Manager
+              ctx: ViewContext<'a> -> managerAuth: AuthProcess.AuthManager
                 -> Elmish.RenderView
         
         val private employerProcess:
@@ -410,11 +413,10 @@ namespace WorkTelegram.Telegram
         
         val private authProcess:
           ctx: ViewContext<Infrastructure.CacheCommand>
-          -> authModel: AuthProcess.Model -> Elmish.RenderView
+          -> authModel: AuthProcess.AuthModel -> Elmish.RenderView
         
         val view:
           env: Infrastructure.AppEnv.IAppEnv<Infrastructure.CacheCommand>
-          -> history: System.Collections.Generic.Stack<'a>
-          -> dispatch: (UpdateMessage -> unit) -> model: Model.CoreModel
+          -> dispatch: (UpdateMessage -> unit) -> model: Model.ModelContext<'a>
             -> Elmish.RenderView
 

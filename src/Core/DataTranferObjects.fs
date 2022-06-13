@@ -61,6 +61,7 @@ module Field =
 
 type ChatIdDto = { ChatId: int64 }
 
+
 [<RequireQualifiedAccess>]
 module ChatIdDto =
 
@@ -73,21 +74,21 @@ module ChatIdDto =
   [<Literal>]
   let TableName = "chat_id_table"
 
-type MessageDto = { ChatId: int64; MessageJson: string }
+type TelegramMessageDto = { ChatId: int64; MessageJson: string }
 
 [<RequireQualifiedAccess>]
-module MessageDto =
+module TelegramMessageDto =
 
   let ofDataReader (rd: IDataReader) =
     { ChatId = rd.ReadInt64 Field.ChatId
       MessageJson = rd.ReadString Field.MessageJson }
 
-  let fromDomain (message: Funogram.Telegram.Types.Message) =
+  let fromDomain (message: TelegramMessage) =
     { ChatId = message.Chat.Id
       MessageJson = Json.serialize message }
 
-  let toDomain (message: MessageDto) =
-    Json.deserialize<Funogram.Telegram.Types.Message> message.MessageJson
+  let toDomain (message: TelegramMessageDto) =
+    Json.deserialize<TelegramMessage> message.MessageJson
 
   [<Literal>]
   let TableName = "message"
@@ -96,6 +97,7 @@ type ManagerDto =
   { ChatId: int64
     FirstName: string
     LastName: string }
+
 
 [<RequireQualifiedAccess>]
 module ManagerDto =
@@ -174,11 +176,11 @@ module EmployerDto =
       IsApproved = rd.ReadBoolean Field.IsApproved
       OfficeId = rd.ReadGuid Field.OfficeId }
 
-  let fromDomain (employer: Employer) isApproved =
+  let fromDomain (employer: Employer) =
     { ChatId = %employer.ChatId
       FirstName = %employer.FirstName
       LastName = %employer.LastName
-      IsApproved = isApproved
+      IsApproved = employer.IsApproved
       OfficeId = %employer.Office.OfficeId }
 
   let toDomain (office: OfficeDto) (manager: ManagerDto) (employer: EmployerDto) : Employer =
@@ -187,13 +189,15 @@ module EmployerDto =
     { ChatId = %employer.ChatId
       FirstName = %employer.FirstName
       LastName = %employer.LastName
-      Office = office }
+      Office = office
+      IsApproved = employer.IsApproved }
 
   let toDomainWithOffice (office: Office) (employer: EmployerDto) =
     { ChatId = %employer.ChatId
       FirstName = %employer.FirstName
       LastName = %employer.LastName
-      Office = office }
+      Office = office
+      IsApproved = employer.IsApproved }
 
   [<Literal>]
   let TableName = "employer"
@@ -231,8 +235,8 @@ module DeletionItemDto =
     { DeletionId = %item.DeletionId
       ItemName = %item.Item.Name
       ItemSerial = Option.map (fun s -> %s) item.Item.Serial
-      ItemMac = Option.map (fun (m: MacAddress) -> m.GetValue) item.Item.MacAddress
-      Count = item.Count.GetValue |> int64
+      ItemMac = Option.map (fun (m: MacAddress) -> m.Value) item.Item.MacAddress
+      Count = item.Count.Value |> int64
       Date = item.Time.Ticks
       IsDeletion = item.IsDeletion
       IsHidden = item.IsHidden

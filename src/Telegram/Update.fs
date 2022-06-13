@@ -9,7 +9,7 @@ open FSharp.UMX
 [<NoComparison>]
 [<RequireQualifiedAccess>]
 type UpdateMessage =
-  | AuthManagerChange of AuthProcess.Manager
+  | AuthManagerChange of AuthProcess.AuthManager
   | FinishEmployerAuth of Employer
   | FinishManagerAuth of Manager
   | ManagerChooseOffice of ManagerProcess.ManagerContext * Office
@@ -19,7 +19,7 @@ type UpdateMessage =
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
-  | AuthEmployerChange of AuthProcess.Employer
+  | AuthEmployerChange of AuthProcess.AuthEmployer
   | FinishDeletionProcess of EmployerProcess.EmployerContext * DeletionItem
   | Back
   | Cancel
@@ -27,43 +27,43 @@ type UpdateMessage =
 
 module Update =
 
-  let update
-    env
-    (history: System.Collections.Generic.Stack<_>)
-    message
-    model
-    callInitModelFunction
-    =
+  let update env message model callInitModelFunction =
     match message with
     | UpdateMessage.Back
     | UpdateMessage.Cancel
     | UpdateMessage.ReRender -> ()
-    | _ -> history.Push(model)
+    | _ -> model.History.Push(model.Model)
 
     match message with
     | UpdateMessage.AuthManagerChange newAuth ->
       newAuth
-      |> AuthProcess.Model.Manager
+      |> AuthProcess.AuthModel.Manager
       |> CoreModel.Auth
+      |> model.Transform
     | UpdateMessage.AuthEmployerChange newAuth ->
       newAuth
-      |> AuthProcess.Model.Employer
+      |> AuthProcess.AuthModel.Employer
       |> CoreModel.Auth
+      |> model.Transform
     | UpdateMessage.DeletionProcessChange (state, newProces) ->
-      EmployerProcess.Model.Deletion newProces
+      EmployerProcess.EmployerModel.Deletion newProces
       |> state.UpdateModel
       |> CoreModel.Employer
+      |> model.Transform
     | UpdateMessage.StartEditDeletionItems state ->
-      { state with Model = EmployerProcess.Model.EditDeletionItems }
+      { state with Model = EmployerProcess.EmployerModel.EditDeletionItems }
       |> CoreModel.Employer
+      |> model.Transform
     | UpdateMessage.StartAuthEmployers (state, office) ->
-      { state with Model = ManagerProcess.Model.AuthEmployers office }
+      { state with Model = ManagerProcess.ManagerModel.AuthEmployers office }
       |> CoreModel.Manager
+      |> model.Transform
     | UpdateMessage.StartDeAuthEmployers (state, office) ->
-      { state with Model = ManagerProcess.Model.DeAuthEmployers office }
+      { state with Model = ManagerProcess.ManagerModel.DeAuthEmployers office }
       |> CoreModel.Manager
+      |> model.Transform
     | UpdateMessage.FinishDeletionProcess (state, rDeletionItem) ->
-      match Cache.tryAddDeletionItemInDb env rDeletionItem with
+      match Cache.tryAddDeletionItem env rDeletionItem with
       | Some _ ->
         let text = "Позиция успешно добавлена в базу данных"
         Utils.sendMessageAndDeleteAfterDelay env state.Employer.ChatId text 5000
@@ -76,13 +76,15 @@ module Update =
 
       callInitModelFunction ()
     | UpdateMessage.ManagerChooseOffice (state, office) ->
-      { state with Model = ManagerProcess.Model.InOffice office }
+      { state with Model = ManagerProcess.ManagerModel.InOffice office }
       |> CoreModel.Manager
+      |> model.Transform
     | UpdateMessage.ManagerMakeOfficeChange (state, newChange) ->
-      { state with Model = ManagerProcess.Model.MakeOffice newChange }
+      { state with Model = ManagerProcess.ManagerModel.MakeOffice newChange }
       |> CoreModel.Manager
+      |> model.Transform
     | UpdateMessage.FinishManagerAuth manager ->
-      match Cache.tryAddManagerInDb env manager with
+      match Cache.tryAddManager env manager with
       | Some _ ->
         let text = "Аутентификация прошла успешно"
         Utils.sendMessageAndDeleteAfterDelay env %manager.ChatId text 5000
@@ -92,7 +94,7 @@ module Update =
 
       callInitModelFunction ()
     | UpdateMessage.FinishMakeOfficeProcess office ->
-      match Cache.tryAddOfficeInDb env office with
+      match Cache.tryAddOffice env office with
       | Some _ ->
         let text = "Офис успешно создан"
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 5000
@@ -104,12 +106,12 @@ module Update =
     | UpdateMessage.Cancel -> callInitModelFunction ()
     | UpdateMessage.ReRender -> model
     | UpdateMessage.Back ->
-      if history.Count > 0 then
-        history.Pop()
+      if model.History.Count > 0 then
+        model.History.Pop() |> model.Transform
       else
         model
     | UpdateMessage.FinishEmployerAuth employer ->
-      match Cache.tryAddEmployerInDb env employer with
+      match Cache.tryAddEmployer env employer with
       | Some _ ->
         let text = "Аутентификация прошла успешно"
         Utils.sendMessageAndDeleteAfterDelay env %employer.ChatId text 5000

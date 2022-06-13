@@ -49,6 +49,8 @@ namespace WorkTelegram.Core
     
     module Types =
         
+        type TelegramMessage = Funogram.Telegram.Types.Message
+        
         [<NoComparison; RequireQualifiedAccess>]
         type BusinessError =
             | NotFoundInDatabase of SearchedType: System.Type
@@ -97,11 +99,11 @@ namespace WorkTelegram.Core
         
         [<Struct>]
         type MacAddress =
-            private { Value: string }
+            private { MacAddress: string }
             
             override ToString: unit -> string
             
-            member GetValue: string
+            member Value: string
         
         module MacAddress =
             
@@ -116,9 +118,9 @@ namespace WorkTelegram.Core
         
         [<Struct>]
         type PositiveInt =
-            private { Value: uint }
+            private { PositiveInt: uint }
             
-            member GetValue: uint
+            member Value: uint
         
         module PositiveInt =
             
@@ -201,12 +203,17 @@ namespace WorkTelegram.Core
               Manager: Manager
             }
         
+        module Office =
+            
+            val create: officeName: UMX.OfficeName -> manager: Manager -> Office
+        
         type Employer =
             {
               FirstName: UMX.FirstName
               LastName: UMX.LastName
               Office: Office
               ChatId: UMX.ChatId
+              IsApproved: bool
             }
         
         module Employer =
@@ -216,6 +223,10 @@ namespace WorkTelegram.Core
               -> office: Office -> chatId: UMX.ChatId -> Employer
         
         module Manager =
+            
+            val create:
+              chatId: UMX.ChatId -> firstName: UMX.FirstName
+              -> lastName: UMX.LastName -> Manager
             
             val asEmployer: manager: Manager -> office: Office -> Employer
         
@@ -232,4 +243,10 @@ namespace WorkTelegram.Core
             }
             
             override ToString: unit -> string
+        
+        module DeletionItem =
+            
+            val create:
+              item: Item -> count: PositiveInt -> location: UMX.Location option
+              -> employer: Employer -> DeletionItem
 

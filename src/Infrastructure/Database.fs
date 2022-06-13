@@ -15,7 +15,7 @@ module Database =
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY
       );
   
-      CREATE TABLE IF NOT EXISTS {MessageDto.TableName} (
+      CREATE TABLE IF NOT EXISTS {TelegramMessageDto.TableName} (
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY,
         {Field.MessageJson} TEXT NOT NULL,
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
@@ -163,8 +163,11 @@ module Database =
     | Ok _ -> Ok()
     | Error err -> err |> AppError.DatabaseError |> Error
 
-  let internal selectMessages env =
-    genericSelectMany<MessageDto> env MessageDto.TableName MessageDto.ofDataReader
+  let internal selectTelegramMessages env =
+    genericSelectMany<TelegramMessageDto>
+      env
+      TelegramMessageDto.TableName
+      TelegramMessageDto.ofDataReader
 
   let internal selectManagers env =
     genericSelectMany<ManagerDto> env ManagerDto.TableName ManagerDto.ofDataReader
@@ -178,58 +181,9 @@ module Database =
   let internal selectDeletionItems env =
     genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
 
-  let internal selectDeletionItemsByOfficeId env officeId =
+  let internal insertTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
-      $"SELECT * FROM {DeletionItemDto.TableName} WHERE {Field.OfficeId} = (@{Field.OfficeId})"
-
-    let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
-    genericSelectManyWithWhere env sqlCommand sqlParam DeletionItemDto.ofDataReader
-
-  let internal selectMessageByChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand =
-      $"SELECT * FROM {MessageDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
-
-    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<MessageDto> env sqlCommand sqlParam MessageDto.ofDataReader
-
-  let internal selectOfficesByManagerChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand =
-      $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.ManagerId} = (@{Field.ManagerId})"
-
-    let sqlParam = [ Field.ManagerId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectManyWithWhere<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
-
-  let internal selectEmployerByChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand =
-      $"SELECT * FROM {EmployerDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
-
-    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<EmployerDto> env sqlCommand sqlParam EmployerDto.ofDataReader
-
-  let internal selectManagerByChatId env (chatIdDto: ChatIdDto) =
-    let sqlCommand =
-      $"SELECT * FROM {ManagerDto.TableName} WHERE {Field.ChatId} = (@{Field.ChatId})"
-
-    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
-    genericSelectSingle<ManagerDto> env sqlCommand sqlParam ManagerDto.ofDataReader
-
-  let internal selectOfficeById env officeId =
-    let sqlCommand =
-      $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeId} = (@{Field.OfficeId})"
-
-    let sqlParam = [ Field.OfficeId, SqlType.Int64 officeId ]
-    genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
-
-  let internal selectOfficeByName env officeName =
-    let sqlCommand =
-      $"SELECT * FROM {OfficeDto.TableName} WHERE {Field.OfficeName} = (@{Field.OfficeName})"
-
-    let sqlParam = [ Field.OfficeName, SqlType.String officeName ]
-    genericSelectSingle<OfficeDto> env sqlCommand sqlParam OfficeDto.ofDataReader
-
-  let internal insertMessage env (messageDto: MessageDto) =
-    let sqlCommand =
-      $"INSERT OR IGNORE INTO {MessageDto.TableName}
+      $"INSERT OR IGNORE INTO {TelegramMessageDto.TableName}
         ({Field.ChatId}, {Field.MessageJson})
         VALUES
         (@{Field.ChatId}, @{Field.MessageJson})"
@@ -241,6 +195,7 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let internal insertManager env (managerDto: ManagerDto) =
+
     let sqlCommand =
       $"INSERT OR IGNORE INTO {ManagerDto.TableName}
         ({Field.ChatId}, {Field.FirstName}, {Field.LastName})
@@ -341,7 +296,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal setTrueForDeletionFieldOfOfficeItems env officeId =
+  let internal deletionDeletionitemsOfOffice env officeId =
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
@@ -353,7 +308,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal setTrueForHiddenFieldOfItem env deletionId =
+  let internal hideDeletionItem env deletionId =
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsHidden} = (@{Field.IsHidden})
@@ -365,9 +320,9 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal updateMessage env (messageDto: MessageDto) =
+  let internal updateTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
-      $"UPDATE {MessageDto.TableName}
+      $"UPDATE {TelegramMessageDto.TableName}
         SET {Field.MessageJson} = (@{Field.MessageJson})
         WHERE {Field.ChatId} = (@{Field.ChatId})"
 
@@ -386,9 +341,9 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal deleteMessageJson env (chatIdDto: ChatIdDto) =
+  let internal deleteTelegramMessage env (chatIdDto: ChatIdDto) =
     let sqlCommand =
-      $"DELETE FROM {MessageDto.TableName}
+      $"DELETE FROM {TelegramMessageDto.TableName}
         WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]

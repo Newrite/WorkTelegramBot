@@ -250,11 +250,14 @@ module Elmish =
     let startProgram config onUpdate program =
 
 
-      let dict = new ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
+      let dict = ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
 
       if isWithStateFunctions program then
 
-        let messages = program.GetChatStates.Value()
+        let getStates = program.GetChatStates.Value
+        let saveState = program.SaveChatState.Value
+
+        let messages = getStates ()
 
         for message in messages do
 
@@ -276,11 +279,10 @@ module Elmish =
               )
               |> ignore
 
-              if program.SaveChatState.IsSome then
-                program.SaveChatState.Value msg
+              saveState msg
             | Error _ -> ()
 
-      let internalUpdate update (ctx: Funogram.Telegram.Bot.UpdateContext) =
+      let internalUpdate update (ctx: UpdateContext) =
         match ctx with
         | Message m ->
 
