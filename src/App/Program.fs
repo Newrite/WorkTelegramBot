@@ -40,7 +40,7 @@ let main _ =
 
   let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
 
-  Database.initTables env
+  Database.initTables env |> ignore
 
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"

@@ -79,11 +79,12 @@ module Database =
       reraise ()
 
   let initTables (env: #IDb) =
-    Logger.info env $"Execute schema sql script"
+    Logger.info env "Execute schema sql script"
 
     use command = new SqliteCommand(schema, env.Db.Conn)
     let result = command.ExecuteNonQuery()
     Logger.debug env $"Schema executed with code: {result}"
+    result
 
   let private stringOrNull (opt: string option) =
     if opt.IsSome then
@@ -163,25 +164,25 @@ module Database =
     | Ok _ -> Ok()
     | Error err -> err |> AppError.DatabaseError |> Error
 
-  let internal selectTelegramMessages env =
+  let selectTelegramMessages env =
     genericSelectMany<TelegramMessageDto>
       env
       TelegramMessageDto.TableName
       TelegramMessageDto.ofDataReader
 
-  let internal selectManagers env =
+  let selectManagers env =
     genericSelectMany<ManagerDto> env ManagerDto.TableName ManagerDto.ofDataReader
 
-  let internal selectOffices env =
+  let selectOffices env =
     genericSelectMany<OfficeDto> env OfficeDto.TableName OfficeDto.ofDataReader
 
-  let internal selectEmployers env =
+  let selectEmployers env =
     genericSelectMany<EmployerDto> env EmployerDto.TableName EmployerDto.ofDataReader
 
-  let internal selectDeletionItems env =
+  let selectDeletionItems env =
     genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
 
-  let internal insertTelegramMessage env (messageDto: TelegramMessageDto) =
+  let insertTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {TelegramMessageDto.TableName}
         ({Field.ChatId}, {Field.MessageJson})
@@ -194,7 +195,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertManager env (managerDto: ManagerDto) =
+  let insertManager env (managerDto: ManagerDto) =
 
     let sqlCommand =
       $"INSERT OR IGNORE INTO {ManagerDto.TableName}
@@ -209,7 +210,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertOffice env (officeDto: OfficeDto) =
+  let insertOffice env (officeDto: OfficeDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {OfficeDto.TableName} 
         ({Field.OfficeId}, {Field.OfficeName}, {Field.IsHidden}, {Field.ManagerId})
@@ -224,7 +225,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertEmployer env (employerDto: EmployerDto) =
+  let insertEmployer env (employerDto: EmployerDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {EmployerDto.TableName} 
         ({Field.ChatId}, first_name, {Field.LastName}, {Field.IsApproved}, {Field.OfficeId})
@@ -240,7 +241,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal insertDeletionItem env (deletionItemDto: DeletionItemDto) =
+  let insertDeletionItem env (deletionItemDto: DeletionItemDto) =
     let sqlCommand =
       $"INSERT OR IGNORE INTO {DeletionItemDto.TableName}
         ({Field.DeletionId},
@@ -284,7 +285,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal updateEmployerApprovedByChatId env (chatIdDto: ChatIdDto) isApproved =
+  let updateEmployerApprovedByChatId env (chatIdDto: ChatIdDto) isApproved =
     let sqlCommand =
       $"UPDATE {EmployerDto.TableName} 
         SET {Field.IsApproved} = (@{Field.IsApproved})
@@ -296,19 +297,24 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal deletionDeletionitemsOfOffice env officeId =
+  let deletionDeletionitemsOfOffice env officeId =
+    
+    let ticksInDay = 864000000000L
+    let currentTicks = let a = System.DateTime.Now in a.Ticks
+    
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
-        WHERE {Field.OfficeId} = (@{Field.OfficeId})"
+        WHERE {Field.OfficeId} = (@{Field.OfficeId}) AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
 
     let sqlParam =
       [ Field.IsDeletion, SqlType.Boolean true
         Field.OfficeId, SqlType.Guid officeId ]
 
     transactionSingleExn env sqlCommand sqlParam
-
-  let internal hideDeletionItem env deletionId =
+  
+  let hideDeletionItem env deletionId =
+    
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsHidden} = (@{Field.IsHidden})
@@ -320,7 +326,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal updateTelegramMessage env (messageDto: TelegramMessageDto) =
+  let updateTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
       $"UPDATE {TelegramMessageDto.TableName}
         SET {Field.MessageJson} = (@{Field.MessageJson})
@@ -332,7 +338,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal deleteOffice env officeId =
+  let deleteOffice env officeId =
     let sqlCommand =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
@@ -341,7 +347,7 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let internal deleteTelegramMessage env (chatIdDto: ChatIdDto) =
+  let deleteTelegramMessage env (chatIdDto: ChatIdDto) =
     let sqlCommand =
       $"DELETE FROM {TelegramMessageDto.TableName}
         WHERE {Field.ChatId} = (@{Field.ChatId})"
