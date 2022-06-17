@@ -305,7 +305,8 @@ module Database =
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
-        WHERE {Field.OfficeId} = (@{Field.OfficeId}) AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
+        WHERE {Field.OfficeId} = (@{Field.OfficeId})
+        AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
 
     let sqlParam =
       [ Field.IsDeletion, SqlType.Boolean true

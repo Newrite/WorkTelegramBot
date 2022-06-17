@@ -414,6 +414,11 @@ module Types =
         Количество     : {self.Count.Value}
         Дата           : {self.Time}"""
 
+    member self.Inspired() =
+      let now = DateTime.Now
+      let sinceTime = now - self.Time
+      sinceTime.TotalHours >= 24.0
+
   [<RequireQualifiedAccess>]
   module DeletionItem =
 
