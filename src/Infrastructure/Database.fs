@@ -298,10 +298,10 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let deletionDeletionitemsOfOffice env officeId =
-    
+
     let ticksInDay = 864000000000L
     let currentTicks = let a = System.DateTime.Now in a.Ticks
-    
+
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
@@ -312,9 +312,9 @@ module Database =
         Field.OfficeId, SqlType.Guid officeId ]
 
     transactionSingleExn env sqlCommand sqlParam
-  
+
   let hideDeletionItem env deletionId =
-    
+
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsHidden} = (@{Field.IsHidden})
