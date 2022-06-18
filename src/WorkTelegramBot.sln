@@ -22,6 +22,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Элементы решен
 		Prototypes.fsx = Prototypes.fsx
 	EndProjectSection
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "WorkTelegramBot.Tests", "WorkTelegramBot.Tests\WorkTelegramBot.Tests.fsproj", "{45B9C1CC-6D60-434A-8C21-B138C0AE724C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +46,10 @@ Global
 		{3917E51D-9E7B-4947-95C2-F888F8467998}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3917E51D-9E7B-4947-95C2-F888F8467998}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3917E51D-9E7B-4947-95C2-F888F8467998}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45B9C1CC-6D60-434A-8C21-B138C0AE724C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45B9C1CC-6D60-434A-8C21-B138C0AE724C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45B9C1CC-6D60-434A-8C21-B138C0AE724C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45B9C1CC-6D60-434A-8C21-B138C0AE724C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

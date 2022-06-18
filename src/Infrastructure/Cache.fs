@@ -395,7 +395,7 @@ module Cache =
           | CacheCommand.TryDeletionDeletionItemsOfOffice (officeId, channel) ->
 
             if cache.DeletionItems
-               |> Map.exists (fun _ v -> not v.IsDeletion && not v.IsHidden)
+               |> Map.exists (fun _ v -> not v.IsHidden && not v.IsDeletion && v.Inspired())
                |> not then
               channel.Reply Partial
               return! cacheHandler cache
@@ -410,7 +410,7 @@ module Cache =
                 let updatedItems =
                   cache.DeletionItems
                   |> Map.map (fun _ v ->
-                    if not v.IsDeletion then
+                    if not v.IsDeletion && v.Inspired() then
                       { v with IsDeletion = true }
                     else
                       v)

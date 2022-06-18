@@ -406,6 +406,7 @@ module View =
                 where (
                   item.IsDeletion |> not
                   && item.IsHidden |> not
+                  && item.Inspired()
                   && item.Employer.Office.OfficeId = office.OfficeId
                 )
 
@@ -635,15 +636,11 @@ module View =
 
       let items =
 
-        let notInspired time =
-          let since: System.TimeSpan = System.DateTime.Now - time
-          since.TotalHours < 24.
-
         query {
           for item in Cache.getDeletionItems ctx.AppEnv do
             where (
               item.Employer.ChatId = employerState.Employer.ChatId
-              && notInspired item.Time
+              && item.Inspired() |> not
               && item.IsDeletion |> not
               && item.IsHidden |> not
             )

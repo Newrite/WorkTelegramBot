@@ -1,5 +1,6 @@
 ﻿module Main
 
+open System
 open WorkTelegram.Core
 open WorkTelegram.Telegram
 open WorkTelegram.Infrastructure
@@ -35,12 +36,21 @@ let main _ =
       MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
 
     Cache.ICacheBuilder mailbox
-
-  let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken }
+    
+  let mutable cts = new CancellationTokenSource()
+    
+  let onError (exn: Exception) =
+    Logger.error iLog
+      $"On Error handler
+        Message: {exn.Message}
+        Cancel async token"
+    cts.Cancel()
+    
+  let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken; OnError = onError }
 
   let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
 
-  Database.initTables env
+  Database.initTables env |> ignore
 
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"
@@ -91,19 +101,21 @@ let main _ =
       let update = Update.update env
       let init = ModelContext<CoreModel>.Init env
 
-      Elmish.Program.mkProgram env view update init
-      |> Elmish.Program.withState getState setState delState
-      |> Elmish.Program.startProgram env.Configurer.BotConfig botUpdate
-      |> Async.RunSynchronously
+      let asyncProgram =
+        Elmish.Program.mkProgram env view update init
+        |> Elmish.Program.withState getState setState delState
+        |> Elmish.Program.startProgram env.Configurer.BotConfig botUpdate
+      Async.RunSynchronously(asyncProgram, cancellationToken = cts.Token)
 
     with
     | exn ->
 
       let sleepTime =
-        if sleepTime >= 60000 then
+        let st = sleepTime * 5
+        if st >= 60000 then
           60000
         else
-          sleepTime * sleepTime
+          st
 
       Logger.fatal
         env
@@ -112,6 +124,9 @@ let main _ =
           Stacktrace: {exn.StackTrace}
           New sleep time: {sleepTime}"
 
+      cts <- new CancellationTokenSource()
+      Logger.info env "Change token for new app loop iterate"
+      
       appLoop sleepTime
 
   appLoop 1000

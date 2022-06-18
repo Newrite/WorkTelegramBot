@@ -242,6 +242,8 @@ namespace WorkTelegram.Core
               Employer: Employer
             }
             
+            member Inspired: unit -> bool
+            
             override ToString: unit -> string
         
         module DeletionItem =
