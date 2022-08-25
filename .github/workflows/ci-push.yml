@@ -41,7 +41,7 @@ jobs:
       - name: Publish
         run: |
           cd ./src/App
-          dotnet publish -c Release  -r linux-arm -p:PublishSingleFile=true --self-contained true -p:PublishedTrimmed=false
+          dotnet publish -c Release  -r linux-arm -p:PublishSingleFile=false --self-contained true -p:PublishedTrimmed=false
 
       #- name: Test
       #  run: dotnet test --no-restore --verbosity normal
