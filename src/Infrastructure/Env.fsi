@@ -28,28 +28,33 @@ namespace WorkTelegram.Infrastructure
         
         type IAppCache<'Command> =
             
-            abstract Mailbox: MailboxProcessor<'Command>
+            abstract Agent: Agent<'Command>
         
         type ICache<'Command> =
             
             abstract Cache: IAppCache<'Command>
         
-        type IConfigurer =
+        type IConfigurer<'ElmishCommand> =
             
             abstract BotConfig: Funogram.Types.BotConfig
-        
-        type ICfg =
             
-            abstract Configurer: IConfigurer
+            abstract
+              ElmishDict: System.Collections.Concurrent.ConcurrentDictionary<int64,
+                                                                             'ElmishCommand>
+        
+        type ICfg<'ElmishCommand> =
+            
+            abstract Configurer: IConfigurer<'ElmishCommand>
         
         [<Interface>]
-        type IAppEnv<'Command> =
-            inherit ICfg
-            inherit ICache<'Command>
+        type IAppEnv<'CacheCommand,'ElmishCommand> =
+            inherit ICfg<'ElmishCommand>
+            inherit ICache<'CacheCommand>
             inherit IDb
             inherit ILog
         
         val IAppEnvBuilder:
-          iLog: IAppLogger -> iDb: IDatabase -> iCache: IAppCache<'a>
-          -> iCfg: IConfigurer -> IAppEnv<'a>
+          iLog: IAppLogger ->
+            iDb: IDatabase ->
+            iCache: IAppCache<'a> -> iCfg: IConfigurer<'b> -> IAppEnv<'a,'b>
 

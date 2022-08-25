@@ -14,7 +14,8 @@ namespace WorkTelegram.Infrastructure
         val fatal: env: #AppEnv.ILog -> fmt: Printf.StringFormat<'b,unit> -> 'b
         
         val ILogBuilder:
-          info: (string -> unit) -> warning: (string -> unit)
-          -> error: (string -> unit) -> fatal: (string -> unit)
-          -> debug: (string -> unit) -> AppEnv.ILog
+          info: (string -> unit) ->
+            warning: (string -> unit) ->
+            error: (string -> unit) ->
+            fatal: (string -> unit) -> debug: (string -> unit) -> AppEnv.ILog
 

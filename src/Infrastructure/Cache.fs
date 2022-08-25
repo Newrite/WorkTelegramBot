@@ -1,5 +1,7 @@
 ﻿namespace WorkTelegram.Infrastructure
 
+open System.Threading.Tasks
+
 open WorkTelegram.Core
 open FSharp.UMX
 open WorkTelegram.Infrastructure
@@ -8,45 +10,43 @@ open WorkTelegram.Infrastructure
 [<NoComparison>]
 [<RequireQualifiedAccess>]
 type CacheCommand =
-  | GetOffices of AsyncReplyChannel<Office list>
-  | GetDeletionItems of AsyncReplyChannel<DeletionItem list>
-  | GetEmployers of AsyncReplyChannel<Employer list>
-  | GetManagers of AsyncReplyChannel<Manager list>
-  | GetTelegramMessages of AsyncReplyChannel<TelegramMessage list>
-  | GetOfficesByManagerId of ChatId * AsyncReplyChannel<Office list>
-  | TryGetEmployerByChatId of ChatId * AsyncReplyChannel<Employer option>
-  | TryGetManagerByChatId of ChatId * AsyncReplyChannel<Manager option>
-  | TryGetTelegramMessageByChatId of ChatId * AsyncReplyChannel<TelegramMessage option>
-  | TryAddOffice of Office * AsyncReplyChannel<Office option>
-  | TryAddEmployer of Employer * AsyncReplyChannel<Employer option>
-  | TryAddManager of Manager * AsyncReplyChannel<Manager option>
-  | TryAddDeletionItem of DeletionItem * AsyncReplyChannel<DeletionItem option>
-  | TryAddOrUpdateTelegramMessage of TelegramMessage * AsyncReplyChannel<bool>
-  | TryChangeEmployerApproved of Employer * bool * AsyncReplyChannel<bool>
-  | TryDeletionDeletionItemsOfOffice of OfficeId * AsyncReplyChannel<ExtBool>
-  | TryDeleteDeletionItem of DeletionId * AsyncReplyChannel<bool>
-  | TryDeleteOffice of OfficeId * AsyncReplyChannel<bool>
-  | TryDeleteTelegramMessage of ChatId * AsyncReplyChannel<bool>
-  | IsApprovedEmployer of Employer * AsyncReplyChannel<bool>
+  | GetOffices of TaskCompletionSource<Office list>
+  | GetDeletionItems of TaskCompletionSource<DeletionItem list>
+  | GetEmployers of TaskCompletionSource<Employer list>
+  | GetManagers of TaskCompletionSource<Manager list>
+  | GetTelegramMessages of TaskCompletionSource<TelegramMessage list>
+  | GetOfficesByManagerId of ChatId * TaskCompletionSource<Office list>
+  | TryGetEmployerByChatId of ChatId * TaskCompletionSource<Employer option>
+  | TryGetManagerByChatId of ChatId * TaskCompletionSource<Manager option>
+  | TryGetTelegramMessageByChatId of ChatId * TaskCompletionSource<TelegramMessage option>
+  | TryAddOffice of Office * TaskCompletionSource<Office option>
+  | TryAddEmployer of Employer * TaskCompletionSource<Employer option>
+  | TryAddManager of Manager * TaskCompletionSource<Manager option>
+  | TryAddDeletionItem of DeletionItem * TaskCompletionSource<DeletionItem option>
+  | TryAddOrUpdateTelegramMessage of TelegramMessage * TaskCompletionSource<bool>
+  | TryChangeEmployerApproved of Employer * bool * TaskCompletionSource<bool>
+  | TryDeletionDeletionItemsOfOffice of OfficeId * TaskCompletionSource<ExtBool>
+  | TryDeleteDeletionItem of DeletionId * TaskCompletionSource<bool>
+  | TryDeleteOffice of OfficeId * TaskCompletionSource<bool>
+  | TryDeleteTelegramMessage of ChatId * TaskCompletionSource<bool>
+  | IsApprovedEmployer of Employer * TaskCompletionSource<bool>
 
 [<NoComparison>]
 type CacheContext = { Database: IDb; Logger: ILog }
 
 [<NoComparison>]
 type private Cache =
-  { Employers: Map<ChatId, Employer>
-    Offices: Map<OfficeId, Office>
-    Managers: Map<ChatId, Manager>
-    DeletionItems: Map<DeletionId, DeletionItem>
-    Messages: Map<ChatId, TelegramMessage> }
+  { mutable Employers: Map<ChatId, Employer>
+    mutable Offices: Map<OfficeId, Office>
+    mutable Managers: Map<ChatId, Manager>
+    mutable DeletionItems: Map<DeletionId, DeletionItem>
+    mutable Messages: Map<ChatId, TelegramMessage> }
 
 exception private CacheUnmatchedException of string
 
 module Cache =
 
   open ErrorPatterns
-
-  let inline private line () = __SOURCE_FILE__ + ":" + __LINE__
 
   let private errorHandler env (error: AppError) source =
     match error with
@@ -102,7 +102,7 @@ module Cache =
       | Ok list -> list
       | Error err ->
 
-      errorHandler ctx.Logger err (line ())
+      errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
       []
 
     let employersDto =
@@ -175,7 +175,7 @@ module Cache =
 
     cache
 
-  let cacheActor (ctx: CacheContext) (inbox: MailboxProcessor<CacheCommand>) =
+  let cacheActor (ctx: CacheContext) =
 
     let cache = initializationCache ctx
 
@@ -185,85 +185,60 @@ module Cache =
 
       channel.Reply entity
 
-    let rec cacheHandler cache =
-      async {
+    let cacheHandler (msg: CacheCommand) =
+      task {
+
+        let mapValuesToList map = map |> Map.values |> Seq.toList
 
         try
-          match! inbox.Receive() with
-          | CacheCommand.GetOffices channel ->
+          match msg with
+          | CacheCommand.GetOffices tsc ->
             cache.Offices
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.GetDeletionItems channel ->
+          | CacheCommand.GetDeletionItems tsc ->
             cache.DeletionItems
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.GetEmployers channel ->
+          | CacheCommand.GetEmployers tsc ->
             cache.Employers
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.GetManagers channel ->
+          | CacheCommand.GetManagers tsc ->
             cache.Managers
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.GetTelegramMessages channel ->
+          | CacheCommand.GetTelegramMessages tsc ->
             cache.Messages
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.GetOfficesByManagerId (chatId, channel) ->
+          | CacheCommand.GetOfficesByManagerId (chatId, tsc) ->
             cache.Offices
             |> Map.filter (fun _ office -> office.Manager.ChatId = chatId)
-            |> Map.toList
-            |> List.map snd
-            |> channel.Reply
+            |> mapValuesToList
+            |> tsc.SetResult
 
-            return! cacheHandler cache
-          | CacheCommand.TryGetEmployerByChatId (chatId, channel) ->
+          | CacheCommand.TryGetEmployerByChatId (chatId, tsc) ->
 
-            (if cache.Employers.ContainsKey(chatId) then
-               Some cache.Employers[chatId]
-             else
-               None)
-            |> channel.Reply
+            Map.tryFind chatId cache.Employers
+            |> tsc.SetResult
 
-            return! cacheHandler cache
+          | CacheCommand.TryGetManagerByChatId (chatId, tsc) ->
 
-          | CacheCommand.TryGetManagerByChatId (chatId, channel) ->
+            Map.tryFind chatId cache.Managers
+            |> tsc.SetResult
 
-            (if cache.Managers.ContainsKey(chatId) then
-               Some cache.Managers[chatId]
-             else
-               None)
-            |> channel.Reply
+          | CacheCommand.TryGetTelegramMessageByChatId (chatId, tsc) ->
 
-            return! cacheHandler cache
+            Map.tryFind chatId cache.Messages
+            |> tsc.SetResult
 
-          | CacheCommand.TryGetTelegramMessageByChatId (chatId, channel) ->
-
-            (if cache.Messages.ContainsKey(chatId) then
-               Some cache.Messages[chatId]
-             else
-               None)
-            |> channel.Reply
-
-            return! cacheHandler cache
-
-          | CacheCommand.TryAddDeletionItem (item, channel) ->
+          | CacheCommand.TryAddDeletionItem (item, tsc) ->
 
             let itemDto = DeletionItemDto.fromDomain item
 
@@ -271,18 +246,15 @@ module Cache =
 
             match result with
             | Ok _ ->
-              item |> Some |> channel.Reply
+              item |> Some |> tsc.SetResult
 
-              return!
-                cacheHandler
-                  { cache with
-                      Cache.DeletionItems = Map.add item.DeletionId item cache.DeletionItems }
+              cache.DeletionItems <- Map.add item.DeletionId item cache.DeletionItems
+
             | Error err ->
-              channel.Reply None
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult None
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryAddManager (manager, channel) ->
+          | CacheCommand.TryAddManager (manager, tsc) ->
 
             let managerDto = ManagerDto.fromDomain manager
 
@@ -290,17 +262,15 @@ module Cache =
 
             match result with
             | Ok _ ->
-              manager |> Some |> channel.Reply
+              manager |> Some |> tsc.SetResult
 
-              return!
-                cacheHandler
-                  { cache with Cache.Managers = Map.add manager.ChatId manager cache.Managers }
+              cache.Managers <- Map.add manager.ChatId manager cache.Managers
+
             | Error err ->
-              channel.Reply None
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult None
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryAddOffice (office, channel) ->
+          | CacheCommand.TryAddOffice (office, tsc) ->
 
             let officeDto = OfficeDto.fromDomain office
 
@@ -308,17 +278,15 @@ module Cache =
 
             match result with
             | Ok _ ->
-              office |> Some |> channel.Reply
+              office |> Some |> tsc.SetResult
 
-              return!
-                cacheHandler
-                  { cache with Cache.Offices = Map.add office.OfficeId office cache.Offices }
+              cache.Offices <- Map.add office.OfficeId office cache.Offices
+
             | Error err ->
-              channel.Reply None
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult None
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryAddEmployer (employer, channel) ->
+          | CacheCommand.TryAddEmployer (employer, tsc) ->
             let employerDto = EmployerDto.fromDomain employer
 
             let result = Database.insertEmployer ctx.Database employerDto
@@ -326,36 +294,30 @@ module Cache =
             match result with
             | Ok _ ->
 
-              employer |> Some |> channel.Reply
+              employer |> Some |> tsc.SetResult
 
-              return!
-                cacheHandler
-                  { cache with Cache.Employers = Map.add employer.ChatId employer cache.Employers }
+              cache.Employers <- Map.add employer.ChatId employer cache.Employers
+
             | Error err ->
-              channel.Reply None
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult None
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryDeleteDeletionItem (deletionId, channel) ->
+          | CacheCommand.TryDeleteDeletionItem (deletionId, tsc) ->
             let result = Database.hideDeletionItem ctx.Database %deletionId
 
             match result with
             | Ok _ ->
-              channel.Reply true
+              tsc.SetResult true
 
               let updatedItem = { cache.DeletionItems[deletionId] with IsHidden = true }
 
-              return!
-                cacheHandler
-                  { cache with
-                      Cache.DeletionItems =
-                        Map.add updatedItem.DeletionId updatedItem cache.DeletionItems }
-            | Error err ->
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              cache.DeletionItems <- Map.add updatedItem.DeletionId updatedItem cache.DeletionItems
 
-          | CacheCommand.TryAddOrUpdateTelegramMessage (message, channel) ->
+            | Error err ->
+              tsc.SetResult false
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
+
+          | CacheCommand.TryAddOrUpdateTelegramMessage (message, tsc) ->
 
             let messageDto = TelegramMessageDto.fromDomain message
             let chatId: ChatId = %messageDto.ChatId
@@ -364,64 +326,62 @@ module Cache =
               match result with
               | Ok _ ->
 
-                channel.Reply true
-                cacheHandler { cache with Cache.Messages = Map.add chatId message cache.Messages }
+                tsc.SetResult true
+                cache.Messages <- Map.add chatId message cache.Messages
+
               | Error err ->
 
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
-              cacheHandler cache
+                tsc.SetResult false
+                errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
             if cache.Messages.ContainsKey(chatId) then
               let result = Database.updateTelegramMessage ctx.Database messageDto
-              return! resultHandler result
+              resultHandler result
             else
               let result = Database.insertTelegramMessage ctx.Database messageDto
-              return! resultHandler result
+              resultHandler result
 
-          | CacheCommand.TryDeleteOffice (officeId, channel) ->
+          | CacheCommand.TryDeleteOffice (officeId, tsc) ->
             let result = Database.deleteOffice ctx.Database %officeId
 
             match result with
             | Ok _ ->
 
-              channel.Reply true
-              return! cacheHandler { cache with Cache.Offices = Map.remove officeId cache.Offices }
-            | Error err ->
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult true
+              cache.Offices <- Map.remove officeId cache.Offices
 
-          | CacheCommand.TryDeletionDeletionItemsOfOffice (officeId, channel) ->
+            | Error err ->
+              tsc.SetResult false
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
+
+          | CacheCommand.TryDeletionDeletionItemsOfOffice (officeId, tsc) ->
+
+            let filterFunc (d: DeletionId) (v: DeletionItem) =
+              if not v.IsDeletion && v.Inspired() then { v with IsDeletion = true }
+              else v
 
             if cache.DeletionItems
                |> Map.exists (fun _ v -> not v.IsHidden && not v.IsDeletion && v.Inspired())
                |> not then
-              channel.Reply Partial
-              return! cacheHandler cache
+              tsc.SetResult Partial
+
             else
 
               let result = Database.deletionDeletionitemsOfOffice ctx.Database %officeId
 
               match result with
               | Ok _ ->
-                channel.Reply True
+                tsc.SetResult True
 
-                let updatedItems =
-                  cache.DeletionItems
-                  |> Map.map (fun _ v ->
-                    if not v.IsDeletion && v.Inspired() then
-                      { v with IsDeletion = true }
-                    else
-                      v)
+                let updatedItems = cache.DeletionItems |> Map.map filterFunc
 
-                return! cacheHandler { cache with Cache.DeletionItems = updatedItems }
+                cache.DeletionItems <- updatedItems
+
               | Error err ->
-                channel.Reply False
-                errorHandler ctx.Logger err (line ())
-                return! cacheHandler cache
+                tsc.SetResult False
+                errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryChangeEmployerApproved (employer, isApproved, channel) ->
+          | CacheCommand.TryChangeEmployerApproved (employer, isApproved, tsc) ->
             let chatIdDto = ChatIdDto.fromDomain employer.ChatId
 
             let result =
@@ -432,51 +392,49 @@ module Cache =
               let updatedEmployer =
                 { cache.Employers[employer.ChatId] with IsApproved = isApproved }
 
-              channel.Reply true
+              tsc.SetResult true
+              cache.Employers <- Map.add employer.ChatId updatedEmployer cache.Employers
 
-              return!
-                cacheHandler
-                  { cache with Employers = Map.add employer.ChatId updatedEmployer cache.Employers }
             | Error err ->
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult false
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.TryDeleteTelegramMessage (chatId, channel) ->
+          | CacheCommand.TryDeleteTelegramMessage (chatId, tsc) ->
             let chatIdDto = ChatIdDto.fromDomain chatId
             let result = Database.deleteTelegramMessage ctx.Database chatIdDto
 
             match result with
             | Ok _ ->
-              channel.Reply true
+              tsc.SetResult true
+              cache.Messages <- Map.remove chatId cache.Messages
 
-              return! cacheHandler { cache with Cache.Messages = Map.remove chatId cache.Messages }
             | Error err ->
-              channel.Reply false
-              errorHandler ctx.Logger err (line ())
-              return! cacheHandler cache
+              tsc.SetResult false
+              errorHandler ctx.Logger err (__SOURCE_FILE__ + ":" + __LINE__)
 
-          | CacheCommand.IsApprovedEmployer (employer, channel) ->
+          | CacheCommand.IsApprovedEmployer (employer, tsc) ->
 
             let employer = cache.Employers |> Map.tryFind employer.ChatId
 
             match employer with
             | Some e ->
-              channel.Reply e.IsApproved
-              return! cacheHandler cache
+              tsc.SetResult e.IsApproved
+
             | None ->
-              channel.Reply false
-              return! cacheHandler cache
+              tsc.SetResult false
+
         with
         | exn ->
           Logger.fatal ctx.Logger $"Exception in cache work cycle, message {exn.Message}"
-          return! cacheHandler cache
       }
 
-    cacheHandler cache
+    cacheHandler
 
-  let inline private reply (env: #ICache<_>) asyncReplyChannel =
-    env.Cache.Mailbox.PostAndReply(asyncReplyChannel)
+  let inline private reply (env: #ICache<_>) taskCompletionSource =
+    Logger.debug env "Cache reply start"
+    let result = env.Cache.Agent.PostAndReply(taskCompletionSource)
+    Logger.debug env "Cache reply finish"
+    result
 
   let getOffices env =
     Logger.debug env $"Get offices from cache"
@@ -644,9 +602,9 @@ module Cache =
 
   let isApprovedEmployerAsync env employer = task { return isApprovedEmployer env employer }
 
-  let ICacheBuilder (mailbox: MailboxProcessor<'a>) =
+  let ICacheBuilder (agent: Agent<'a>) =
 
     { new ICache<'a> with
         member _.Cache =
           { new IAppCache<'a> with
-              member _.Mailbox = mailbox } }
+              member _.Agent = agent } }

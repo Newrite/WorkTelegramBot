@@ -31,11 +31,12 @@ let main _ =
     let conn = Database.createConnection iLog databaseName
     Database.IDbBuilder conn
 
-  let iCache =
-    let mailbox =
-      MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
+  Database.initTables iDb iLog |> ignore
 
-    Cache.ICacheBuilder mailbox
+  let iCache =
+    let agent = Agent.MakeAndStartDefault(Cache.cacheActor { Logger = iLog; Database = iDb })
+
+    Cache.ICacheBuilder agent
     
   let mutable cts = new CancellationTokenSource()
     
@@ -46,21 +47,17 @@ let main _ =
         Cancel async token"
     cts.Cancel()
     
-  let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken; OnError = onError }
+  let iCfg = Configurer.IConfigurerBuilder { Config.defaultConfig with Token = tgToken; OnError = onError } (Elmish.ElmishProcessorDict<_>())
 
   let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
 
-  Database.initTables env |> ignore
-
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"
-         Description = "Что бы начать взаимодействие с ботом выберите эту комманду" }
-       { Command = "/restart"
-         Description = "Что бы перезапустить работу с ботом выберите эту комманду" }
+         Description = "Что бы начать взаимодействие с ботом либо перезапустить его выберите эту комманду" }
        { Command = "/finish"
          Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" } |]
 
-  Funogram.Telegram.Api.setMyCommands commands
+  Funogram.Telegram.Req.SetMyCommands.Make commands
   |> Funogram.Api.api env.Configurer.BotConfig
   |> Async.RunSynchronously
   |> function
@@ -104,7 +101,7 @@ let main _ =
       let asyncProgram =
         Elmish.Program.mkProgram env view update init
         |> Elmish.Program.withState getState setState delState
-        |> Elmish.Program.startProgram env.Configurer.BotConfig botUpdate
+        |> Elmish.Program.startProgram botUpdate
       Async.RunSynchronously(asyncProgram, cancellationToken = cts.Token)
 
     with

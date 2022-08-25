@@ -385,6 +385,7 @@ module Types =
       IsDeletion: bool
       IsHidden: bool
       Location: Location option
+      IsReadyToDeletion: bool
       Employer: Employer }
 
     override self.ToString() =
@@ -429,5 +430,6 @@ module Types =
         Time = DateTime.Now
         IsDeletion = false
         IsHidden = false
+        IsReadyToDeletion = false
         Location = location
         Employer = employer }

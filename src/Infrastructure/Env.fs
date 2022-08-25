@@ -1,8 +1,7 @@
 ﻿namespace WorkTelegram.Infrastructure
 
-open WorkTelegram.Core
-
 open Microsoft.Data.Sqlite
+open System.Collections.Concurrent
 
 [<AutoOpen>]
 module AppEnv =
@@ -29,28 +28,29 @@ module AppEnv =
 
   [<Interface>]
   type IAppCache<'Command> =
-    abstract Mailbox: MailboxProcessor<'Command>
+    abstract Agent: Agent<'Command>
 
   [<Interface>]
   type ICache<'Command> =
     abstract Cache: IAppCache<'Command>
 
   [<Interface>]
-  type IConfigurer =
+  type IConfigurer<'ElmishCommand> =
     abstract BotConfig: Funogram.Types.BotConfig
+    abstract ElmishDict: ConcurrentDictionary<int64, 'ElmishCommand>
 
   [<Interface>]
-  type ICfg =
-    abstract Configurer: IConfigurer
+  type ICfg<'ElmishCommand> =
+    abstract Configurer: IConfigurer<'ElmishCommand>
 
-  type IAppEnv<'Command> =
+  type IAppEnv<'CacheCommand, 'ElmishCommand> =
     inherit ILog
     inherit IDb
-    inherit ICache<'Command>
-    inherit ICfg
+    inherit ICache<'CacheCommand>
+    inherit ICfg<'ElmishCommand>
 
   let IAppEnvBuilder iLog iDb iCache iCfg =
-    { new IAppEnv<_> with
+    { new IAppEnv<_, _> with
         member _.Logger = iLog
         member _.Db = iDb
         member _.Cache = iCache

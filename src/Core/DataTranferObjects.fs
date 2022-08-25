@@ -59,6 +59,9 @@ module Field =
   [<Literal>]
   let ToLocation = "to_location"
 
+  [<Literal>]
+  let IsReadyToDeletion = "ready_to_deletion"
+
 type ChatIdDto = { ChatId: int64 }
 
 
@@ -212,6 +215,7 @@ type DeletionItemDto =
     IsDeletion: bool
     IsHidden: bool
     ToLocation: string option
+    IsReadyToDeletion: bool
     OfficeId: Guid
     ChatId: int64 }
 
@@ -228,6 +232,7 @@ module DeletionItemDto =
       IsDeletion = rd.ReadBoolean Field.IsDeletion
       IsHidden = rd.ReadBoolean Field.IsHidden
       ToLocation = rd.ReadStringOption Field.ToLocation
+      IsReadyToDeletion = rd.ReadBoolean Field.IsReadyToDeletion
       OfficeId = rd.ReadGuid Field.OfficeId
       ChatId = rd.ReadInt64 Field.ChatId }
 
@@ -241,6 +246,7 @@ module DeletionItemDto =
       IsDeletion = item.IsDeletion
       IsHidden = item.IsHidden
       ToLocation = Option.map (fun l -> %l) item.Location
+      IsReadyToDeletion = item.IsReadyToDeletion
       OfficeId = %item.Employer.Office.OfficeId
       ChatId = %item.Employer.ChatId }
 
@@ -270,6 +276,7 @@ module DeletionItemDto =
       Employer = employer
       Time = DateTime.FromBinary(item.Date)
       Location = Option.map (fun l -> %l) item.ToLocation
+      IsReadyToDeletion = item.IsReadyToDeletion
       Count = count.Value }
 
   let toDomainWithEmployer (item: DeletionItemDto) (employer: Employer) =
@@ -292,6 +299,7 @@ module DeletionItemDto =
       Employer = employer
       Time = DateTime.FromBinary(item.Date)
       Location = Option.map (fun l -> %l) item.ToLocation
+      IsReadyToDeletion = item.IsReadyToDeletion
       Count = count.Value }
 
   [<Literal>]

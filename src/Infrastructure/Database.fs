@@ -10,6 +10,30 @@ open Microsoft.Data.Sqlite
 
 module Database =
 
+  exception private DatabaseVersionTableNotExistException of string
+  exception private DatabaseUnhandledVersionException of string
+  exception private DatabaseVersionTryAddValueException of DbError
+  exception private DatabaseVersionHandleVersionException of DbError
+  exception private DatabaseTryReadDatabaseVersionTableException of DbError
+
+  let dbConn (env: #IDb) =
+    env.Db.Conn
+
+  let IDbBuilder conn =
+    { new IDb with
+        member _.Db =
+          { new IDatabase with
+              member _.Conn = conn } }
+
+
+  let [<Literal>] DbVersionTable = "DB_VERSION"
+  let [<Literal>] DbVersionField = "VERSION"
+
+  let private versionSchema =
+    $@"CREATE TABLE IF NOT EXISTS {DbVersionTable} (
+      {DbVersionField} INTEGER NOT NULL
+      );"
+
   let private schema =
     $@"CREATE TABLE IF NOT EXISTS {ChatIdDto.TableName} (
         {Field.ChatId} INTEGER NOT NULL PRIMARY KEY
@@ -56,11 +80,110 @@ module Database =
         {Field.IsDeletion} BOOL NOT NULL,
         {Field.IsHidden} BOOL NOT NULL,
         {Field.ToLocation} TEXT DEFAULT(NULL),
+        {Field.IsReadyToDeletion} BOOL NOT NULL DEFAULT(false),
         {Field.OfficeId} GUID NOT NULL,
         {Field.ChatId} INTEGER NOT NULL,
         FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId}),
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
       );"
+
+  let [<Literal>] ACTUAL_VERISON = 2L
+
+  let private selectVersion envDb envLog = 
+
+    let conn = dbConn envDb
+
+    let sqlCommadVersionCheck = $@"SELECT {DbVersionField} FROM {DbVersionTable}"
+    Logger.info envLog $"Get version db with command: {sqlCommadVersionCheck}"
+
+    Db.newCommand sqlCommadVersionCheck conn
+    |> Db.querySingle (fun rd -> rd.ReadInt64 DbVersionField)
+    |> function
+    | Ok opt -> opt
+    | Error err ->
+      Logger.fatal envLog $"Error when try read version: {err}"
+      DatabaseTryReadDatabaseVersionTableException(err)
+      |> raise
+
+  let private versionHandler envDb envLog =
+
+    let conn = dbConn envDb
+
+    let rec handler version =
+      if version = ACTUAL_VERISON then
+        Logger.info envLog $"Db is actual version: {ACTUAL_VERISON}"
+      elif version = 1L then
+
+        let nextVersion = version + 1L
+          
+        Logger.info envLog $"Db version is {version}, try update to {nextVersion} version"
+
+        use tran = conn.TryBeginTransaction()
+
+        let oldDeletionTableName = $"{DeletionItemDto.TableName}_OldV{version}"
+
+        let sqlCommandVersion1 =
+          $@"ALTER TABLE {DeletionItemDto.TableName} RENAME TO {oldDeletionTableName};
+
+             CREATE TABLE IF NOT EXISTS {DeletionItemDto.TableName} (
+              {Field.DeletionId} GUID NOT NULL PRIMARY KEY,
+              {Field.ItemName} TEXT NOT NULL,
+              {Field.ItemSerial} TEXT DEFAULT(NULL),
+              {Field.ItemMac} TEXT DEFAULT(NULL),
+              {Field.Count} INTEGER NOT NULL,
+              {Field.Date} INTEGER NOT NULL,
+              {Field.IsDeletion} BOOL NOT NULL,
+              {Field.IsHidden} BOOL NOT NULL,
+              {Field.ToLocation} TEXT DEFAULT(NULL),
+              {Field.IsReadyToDeletion} BOOL NOT NULL DEFAULT(false),
+              {Field.OfficeId} GUID NOT NULL,
+              {Field.ChatId} INTEGER NOT NULL,
+              FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId}),
+              FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
+            );
+            
+            INSERT INTO {DeletionItemDto.TableName} 
+             ({Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
+              {Field.ItemMac}, {Field.Count}, {Field.Date},
+              {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
+              {Field.OfficeId}, {Field.ChatId})
+             SELECT 
+              {Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
+              {Field.ItemMac}, {Field.Count}, {Field.Date},
+              {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
+              {Field.OfficeId}, {Field.ChatId}
+             FROM {oldDeletionTableName};
+             
+            UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersion};"
+
+        Logger.info envLog $"Start transaction update from {version} to {nextVersion}, update {DeletionItemDto.TableName}, old table name now {oldDeletionTableName}"
+        
+        Db.newCommand sqlCommandVersion1 conn
+        |> Db.setTransaction tran
+        |> Db.exec
+        |> function
+        | Ok () ->
+          tran.TryCommit()
+          Logger.info envLog $"Success update from {version} to {nextVersion}"
+          handler nextVersion
+        | Error err ->
+          Logger.fatal envLog $"Try rollback, error when try update from {version} to {nextVersion}, erorr: {err}"
+          tran.TryRollback()
+          DatabaseVersionHandleVersionException(err) |> raise
+
+      else
+        Logger.fatal envLog $"Try handle unhandled version of db: {version}"
+        DatabaseUnhandledVersionException($"Unhandled version in database version handler, version: {version}") |> raise
+        
+
+    match selectVersion envDb envLog with
+    | Some version ->
+      Logger.info envLog "Success get version, go handle it"
+      handler version
+    | None ->
+      Logger.fatal envLog $"Error, not found version in database"
+      DatabaseVersionTableNotExistException($"Not found version table in database")
+      |> raise
 
   let createConnection env databaseName =
     Logger.info env "Start create connection to database"
@@ -78,12 +201,49 @@ module Database =
       Logger.info env $"Failed create connection to database"
       reraise ()
 
-  let initTables (env: #IDb) =
-    Logger.info env "Execute schema sql script"
+  let initTables envDb envLog =
+    
+    let conn = dbConn envDb
 
-    use command = new SqliteCommand(schema, env.Db.Conn)
+    Logger.info envLog "Execute schema version script"
+
+    use versionCommand = new SqliteCommand(versionSchema, conn)
+    let result = versionCommand.ExecuteNonQuery()
+
+    Logger.debug envLog $"Schema version executed with code: {result}"
+
+    if result >= 0 then
+
+      match selectVersion envDb envLog with
+      | Some _ -> ()
+      | None ->
+        Logger.info envLog "Create value for version table"
+
+        let sqlCommand = 
+          $@"INSERT OR IGNORE INTO {DbVersionTable}
+           ({DbVersionField})
+           VALUES
+           (@{DbVersionField})"
+
+        let sqlParam =
+          [ DbVersionField, SqlType.Int64 1L ]
+
+        Db.newCommand sqlCommand conn
+        |> Db.setParams sqlParam
+        |> Db.exec
+        |> function
+        | Ok () -> Logger.info envLog "Successfull create value for version table"
+        | Error err ->
+          Logger.fatal envLog $"Error when try add value to version table {err}"
+          DatabaseVersionTryAddValueException(err) |> raise
+
+    versionHandler envDb envLog
+
+    Logger.info envLog "Execute schema sql script"
+
+    use command = new SqliteCommand(schema, conn)
     let result = command.ExecuteNonQuery()
-    Logger.debug env $"Schema executed with code: {result}"
+    Logger.debug envLog $"Schema executed with code: {result}"
     result
 
   let private stringOrNull (opt: string option) =
@@ -297,6 +457,19 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
+  let updateOfficeManagerId env officeId managerId =
+
+    let sqlCommand =
+      $"UPDATE {OfficeDto.TableName}
+        SET {Field.ManagerId} = (@{Field.ManagerId})
+        WHERE {Field.OfficeId} = (@{Field.OfficeId})"
+
+    let sqlParam =
+      [ Field.ManagerId, SqlType.Int64 managerId
+        Field.OfficeId, SqlType.Int64 officeId ]
+
+    transactionSingleExn env sqlCommand sqlParam
+
   let deletionDeletionitemsOfOffice env officeId =
 
     let ticksInDay = 864000000000L
@@ -306,11 +479,13 @@ module Database =
       $"UPDATE {DeletionItemDto.TableName}
         SET {Field.IsDeletion} = (@{Field.IsDeletion})
         WHERE {Field.OfficeId} = (@{Field.OfficeId})
-        AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
+        AND ({currentTicks} - {Field.Date}) > {ticksInDay}
+        AND {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion})"
 
     let sqlParam =
       [ Field.IsDeletion, SqlType.Boolean true
-        Field.OfficeId, SqlType.Guid officeId ]
+        Field.OfficeId, SqlType.Guid officeId
+        Field.IsReadyToDeletion, SqlType.Boolean true ]
 
     transactionSingleExn env sqlCommand sqlParam
 
@@ -324,6 +499,23 @@ module Database =
     let sqlParam =
       [ Field.IsHidden, SqlType.Boolean true
         Field.DeletionId, SqlType.Guid deletionId ]
+
+    transactionSingleExn env sqlCommand sqlParam
+
+  let setReadyToDeletionOfficeItems env officeId =
+
+    let ticksInDay = 864000000000L
+    let currentTicks = let a = System.DateTime.Now in a.Ticks
+
+    let sqlCommand =
+      $"UPDATE {DeletionItemDto.TableName}
+        SET {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion})
+        WHERE {Field.OfficeId} = (@{Field.OfficeId})
+        AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
+
+    let sqlParam =
+      [ Field.IsReadyToDeletion, SqlType.Boolean true
+        Field.OfficeId, SqlType.Guid officeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
@@ -364,9 +556,3 @@ module Database =
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
 
     transactionSingleExn env sqlCommand sqlParam
-
-  let IDbBuilder conn =
-    { new IDb with
-        member _.Db =
-          { new IDatabase with
-              member _.Conn = conn } }

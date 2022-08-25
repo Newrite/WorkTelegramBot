@@ -27,11 +27,12 @@ namespace WorkTelegram.Telegram
     module Update =
         
         val update:
-          env: 'a -> message: UpdateMessage
-          -> model: Model.ModelContext<Model.CoreModel>
-          -> callInitModelFunction: (unit -> Model.ModelContext<Model.CoreModel>)
-            -> Model.ModelContext<Model.CoreModel>
+          env: 'a ->
+            message: UpdateMessage ->
+            model: Model.ModelContext<Model.CoreModel> ->
+            callInitModelFunction: (unit -> Model.ModelContext<Model.CoreModel>) ->
+            Model.ModelContext<Model.CoreModel>
             when 'a :> Infrastructure.AppEnv.ILog and
                  'a :> Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
-                 'a :> Infrastructure.AppEnv.ICfg
+                 'a :> Infrastructure.AppEnv.ICfg<'b>
 

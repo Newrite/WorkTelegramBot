@@ -18,10 +18,10 @@ module View =
 
   [<NoEquality>]
   [<NoComparison>]
-  type private ViewContext<'Command> =
+  type private ViewContext<'CacheCommand, 'ElmishCommand> =
     { Dispatch: UpdateMessage -> unit
       BackCancelKeyboard: Keyboard
-      AppEnv: IAppEnv<'Command> }
+      AppEnv: IAppEnv<'CacheCommand, 'ElmishCommand> }
 
   [<RequireQualifiedAccess>]
   module private Functions =
@@ -56,7 +56,7 @@ module View =
         FsExcel.AutoFit FsExcel.AllCols ]
       |> FsExcel.Render.AsStreamBytes
 
-    let sendExcelItemsDocumentExn ctx managerState items =
+    let sendExcelItemsDocumentExn ctx managerState items officeId =
       let streamWithDocument =
         let bytes = createExcelTableFromItemsAsBytes items
         new System.IO.MemoryStream(bytes)
@@ -71,16 +71,26 @@ module View =
         Logger.debug ctx.AppEnv $"Generated document name of items is {name}"
         name
 
-      Utils.sendDocumentAndDeleteAfterDelay
-        ctx.AppEnv
-        managerState.Manager.ChatId
-        documentName
-        streamWithDocument
-        90000
+      let delay = 90000
 
-      let text = "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
+      match Utils.sendDocument ctx.AppEnv managerState.Manager.ChatId documentName streamWithDocument with
+      | Ok message ->
+        match Database.setReadyToDeletionOfficeItems ctx.AppEnv %officeId with
+        | Ok () ->
+          let text = "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
+          Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
 
-      Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+          task {
+            do! Async.Sleep(delay)
+            Utils.deleteMessageBase ctx.AppEnv message |> ignore
+          }
+        |> ignore
+        | Error err ->
+          let text = $"Произошла ошибка обращения в базу данных: {err}, перезапросите файл еще раз"
+          Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+      | Error _ -> ()
+
+      streamWithDocument.Dispose()
 
     let enteringLastFirstNameEmployerMessageHandle ctx office (message: TelegramMessage) =
       let array = message.Text.Value.Split(' ')
@@ -417,7 +427,7 @@ module View =
           if items.Length > 0 then
             try
 
-              Functions.sendExcelItemsDocumentExn ctx managerState items
+              Functions.sendExcelItemsDocumentExn ctx managerState items office.OfficeId
 
             with
             | exn ->
@@ -849,7 +859,7 @@ module View =
     | ManagerModel.MakeOffice makeProcess ->
       ViewManager.makeOfficeProcess ctx managerState makeProcess
 
-  let private authProcess (ctx: ViewContext<_>) authModel =
+  let private authProcess (ctx: ViewContext<_, _>) authModel =
 
     match authModel with
     | AuthModel.Employer employerAuth -> ViewEmployer.authEmployer ctx employerAuth

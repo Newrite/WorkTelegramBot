@@ -52,6 +52,9 @@ namespace WorkTelegram.Core
         
         [<Literal>]
         val ToLocation: string = "to_location"
+        
+        [<Literal>]
+        val IsReadyToDeletion: string = "ready_to_deletion"
     
     type ChatIdDto =
         { ChatId: int64 }
@@ -140,8 +143,8 @@ namespace WorkTelegram.Core
         val fromDomain: employer: Types.Employer -> EmployerDto
         
         val toDomain:
-          office: OfficeDto -> manager: ManagerDto -> employer: EmployerDto
-            -> Types.Employer
+          office: OfficeDto ->
+            manager: ManagerDto -> employer: EmployerDto -> Types.Employer
         
         val toDomainWithOffice:
           office: Types.Office -> employer: EmployerDto -> Types.Employer
@@ -160,6 +163,7 @@ namespace WorkTelegram.Core
           IsDeletion: bool
           IsHidden: bool
           ToLocation: string option
+          IsReadyToDeletion: bool
           OfficeId: System.Guid
           ChatId: int64
         }
@@ -171,12 +175,13 @@ namespace WorkTelegram.Core
         val fromDomain: item: Types.DeletionItem -> DeletionItemDto
         
         val toDomain:
-          item: DeletionItemDto -> employer: EmployerDto -> office: OfficeDto
-          -> manager: ManagerDto -> Types.DeletionItem
+          item: DeletionItemDto ->
+            employer: EmployerDto ->
+            office: OfficeDto -> manager: ManagerDto -> Types.DeletionItem
         
         val toDomainWithEmployer:
-          item: DeletionItemDto -> employer: Types.Employer
-            -> Types.DeletionItem
+          item: DeletionItemDto ->
+            employer: Types.Employer -> Types.DeletionItem
         
         [<Literal>]
         val TableName: string = "deletion_items"

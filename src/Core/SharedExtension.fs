@@ -1,8 +1,111 @@
 namespace global
 
 // Some extensions from https://github.com/demystifyfp/FsToolkit.ErrorHandling
+// Base Agent type from https://gist.github.com/gsomix/9e1c3c8c24d77447143a6ccf5518af2f
 
 open System
+open System.Threading
+open System.Threading.Tasks
+open System.Threading.Channels
+
+[<AutoOpen>]
+module Operators =
+  let inline (^) f x = f x
+
+[<RequireQualifiedAccess>]
+module private Agent =
+
+  let tryReadAsync (mailbox: ChannelReader<'Msg>) (token: CancellationToken) =
+    task {
+      try
+        let! msg = mailbox.ReadAsync(token)
+        return ValueSome msg
+      with :? OperationCanceledException ->
+        return ValueNone
+    }
+
+[<Struct; NoEquality; NoComparison>]
+[<RequireQualifiedAccess>]
+type private AgentConstructor<'Msg> =
+| WithAgentInjected of BodyInjected: (Agent<'Msg> -> 'Msg -> Task<unit>)
+| Default of Body: ('Msg -> Task<unit>)
+
+and Agent<'Msg> private (agentCtor: AgentConstructor<'Msg>) as self =
+  let cts = new CancellationTokenSource()
+  let options = UnboundedChannelOptions(SingleReader = true)
+  let mailbox: Channel<'Msg> = Channel.CreateUnbounded<'Msg>(options)
+
+  let body =
+    match agentCtor with
+    | AgentConstructor.WithAgentInjected body -> body self
+    | AgentConstructor.Default body -> body
+  
+  let loop (mailbox: ChannelReader<'Msg>) (token: CancellationToken) =
+    task {
+      try
+        while not token.IsCancellationRequested do
+          match! Agent.tryReadAsync mailbox token with
+          | ValueNone -> ()
+          | ValueSome msg -> do! body msg
+      with ex ->
+        eprintfn $"Mailbox error: {ex}"
+    }
+
+  let postAndReply 
+    (buildMessage: TaskCompletionSource<_> -> 'Msg) 
+    (onSuccess: TaskCompletionSource<_> -> _)
+    (onFail: TaskCompletionSource<_> -> _) =
+    let tcs = TaskCompletionSource<_>()
+    if mailbox.Writer.TryWrite(buildMessage tcs) then
+      onSuccess tcs
+    else
+      onFail tcs
+  
+  member _.Start() =
+    Task.Run<unit>(fun _ -> loop mailbox.Reader cts.Token) |> ignore
+ 
+  member _.TryPost(item) = mailbox.Writer.TryWrite(item)
+
+  member self.Post(item) = self.TryPost(item) |> ignore
+
+  member _.PostAndReply (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    postAndReply 
+      buildMessage 
+      (fun tsc -> tsc.Task.Result) 
+      (fun tsc -> 
+        tsc.SetException(seq { Exception("Alo") })
+        tsc.Task.Result)
+
+  member self.PostAndReplyAsync (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    task { self.PostAndReply buildMessage }
+
+  member _.TryPostAndReply (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    postAndReply 
+      buildMessage 
+      (fun tsc -> Some tsc.Task.Result) 
+      (fun _ -> None)
+
+  member self.TryPostAndReplyAsync (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    task { return self.TryPostAndReply buildMessage }
+
+  interface IDisposable with
+    member _.Dispose() = cts.Cancel()
+
+  static member MakeDefault(body: 'Msg -> Task<unit>) =
+    new Agent<'Msg>(AgentConstructor.Default body)
+
+  static member MakeAndStartDefault(body: 'Msg -> Task<unit>) =
+    let agent = Agent.MakeDefault body
+    agent.Start()
+    agent
+
+  static member MakeInjected(body: Agent<'Msg> -> 'Msg -> Task<unit>) =
+    new Agent<'Msg>(AgentConstructor.WithAgentInjected body)
+
+  static member MakeAndStartInjected(body: Agent<'Msg> -> 'Msg -> Task<unit>) =
+    let agent = Agent.MakeInjected body
+    agent.Start()
+    agent
 
 type ExtBool =
   | True

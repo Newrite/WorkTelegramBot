@@ -90,7 +90,7 @@ module Model =
 
     member self.Transform model = { self with Model = model }
 
-    static member Init env message =
+    static member Init env (message: TelegramMessage) =
       let chatId = %message.Chat.Id
 
       let history = System.Collections.Generic.Stack<CoreModel>()

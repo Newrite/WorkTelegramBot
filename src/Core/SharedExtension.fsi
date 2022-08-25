@@ -1,4 +1,68 @@
 
+module Operators
+
+val inline (^) : f: ('a -> 'b) -> x: 'a -> 'b
+
+module internal Agent
+
+val tryReadAsync:
+  mailbox: System.Threading.Channels.ChannelReader<'Msg> ->
+    token: System.Threading.CancellationToken ->
+    System.Threading.Tasks.Task<'Msg voption>
+
+[<NoEquality; NoComparison; RequireQualifiedAccess; Struct>]
+type internal AgentConstructor<'Msg> =
+    | WithAgentInjected of
+      BodyInjected: (Agent<'Msg> -> 'Msg -> System.Threading.Tasks.Task<unit>)
+    | Default of Body: ('Msg -> System.Threading.Tasks.Task<unit>)
+
+and Agent<'Msg> =
+    interface System.IDisposable
+    
+    private new: agentCtor: AgentConstructor<'Msg> -> Agent<'Msg>
+    
+    static member
+      MakeAndStartDefault: body: ('Msg -> System.Threading.Tasks.Task<unit>) ->
+                             Agent<'Msg>
+    
+    static member
+      MakeAndStartInjected: body: (Agent<'Msg> ->
+                                     'Msg -> System.Threading.Tasks.Task<unit>) ->
+                              Agent<'Msg>
+    
+    static member
+      MakeDefault: body: ('Msg -> System.Threading.Tasks.Task<unit>) ->
+                     Agent<'Msg>
+    
+    static member
+      MakeInjected: body: (Agent<'Msg> ->
+                             'Msg -> System.Threading.Tasks.Task<unit>) ->
+                      Agent<'Msg>
+    
+    member Post: item: 'Msg -> unit
+    
+    member
+      PostAndReply: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
+                                     'Msg) -> 'a
+    
+    member
+      PostAndReplyAsync: buildMessage: (System.Threading.Tasks.TaskCompletionSource<unit> ->
+                                          'Msg) ->
+                           System.Threading.Tasks.Task<unit>
+    
+    member Start: unit -> unit
+    
+    member TryPost: item: 'Msg -> bool
+    
+    member
+      TryPostAndReply: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
+                                        'Msg) -> 'a option
+    
+    member
+      TryPostAndReplyAsync: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
+                                             'Msg) ->
+                              System.Threading.Tasks.Task<'a option>
+
 type ExtBool =
     | True
     | False
@@ -23,8 +87,8 @@ val inline ofValueOption: vopt: 'value voption -> 'value option
 val inline toValueOption: opt: 'value option -> 'value voption
 
 val inline traverseResult:
-  binder: ('input -> Result<'okOutput,'error>) -> input: 'input option
-    -> Result<'okOutput option,'error>
+  binder: ('input -> Result<'okOutput,'error>) ->
+    input: 'input option -> Result<'okOutput option,'error>
 
 val inline sequenceResult:
   opt: Result<'ok,'error> option -> Result<'ok option,'error>
@@ -76,8 +140,8 @@ val inline ofNull: value: 'nullableValue -> 'nullableValue option
 /// <returns>An option of the output type of the binder.</returns>
 /// <seealso cref="ofNull"/>
 val inline bindNull:
-  binder: ('value -> 'nullableValue) -> option: Option<'value>
-    -> 'nullableValue option
+  binder: ('value -> 'nullableValue) ->
+    option: Option<'value> -> 'nullableValue option
 
 module OptionCE
 
@@ -86,38 +150,38 @@ type OptionBuilder =
     new: unit -> OptionBuilder
     
     member
-      inline Bind: m: 'input * binder: ('input -> 'output option)
-                     -> 'output option when 'input: null
+      inline Bind: m: 'input * binder: ('input -> 'output option) ->
+                     'output option when 'input: null
     
     member
-      inline Bind: input: 'input option * binder: ('input -> 'output option)
-                     -> 'output option
+      inline Bind: input: 'input option * binder: ('input -> 'output option) ->
+                     'output option
     
     member
       inline BindReturn: x: 'input * f: ('input -> 'output) -> 'output option
                            when 'input: null
     
     member
-      inline BindReturn: input: 'input option * mapper: ('input -> 'output)
-                           -> 'output option
+      inline BindReturn: input: 'input option * mapper: ('input -> 'output) ->
+                           'output option
     
     member
       inline Combine: m1: unit option * m2: 'output option -> 'output option
     
     member
-      inline Combine: m: 'input option * binder: ('input -> 'output option)
-                        -> 'output option
+      inline Combine: m: 'input option * binder: ('input -> 'output option) ->
+                        'output option
     
     member
       inline Delay: delayer: (unit -> 'value option) -> (unit -> 'value option)
     
     member
-      inline For: sequence: #seq<'value> * binder: ('value -> unit option)
-                    -> unit option
+      inline For: sequence: #seq<'value> * binder: ('value -> unit option) ->
+                    unit option
     
     member
-      inline MergeSources: option1: 'left option * option2: 'right option
-                             -> ('left * 'right) option
+      inline MergeSources: option1: 'left option * option2: 'right option ->
+                             ('left * 'right) option
     
     member inline Return: x: 'value -> 'value option
     
@@ -139,8 +203,8 @@ type OptionBuilder =
                          compensation: (unit -> unit) -> 'b
     
     member
-      inline TryWith: computation: (unit -> 'value) * handler: (exn -> 'value)
-                        -> 'value
+      inline TryWith: computation: (unit -> 'value) * handler: (exn -> 'value) ->
+                        'value
     
     member
       inline Using: resource: 'disposable *
@@ -148,45 +212,45 @@ type OptionBuilder =
                       when 'disposable :> System.IDisposable
     
     member
-      inline While: guard: (unit -> bool) * computation: (unit -> unit option)
-                      -> unit option
+      inline While: guard: (unit -> bool) * computation: (unit -> unit option) ->
+                      unit option
     
     member inline Zero: unit -> unit option
 
 val option: OptionBuilder
 
 module OptionExtensionsLower
-type OptionBuilder with
+type OptionCE.OptionBuilder with
     
     member inline Source: nullableObj: 'value -> 'value option when 'value: null
-type OptionBuilder with
+type OptionCE.OptionBuilder with
     
     member inline Source: m: string -> string option
-type OptionBuilder with
+type OptionCE.OptionBuilder with
     
     member
-      inline MergeSources: nullableObj1: 'left * option2: 'right option
-                             -> ('left * 'right) option when 'left: null
-type OptionBuilder with
+      inline MergeSources: nullableObj1: 'left * option2: 'right option ->
+                             ('left * 'right) option when 'left: null
+type OptionCE.OptionBuilder with
     
     member
-      inline MergeSources: option1: 'left option * nullableObj2: 'right
-                             -> ('left * 'right) option when 'right: null
-type OptionBuilder with
+      inline MergeSources: option1: 'left option * nullableObj2: 'right ->
+                             ('left * 'right) option when 'right: null
+type OptionCE.OptionBuilder with
     
     member
-      inline MergeSources: nullableObj1: 'left * nullableObj2: 'right
-                             -> ('left * 'right) option
+      inline MergeSources: nullableObj1: 'left * nullableObj2: 'right ->
+                             ('left * 'right) option
                              when 'left: null and 'right: null
 
 module OptionExtensions
-type OptionBuilder with
+type OptionCE.OptionBuilder with
     
     /// <summary>
     /// Needed to allow `for..in` and `for..do` functionality
     /// </summary>
     member inline Source: s: 'a -> 'a when 'a :> seq<'value>
-type OptionBuilder with
+type OptionCE.OptionBuilder with
     
     member
       inline Source: nullable: System.Nullable<'value> -> 'value option
@@ -196,46 +260,50 @@ type OptionBuilder with
 module Result
 
 val inline map:
-  mapper: ('okInput -> 'okOutput) -> input: Result<'okInput,'error>
-    -> Result<'okOutput,'error>
+  mapper: ('okInput -> 'okOutput) ->
+    input: Result<'okInput,'error> -> Result<'okOutput,'error>
 
 val inline mapError:
-  errorMapper: ('errorInput -> 'errorOutput) -> input: Result<'ok,'errorInput>
-    -> Result<'ok,'errorOutput>
+  errorMapper: ('errorInput -> 'errorOutput) ->
+    input: Result<'ok,'errorInput> -> Result<'ok,'errorOutput>
 
 val inline bind:
-  binder: ('okInput -> Result<'okOutput,'error>)
-  -> input: Result<'okInput,'error> -> Result<'okOutput,'error>
+  binder: ('okInput -> Result<'okOutput,'error>) ->
+    input: Result<'okInput,'error> -> Result<'okOutput,'error>
 
 val inline isOk: value: Result<'ok,'error> -> bool
 
 val inline isError: value: Result<'ok,'error> -> bool
 
 val inline either:
-  onOk: ('okInput -> 'output) -> onError: ('errorInput -> 'output)
-  -> input: Result<'okInput,'errorInput> -> 'output
+  onOk: ('okInput -> 'output) ->
+    onError: ('errorInput -> 'output) ->
+    input: Result<'okInput,'errorInput> -> 'output
 
 val inline eitherMap:
-  onOk: ('okInput -> 'okOutput) -> onError: ('errorInput -> 'errorOutput)
-  -> input: Result<'okInput,'errorInput> -> Result<'okOutput,'errorOutput>
+  onOk: ('okInput -> 'okOutput) ->
+    onError: ('errorInput -> 'errorOutput) ->
+    input: Result<'okInput,'errorInput> -> Result<'okOutput,'errorOutput>
 
 val inline apply:
-  applier: Result<('okInput -> 'okOutput),'error>
-  -> input: Result<'okInput,'error> -> Result<'okOutput,'error>
+  applier: Result<('okInput -> 'okOutput),'error> ->
+    input: Result<'okInput,'error> -> Result<'okOutput,'error>
 
 val inline map2:
-  mapper: ('okInput1 -> 'okInput2 -> 'okOutput)
-  -> input1: Result<'okInput1,'error> -> input2: Result<'okInput2,'error>
-    -> Result<'okOutput,'error>
+  mapper: ('okInput1 -> 'okInput2 -> 'okOutput) ->
+    input1: Result<'okInput1,'error> ->
+    input2: Result<'okInput2,'error> -> Result<'okOutput,'error>
 
 val inline map3:
-  mapper: ('okInput1 -> 'okInput2 -> 'okInput3 -> 'okOutput)
-  -> input1: Result<'okInput1,'error> -> input2: Result<'okInput2,'error>
-  -> input3: Result<'okInput3,'error> -> Result<'okOutput,'error>
+  mapper: ('okInput1 -> 'okInput2 -> 'okInput3 -> 'okOutput) ->
+    input1: Result<'okInput1,'error> ->
+    input2: Result<'okInput2,'error> ->
+    input3: Result<'okInput3,'error> -> Result<'okOutput,'error>
 
 val inline fold:
-  onOk: ('okInput -> 'output) -> onError: ('errorInput -> 'output)
-  -> input: Result<'okInput,'errorInput> -> 'output
+  onOk: ('okInput -> 'output) ->
+    onError: ('errorInput -> 'output) ->
+    input: Result<'okInput,'errorInput> -> 'output
 
 val inline ofChoice: input: Choice<'ok,'error> -> Result<'ok,'error>
 
@@ -262,8 +330,8 @@ val inline tryCreate:
 /// The result if the result is Ok, else returns <paramref name="ifError"/>.
 /// </returns>
 val inline orElse:
-  ifError: Result<'ok,'errorOutput> -> result: Result<'ok,'error>
-    -> Result<'ok,'errorOutput>
+  ifError: Result<'ok,'errorOutput> ->
+    result: Result<'ok,'error> -> Result<'ok,'errorOutput>
 
 /// <summary>
 /// Returns <paramref name="result"/> if it is <c>Ok</c>, otherwise executes <paramref name="ifErrorFunc"/> and returns the result.
@@ -285,8 +353,8 @@ val inline orElse:
 /// The result if the result is Ok, else the result of executing <paramref name="ifErrorFunc"/>.
 /// </returns>
 val inline orElseWith:
-  ifErrorFunc: ('error -> Result<'ok,'errorOutput>)
-  -> result: Result<'ok,'error> -> Result<'ok,'errorOutput>
+  ifErrorFunc: ('error -> Result<'ok,'errorOutput>) ->
+    result: Result<'ok,'error> -> Result<'ok,'errorOutput>
 
 /// Replaces the wrapped value with unit
 val inline ignore: result: Result<'ok,'error> -> Result<unit,'error>
@@ -361,14 +429,15 @@ val inline ignoreError: result: Result<unit,'error> -> unit
 /// If the result is Ok and the predicate returns true, executes the function
 /// on the Ok value. Passes through the input value.
 val inline teeIf:
-  predicate: ('ok -> bool) -> inspector: ('ok -> unit)
-  -> result: Result<'ok,'error> -> Result<'ok,'error>
+  predicate: ('ok -> bool) ->
+    inspector: ('ok -> unit) -> result: Result<'ok,'error> -> Result<'ok,'error>
 
 /// If the result is Error and the predicate returns true, executes the
 /// function on the Error value. Passes through the input value.
 val inline teeErrorIf:
-  predicate: ('error -> bool) -> inspector: ('error -> unit)
-  -> result: Result<'ok,'error> -> Result<'ok,'error>
+  predicate: ('error -> bool) ->
+    inspector: ('error -> unit) ->
+    result: Result<'ok,'error> -> Result<'ok,'error>
 
 /// If the result is Ok, executes the function on the Ok value. Passes through
 /// the input value.
@@ -378,8 +447,8 @@ val inline tee:
 /// If the result is Error, executes the function on the Error value. Passes
 /// through the input value.
 val inline teeError:
-  inspector: ('error -> unit) -> result: Result<'ok,'error>
-    -> Result<'ok,'error>
+  inspector: ('error -> unit) ->
+    result: Result<'ok,'error> -> Result<'ok,'error>
 
 /// Converts a Result<Async<_>,_> to an Async<Result<_,_>>
 val inline sequenceAsync:
@@ -387,21 +456,21 @@ val inline sequenceAsync:
 
 ///
 val inline traverseAsync:
-  f: ('okInput -> Async<'okOutput>) -> res: Result<'okInput,'error>
-    -> Async<Result<'okOutput,'error>>
+  f: ('okInput -> Async<'okOutput>) ->
+    res: Result<'okInput,'error> -> Async<Result<'okOutput,'error>>
 
 /// Returns the Ok value or runs the specified function over the error value.
 val inline valueOr: f: ('error -> 'ok) -> res: Result<'ok,'error> -> 'ok
 
 /// Takes two results and returns a tuple of the pair
 val zip:
-  left: Result<'leftOk,'error> -> right: Result<'rightOk,'error>
-    -> Result<('leftOk * 'rightOk),'error>
+  left: Result<'leftOk,'error> ->
+    right: Result<'rightOk,'error> -> Result<('leftOk * 'rightOk),'error>
 
 /// Takes two results and returns a tuple of the error pair
 val zipError:
-  left: Result<'ok,'leftError> -> right: Result<'ok,'rightError>
-    -> Result<'ok,('leftError * 'rightError)>
+  left: Result<'ok,'leftError> ->
+    right: Result<'ok,'rightError> -> Result<'ok,('leftError * 'rightError)>
 
 module ResultCE
 
@@ -411,29 +480,29 @@ type ResultBuilder =
     
     member
       inline Bind: input: Result<'okInput,'error> *
-                   binder: ('okInput -> Result<'okOutput,'error>)
-                     -> Result<'okOutput,'error>
+                   binder: ('okInput -> Result<'okOutput,'error>) ->
+                     Result<'okOutput,'error>
     
     member
-      inline BindReturn: x: Result<'okInput,'error> * f: ('okInput -> 'okOutput)
-                           -> Result<'okOutput,'error>
+      inline BindReturn: x: Result<'okInput,'error> * f: ('okInput -> 'okOutput) ->
+                           Result<'okOutput,'error>
     
     member
       inline Combine: result: Result<unit,'error> *
                       binder: (unit -> Result<'ok,'error>) -> Result<'ok,'error>
     
     member
-      inline Delay: generator: (unit -> Result<'ok,'error>)
-                      -> (unit -> Result<'ok,'error>)
+      inline Delay: generator: (unit -> Result<'ok,'error>) ->
+                      (unit -> Result<'ok,'error>)
     
     member
-      inline For: sequence: #seq<'T> * binder: ('T -> Result<unit,'TError>)
-                    -> Result<unit,'TError>
+      inline For: sequence: #seq<'T> * binder: ('T -> Result<unit,'TError>) ->
+                    Result<unit,'TError>
     
     member
       inline MergeSources: left: Result<'left,'error> *
-                           right: Result<'right,'error>
-                             -> Result<('left * 'right),'error>
+                           right: Result<'right,'error> ->
+                             Result<('left * 'right),'error>
     
     member inline Return: value: 'ok -> Result<'ok,'error>
     
@@ -461,21 +530,20 @@ type ResultBuilder =
     
     member
       inline Using: resource: 'disposable *
-                    binder: ('disposable -> Result<'ok,'error>)
-                      -> Result<'ok,'error>
-                      when 'disposable :> System.IDisposable
+                    binder: ('disposable -> Result<'ok,'error>) ->
+                      Result<'ok,'error> when 'disposable :> System.IDisposable
     
     member
       inline While: guard: (unit -> bool) *
-                    generator: (unit -> Result<unit,'error>)
-                      -> Result<unit,'error>
+                    generator: (unit -> Result<unit,'error>) ->
+                      Result<unit,'error>
     
     member Zero: unit -> Result<unit,'error>
 
 val result: ResultBuilder
 
 module ResultCEExtensions
-type ResultBuilder with
+type ResultCE.ResultBuilder with
     
     /// <summary>
     /// Needed to allow `for..in` and `for..do` functionality
@@ -483,7 +551,7 @@ type ResultBuilder with
     member inline Source: s: 'a -> 'a when 'a :> seq<'b>
 
 module ResultCEChoiceExtensions
-type ResultBuilder with
+type ResultCE.ResultBuilder with
     
     /// <summary>
     /// Method lets us transform data types into our internal representation.
@@ -492,7 +560,6 @@ type ResultBuilder with
     member inline Source: choice: Choice<'ok,'error> -> Result<'ok,'error>
 
 /// Validation<'a, 'err> is defined as Result<'a, 'err list> meaning you can use many of the functions found in the Result module.
-[<Struct>]
 type Validation<'Ok,'Error> = Result<'Ok,'Error list>
 
 module Validation
@@ -506,8 +573,8 @@ val inline ofResult: result: Result<'ok,'error> -> Validation<'ok,'error>
 val inline ofChoice: choice: Choice<'ok,'error> -> Validation<'ok,'error>
 
 val inline apply:
-  applier: Validation<('okInput -> 'okOutput),'error>
-  -> input: Validation<'okInput,'error> -> Validation<'okOutput,'error>
+  applier: Validation<('okInput -> 'okOutput),'error> ->
+    input: Validation<'okInput,'error> -> Validation<'okOutput,'error>
 
 val inline retn: value: 'ok -> Validation<'ok,'error>
 
@@ -532,8 +599,8 @@ val inline returnError: error: 'error -> Validation<'ok,'error>
 /// The result if the result is Ok, else returns <paramref name="ifError"/>.
 /// </returns>
 val inline orElse:
-  ifError: Validation<'ok,'errorOutput> -> result: Validation<'ok,'errorInput>
-    -> Validation<'ok,'errorOutput>
+  ifError: Validation<'ok,'errorOutput> ->
+    result: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
 
 /// <summary>
 /// Returns <paramref name="result"/> if it is <c>Ok</c>, otherwise executes <paramref name="ifErrorFunc"/> and returns the result.
@@ -555,39 +622,39 @@ val inline orElse:
 /// The result if the result is Ok, else the result of executing <paramref name="ifErrorFunc"/>.
 /// </returns>
 val inline orElseWith:
-  ifErrorFunc: ('errorInput list -> Validation<'ok,'errorOutput>)
-  -> result: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
+  ifErrorFunc: ('errorInput list -> Validation<'ok,'errorOutput>) ->
+    result: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
 
 val inline map:
-  mapper: ('okInput -> 'okOutput) -> input: Validation<'okInput,'error>
-    -> Validation<'okOutput,'error>
+  mapper: ('okInput -> 'okOutput) ->
+    input: Validation<'okInput,'error> -> Validation<'okOutput,'error>
 
 val inline map2:
-  mapper: ('okInput1 -> 'okInput2 -> 'okOutput)
-  -> input1: Validation<'okInput1,'error>
-  -> input2: Validation<'okInput2,'error> -> Validation<'okOutput,'error>
+  mapper: ('okInput1 -> 'okInput2 -> 'okOutput) ->
+    input1: Validation<'okInput1,'error> ->
+    input2: Validation<'okInput2,'error> -> Validation<'okOutput,'error>
 
 val inline map3:
-  mapper: ('okInput1 -> 'okInput2 -> 'okInput3 -> 'okOutput)
-  -> input1: Validation<'okInput1,'error>
-  -> input2: Validation<'okInput2,'error>
-  -> input3: Validation<'okInput3,'error> -> Validation<'okOutput,'error>
+  mapper: ('okInput1 -> 'okInput2 -> 'okInput3 -> 'okOutput) ->
+    input1: Validation<'okInput1,'error> ->
+    input2: Validation<'okInput2,'error> ->
+    input3: Validation<'okInput3,'error> -> Validation<'okOutput,'error>
 
 val inline mapError:
-  errorMapper: ('errorInput -> 'errorOutput)
-  -> input: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
+  errorMapper: ('errorInput -> 'errorOutput) ->
+    input: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
 
 val inline mapErrors:
-  errorMapper: ('errorInput list -> 'errorOutput list)
-  -> input: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
+  errorMapper: ('errorInput list -> 'errorOutput list) ->
+    input: Validation<'ok,'errorInput> -> Validation<'ok,'errorOutput>
 
 val inline bind:
-  binder: ('okInput -> Validation<'okOutput,'error>)
-  -> input: Validation<'okInput,'error> -> Validation<'okOutput,'error>
+  binder: ('okInput -> Validation<'okOutput,'error>) ->
+    input: Validation<'okInput,'error> -> Validation<'okOutput,'error>
 
 val inline zip:
-  left: Validation<'left,'error> -> right: Validation<'right,'error>
-    -> Validation<('left * 'right),'error>
+  left: Validation<'left,'error> ->
+    right: Validation<'right,'error> -> Validation<('left * 'right),'error>
 
 module ValidationCE
 
@@ -597,41 +664,41 @@ type ValidationBuilder =
     
     member
       inline Bind: result: Validation<'okInput,'error> *
-                   binder: ('okInput -> Validation<'okOutput,'error>)
-                     -> Validation<'okOutput,'error>
+                   binder: ('okInput -> Validation<'okOutput,'error>) ->
+                     Validation<'okOutput,'error>
     
     member
       inline BindReturn: input: Validation<'okInput,'error> *
-                         mapper: ('okInput -> 'okOutput)
-                           -> Validation<'okOutput,'error>
+                         mapper: ('okInput -> 'okOutput) ->
+                           Validation<'okOutput,'error>
     
     member
       inline Combine: result: Validation<unit,'error> *
-                      binder: (unit -> Validation<'ok,'error>)
-                        -> Validation<'ok,'error>
+                      binder: (unit -> Validation<'ok,'error>) ->
+                        Validation<'ok,'error>
     
     member
-      inline Delay: generator: (unit -> Validation<'ok,'error>)
-                      -> (unit -> Validation<'ok,'error>)
+      inline Delay: generator: (unit -> Validation<'ok,'error>) ->
+                      (unit -> Validation<'ok,'error>)
     
     member
-      inline For: sequence: #seq<'ok> * binder: ('ok -> Validation<unit,'error>)
-                    -> Validation<unit,'error>
+      inline For: sequence: #seq<'ok> * binder: ('ok -> Validation<unit,'error>) ->
+                    Validation<unit,'error>
     
     member
       inline MergeSources: left: Validation<'left,'error> *
-                           right: Validation<'right,'error>
-                             -> Validation<('left * 'right),'error>
+                           right: Validation<'right,'error> ->
+                             Validation<('left * 'right),'error>
     
     member inline Return: value: 'ok -> Validation<'ok,'error>
     
     member
-      inline ReturnFrom: result: Validation<'ok,'error>
-                           -> Validation<'ok,'error>
+      inline ReturnFrom: result: Validation<'ok,'error> ->
+                           Validation<'ok,'error>
     
     member
-      inline Run: generator: (unit -> Validation<'ok,'error>)
-                    -> Validation<'ok,'error>
+      inline Run: generator: (unit -> Validation<'ok,'error>) ->
+                    Validation<'ok,'error>
     
     /// <summary>
     /// Method lets us transform data types into our internal representation.  self is the identity method to recognize the self type.
@@ -649,38 +716,38 @@ type ValidationBuilder =
     
     member
       inline TryWith: generator: (unit -> Validation<'ok,'error>) *
-                      handler: (exn -> Validation<'ok,'error>)
-                        -> Validation<'ok,'error>
+                      handler: (exn -> Validation<'ok,'error>) ->
+                        Validation<'ok,'error>
     
     member
       inline Using: resource: 'disposable *
-                    binder: ('disposable -> Validation<'okOutput,'error>)
-                      -> Validation<'okOutput,'error>
+                    binder: ('disposable -> Validation<'okOutput,'error>) ->
+                      Validation<'okOutput,'error>
                       when 'disposable :> System.IDisposable
     
     member
       inline While: guard: (unit -> bool) *
-                    generator: (unit -> Validation<unit,'error>)
-                      -> Validation<unit,'error>
+                    generator: (unit -> Validation<unit,'error>) ->
+                      Validation<unit,'error>
     
     member inline Zero: unit -> Validation<unit,'error>
 
 val validation: ValidationBuilder
 
 module ValidationCEExtensions
-type ValidationBuilder with
+type ValidationCE.ValidationBuilder with
     
     /// <summary>
     /// Needed to allow `for..in` and `for..do` functionality
     /// </summary>
     member inline Source: s: 'a -> 'a when 'a :> seq<'b>
-type ValidationBuilder with
+type ValidationCE.ValidationBuilder with
     
     /// <summary>
     /// Method lets us transform data types into our internal representation.
     /// </summary>
     member inline Source: s: Result<'ok,'error> -> Validation<'ok,'error>
-type ValidationBuilder with
+type ValidationCE.ValidationBuilder with
     
     /// <summary>
     /// Method lets us transform data types into our internal representation.
@@ -695,8 +762,8 @@ val inline ofOption: opt: 'value option -> 'value voption
 val inline toOption: vopt: 'value voption -> 'value option
 
 val inline traverseResult:
-  binder: ('okInput -> Result<'okOutput,'error>) -> input: 'okInput voption
-    -> Result<'okOutput voption,'error>
+  binder: ('okInput -> Result<'okOutput,'error>) ->
+    input: 'okInput voption -> Result<'okOutput voption,'error>
 
 val inline sequenceResult:
   opt: Result<'okOutput,'error> voption -> Result<'okOutput voption,'error>
@@ -748,8 +815,8 @@ val inline ofNull: value: 'nullableValue -> 'nullableValue voption
 /// <returns>A voption of the output type of the binder.</returns>
 /// <seealso cref="ofNull"/>
 val inline bindNull:
-  binder: ('value -> 'nullableValue) -> voption: ValueOption<'value>
-    -> 'nullableValue voption
+  binder: ('value -> 'nullableValue) ->
+    voption: ValueOption<'value> -> 'nullableValue voption
 
 module ValueOptionCE
 
@@ -758,20 +825,20 @@ type ValueOptionBuilder =
     new: unit -> ValueOptionBuilder
     
     member
-      inline Bind: input: 'input * binder: ('input -> 'output voption)
-                     -> 'output voption when 'input: null
+      inline Bind: input: 'input * binder: ('input -> 'output voption) ->
+                     'output voption when 'input: null
     
     member
-      inline Bind: input: 'input voption * binder: ('input -> 'output voption)
-                     -> 'output voption
+      inline Bind: input: 'input voption * binder: ('input -> 'output voption) ->
+                     'output voption
     
     member inline BindReturn: x: 'e * f: ('e -> 'f) -> 'f voption when 'e: null
     
     member inline BindReturn: x: 'g voption * f: ('g -> 'h) -> 'h voption
     
     member
-      inline Combine: input: unit voption * output: 'output voption
-                        -> 'output voption
+      inline Combine: input: unit voption * output: 'output voption ->
+                        'output voption
     
     member
       inline Combine: input: 'input voption *
@@ -780,12 +847,12 @@ type ValueOptionBuilder =
     member inline Delay: f: (unit -> 'a) -> (unit -> 'a)
     
     member
-      inline For: sequence: #seq<'T> * binder: ('T -> unit voption)
-                    -> unit voption
+      inline For: sequence: #seq<'T> * binder: ('T -> unit voption) ->
+                    unit voption
     
     member
-      inline MergeSources: option1: 'c voption * option2: 'd voption
-                             -> ('c * 'd) voption
+      inline MergeSources: option1: 'c voption * option2: 'd voption ->
+                             ('c * 'd) voption
     
     member inline Return: x: 'value -> 'value voption
     
@@ -812,44 +879,44 @@ type ValueOptionBuilder =
                       when 'T :> System.IDisposable
     
     member
-      inline While: guard: (unit -> bool) * generator: (unit -> unit voption)
-                      -> unit voption
+      inline While: guard: (unit -> bool) * generator: (unit -> unit voption) ->
+                      unit voption
     
     member inline Zero: unit -> unit voption
 
 val voption: ValueOptionBuilder
 
 module ValueOptionExtensionsLower
-type ValueOptionBuilder with
+type ValueOptionCE.ValueOptionBuilder with
     
     member inline Source: nullableObj: 'a -> 'a voption when 'a: null
-type ValueOptionBuilder with
+type ValueOptionCE.ValueOptionBuilder with
     
     member inline Source: m: string -> string voption
-type ValueOptionBuilder with
+type ValueOptionCE.ValueOptionBuilder with
     
     member
-      inline MergeSources: nullableObj1: 'e * option2: 'f voption
-                             -> ('e * 'f) voption when 'e: null
-type ValueOptionBuilder with
+      inline MergeSources: nullableObj1: 'e * option2: 'f voption ->
+                             ('e * 'f) voption when 'e: null
+type ValueOptionCE.ValueOptionBuilder with
     
     member
-      inline MergeSources: option1: 'c voption * nullableObj2: 'd
-                             -> ('c * 'd) voption when 'd: null
-type ValueOptionBuilder with
+      inline MergeSources: option1: 'c voption * nullableObj2: 'd ->
+                             ('c * 'd) voption when 'd: null
+type ValueOptionCE.ValueOptionBuilder with
     
     member
-      inline MergeSources: nullableObj1: 'a * nullableObj2: 'b
-                             -> ('a * 'b) voption when 'a: null and 'b: null
+      inline MergeSources: nullableObj1: 'a * nullableObj2: 'b ->
+                             ('a * 'b) voption when 'a: null and 'b: null
 
 module ValueOptionExtensions
-type ValueOptionBuilder with
+type ValueOptionCE.ValueOptionBuilder with
     
     /// <summary>
     /// Needed to allow `for..in` and `for..do` functionality
     /// </summary>
     member inline Source: s: 'a -> 'a when 'a :> seq<'b>
-type ValueOptionBuilder with
+type ValueOptionCE.ValueOptionBuilder with
     
     member
       inline Source: nullable: System.Nullable<'a> -> 'a voption
@@ -872,12 +939,13 @@ val inline map:
   mapper: ('input -> 'output) -> input: Async<'input> -> Async<'output>
 
 val inline map2:
-  mapper: ('input1 -> 'input2 -> 'output) -> input1: Async<'input1>
-  -> input2: Async<'input2> -> Async<'output>
+  mapper: ('input1 -> 'input2 -> 'output) ->
+    input1: Async<'input1> -> input2: Async<'input2> -> Async<'output>
 
 val inline map3:
-  mapper: ('input1 -> 'input2 -> 'input3 -> 'output) -> input1: Async<'input1>
-  -> input2: Async<'input2> -> input3: Async<'input3> -> Async<'output>
+  mapper: ('input1 -> 'input2 -> 'input3 -> 'output) ->
+    input1: Async<'input1> ->
+    input2: Async<'input2> -> input3: Async<'input3> -> Async<'output>
 
 /// Takes two asyncs and returns a tuple of the pair
 val inline zip:

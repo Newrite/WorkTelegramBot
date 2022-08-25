@@ -41,34 +41,37 @@ module Elmish =
             Url = None
             LoginUrl = None
             CallbackData = Guid.NewGuid() |> string |> Some
+            WebApp = None
             SwitchInlineQuery = None
             SwitchInlineQueryCurrentChat = None
             CallbackGame = None
             Pay = None } }
 
   [<NoComparison>]
-  type Keyboard = { Buttons: seq<Button> }
+  [<NoEquality>]
+  type Keyboard = { Buttons: Button[] }
 
   [<RequireQualifiedAccess>]
   module Keyboard =
 
-    let create buttonList = { Buttons = Seq.ofList buttonList }
+    let create buttonList = { Buttons = Array.ofList buttonList }
 
     let createSingle buttonText onClick = create [ Button.create buttonText onClick ]
 
   [<NoComparison>]
+  [<NoEquality>]
   type RenderView =
     { MessageText: string
-      Keyboards: seq<Keyboard>
-      MessageHandlers: seq<Message -> unit> }
+      Keyboards: Keyboard[]
+      MessageHandlers: (Message -> unit)[] }
 
   [<RequireQualifiedAccess>]
   module RenderView =
 
     let create messageText keyboardsList functionsList =
       { MessageText = messageText
-        Keyboards = Seq.ofList keyboardsList
-        MessageHandlers = Seq.ofList functionsList }
+        Keyboards = Array.ofList keyboardsList
+        MessageHandlers = Array.ofList functionsList }
 
   [<NoComparison>]
   [<NoEquality>]
@@ -82,6 +85,8 @@ module Elmish =
     | GetDispatch of AsyncReplyChannel<'Message -> unit>
     | Message of UpdateContext
     | Finish
+
+  type ElmishProcessorDict<'Message> = ConcurrentDictionary<int64, Agent<ProcessorCommands<'Message>>>
 
   [<RequireQualifiedAccess>]
   [<NoComparison>]
@@ -99,12 +104,12 @@ module Elmish =
 
   [<NoComparison>]
   [<NoEquality>]
-  type Program<'Model, 'Message> =
+  type Program<'Model, 'Message, 'CacheCommand, 'ElmishCommand> =
     private
       { Init: Message -> 'Model
         Update: 'Message -> 'Model -> CallInit<'Model> -> 'Model
         View: Dispatch<'Message> -> 'Model -> RenderView
-        Log: ILog
+        AppEnv: IAppEnv<'CacheCommand, 'ElmishCommand>
         GetChatStates: CallGetChatState option
         SaveChatState: CallSaveChatState option
         DelChatState: CallDelChatState option }
@@ -112,7 +117,7 @@ module Elmish =
   let modelViewUpdateProcessor
     (processorConfig: ProcessorConfig)
     program
-    (processor: MailboxProcessor<ProcessorCommands<_>>)
+    (processor: Agent<ProcessorCommands<_>>)
     =
 
     let render (renderView: RenderView) =
@@ -120,16 +125,13 @@ module Elmish =
       let keyboardMarkup =
         { InlineKeyboard =
             renderView.Keyboards
-            |> Seq.map (fun k -> k.Buttons |> Seq.map (fun b -> b.Button)) }
+            |> Array.map (fun k -> k.Buttons |> Array.map (fun b -> b.Button)) }
 
-      Funogram.Telegram.Api.editMessageTextBase
-        (Some(Int processorConfig.Message.Chat.Id))
-        (Some processorConfig.Message.MessageId)
-        None
-        renderView.MessageText
-        None
-        None
-        (Some keyboardMarkup)
+      Funogram.Telegram.Req.EditMessageText.Make(
+        renderView.MessageText, 
+        Int processorConfig.Message.Chat.Id, 
+        processorConfig.Message.MessageId, 
+        replyMarkup = keyboardMarkup)
       |> Funogram.Api.api processorConfig.Config
       |> Async.RunSynchronously
       |> ignore
@@ -140,7 +142,7 @@ module Elmish =
     let renderViewInit = program.View dispatch modelInit
     render renderViewInit
 
-    let messageHandlerProcessor renderViewInit (handler: MailboxProcessor<MessageHandlerCommands>) =
+    let messageHandlerProcessor renderViewInit (handler: Agent<MessageHandlerCommands>) =
 
       let runOnClickIfMatch renderView data ctx =
         renderView.Keyboards
@@ -151,13 +153,14 @@ module Elmish =
                && b.Button.CallbackData.Value = data then
               b.OnClick ctx))
 
-      let rec cycle renderView =
-        async {
+      let mutable renderView = renderViewInit
+
+      let cycle msg =
+        task {
           try
-            let! msg = handler.Receive()
 
             match msg with
-            | MessageHandlerCommands.UpdateRenderView rv -> return! cycle rv
+            | MessageHandlerCommands.UpdateRenderView rv -> renderView <- rv
             | MessageHandlerCommands.Message ctx ->
               match ctx with
               | Message message ->
@@ -167,22 +170,22 @@ module Elmish =
               | Callback (_, data)
               | CallbackWithMessage (_, data, _) -> runOnClickIfMatch renderView data ctx
 
-              return! cycle renderView
             | MessageHandlerCommands.Finish -> (handler :> IDisposable).Dispose()
+
           with
           | exn ->
-            Logger.error program.Log $"Raise exception in render actor, message {exn.Message}"
-            return! cycle renderView
+            Logger.error program.AppEnv $"Raise exception in render actor, message {exn.Message}"
         }
 
-      cycle renderViewInit
+      cycle
 
-    let messageHandler = MailboxProcessor.Start(messageHandlerProcessor renderViewInit)
+    let messageHandler = Agent.MakeAndStartInjected(messageHandlerProcessor renderViewInit)
 
-    let rec cycle model =
-      async {
+    let mutable model = modelInit
+
+    let rec cycle msg =
+      task {
         try
-          let! msg = processor.Receive()
 
           match msg with
           | ProcessorCommands.Update message ->
@@ -195,15 +198,13 @@ module Elmish =
             |> messageHandler.Post
 
             render renderView
-            return! cycle newModel
+            model <- newModel
           | ProcessorCommands.GetDispatch channel ->
             channel.Reply dispatch
-            return! cycle model
           | ProcessorCommands.Message ctx ->
             MessageHandlerCommands.Message ctx
             |> messageHandler.Post
 
-            return! cycle model
           | ProcessorCommands.Finish ->
             messageHandler.Post MessageHandlerCommands.Finish
             let chatId = processorConfig.Message.Chat.Id
@@ -217,20 +218,19 @@ module Elmish =
             (processor :> IDisposable).Dispose()
         with
         | exn ->
-          Logger.error program.Log $"Raise exception in elmish actor, message {exn.Message}"
-          return! cycle model
+          Logger.error program.AppEnv $"Raise exception in elmish actor, message {exn.Message}"
       }
 
-    cycle modelInit
+    cycle
 
   [<RequireQualifiedAccess>]
   module Program =
 
-    let mkProgram logger view update init =
+    let mkProgram env view update init =
       { Init = init
         Update = update
         View = view
-        Log = logger
+        AppEnv = env
         GetChatStates = None
         SaveChatState = None
         DelChatState = None }
@@ -247,10 +247,10 @@ module Elmish =
       && program.SaveChatState.IsSome
       && program.DelChatState.IsSome
 
-    let startProgram config onUpdate program =
+    let startProgram onUpdate program =
 
-
-      let dict = ConcurrentDictionary<int64, MailboxProcessor<ProcessorCommands<_>>>()
+      let dict = program.AppEnv.Configurer.ElmishDict
+      let config = program.AppEnv.Configurer.BotConfig
 
       if isWithStateFunctions program then
 
@@ -261,25 +261,23 @@ module Elmish =
 
         for message in messages do
 
-          Funogram.Telegram.Api.deleteMessage message.Chat.Id message.MessageId
-          |> Funogram.Api.api config
-          |> Async.RunSynchronously
-          |> ignore
-
-          Funogram.Telegram.Api.sendMessage message.Chat.Id "Инициализация..."
+          Funogram.Telegram.Req.EditMessageText.Make("Инициализация...", Int message.Chat.Id, message.MessageId)
           |> Funogram.Api.api config
           |> Async.RunSynchronously
           |> function
-            | Ok msg ->
-              let processorConfig = { Config = config; Message = msg }
+            | Ok editmsg -> 
+              match editmsg with 
+              | EditMessageResult.Message msg ->
+                let processorConfig = { Config = config; Message = msg }
 
-              dict.TryAdd(
-                msg.Chat.Id,
-                MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
-              )
-              |> ignore
+                dict.TryAdd(
+                  msg.Chat.Id,
+                  Agent.MakeAndStartInjected(modelViewUpdateProcessor processorConfig program)
+                )
+                |> ignore
 
-              saveState msg
+                saveState msg
+              | EditMessageResult.Success _ -> ()
             | Error _ -> ()
 
       let internalUpdate update (ctx: UpdateContext) =
@@ -303,7 +301,7 @@ module Elmish =
 
               dict.TryAdd(
                 m.Chat.Id,
-                MailboxProcessor.Start(modelViewUpdateProcessor processorConfig program)
+                Agent.MakeAndStartInjected(modelViewUpdateProcessor processorConfig program)
               )
               |> ignore
 
@@ -327,7 +325,7 @@ module Elmish =
 
           let isRestart =
             m.Text.IsSome
-            && (m.Text.Value = "/restart")
+            && (m.Text.Value = "/start")
             && dict.ContainsKey(m.Chat.Id)
 
           let isMessageAndActorInDict = m.Text.IsSome && dict.ContainsKey(m.Chat.Id)

@@ -87,8 +87,9 @@ namespace WorkTelegram.Telegram
             }
             
             static member
-              Init: env: 'a -> message: Funogram.Telegram.Types.Message
-                      -> ModelContext<CoreModel>
+              Init: env: 'a ->
+                      message: Core.Types.TelegramMessage ->
+                      ModelContext<CoreModel>
                       when 'a :> Infrastructure.AppEnv.ILog and
                            'a :>
                                 Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
