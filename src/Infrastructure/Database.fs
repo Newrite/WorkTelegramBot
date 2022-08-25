@@ -175,7 +175,6 @@ module Database =
         Logger.fatal envLog $"Try handle unhandled version of db: {version}"
         DatabaseUnhandledVersionException($"Unhandled version in database version handler, version: {version}") |> raise
         
-
     match selectVersion envDb envLog with
     | Some version ->
       Logger.info envLog "Success get version, go handle it"
