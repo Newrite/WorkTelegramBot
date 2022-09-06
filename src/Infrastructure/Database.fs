@@ -168,7 +168,7 @@ module Database =
               {Field.OfficeId}, {Field.ChatId}
              FROM {oldDeletionTableName};
              
-            UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersion};"
+            UPDATE {DbVersionTable} SET {DbVersionField} = {int32 nextVersion};"
 
         Logger.info
           envLog
