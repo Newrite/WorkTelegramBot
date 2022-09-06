@@ -7,13 +7,15 @@ open System
 open System.Threading
 open System.Threading.Tasks
 open System.Threading.Channels
+open System.Collections.Generic
+open System.Threading.Tasks
 
 [<AutoOpen>]
 module Operators =
   let inline (^) f x = f x
 
 [<RequireQualifiedAccess>]
-module private Agent =
+module private Channel =
 
   let tryReadAsync (mailbox: ChannelReader<'Msg>) (token: CancellationToken) =
     task {
@@ -44,68 +46,191 @@ and Agent<'Msg> private (agentCtor: AgentConstructor<'Msg>) as self =
     task {
       try
         while not token.IsCancellationRequested do
-          match! Agent.tryReadAsync mailbox token with
+          match! Channel.tryReadAsync mailbox token with
           | ValueNone -> ()
           | ValueSome msg -> do! body msg
       with ex ->
         eprintfn $"Mailbox error: {ex}"
     }
-
-  let postAndReply 
-    (buildMessage: TaskCompletionSource<_> -> 'Msg) 
-    (onSuccess: TaskCompletionSource<_> -> _)
-    (onFail: TaskCompletionSource<_> -> _) =
-    let tcs = TaskCompletionSource<_>()
-    if mailbox.Writer.TryWrite(buildMessage tcs) then
-      onSuccess tcs
-    else
-      onFail tcs
   
   member _.Start() =
     Task.Run<unit>(fun _ -> loop mailbox.Reader cts.Token) |> ignore
  
-  member _.TryPost(item) = mailbox.Writer.TryWrite(item)
+  member _.Post(item) = mailbox.Writer.TryWrite(item) |> ignore
 
-  member self.Post(item) = self.TryPost(item) |> ignore
+  member _.PostAndReplyAsync (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    let tcs = TaskCompletionSource<_>()
+    mailbox.Writer.TryWrite(buildMessage tcs) |> ignore
+    tcs.Task
 
-  member _.PostAndReply (buildMessage: TaskCompletionSource<_> -> 'Msg) =
-    postAndReply 
-      buildMessage 
-      (fun tsc -> tsc.Task.Result) 
-      (fun tsc -> 
-        tsc.SetException(seq { Exception("Alo") })
-        tsc.Task.Result)
-
-  member self.PostAndReplyAsync (buildMessage: TaskCompletionSource<_> -> 'Msg) =
-    task { self.PostAndReply buildMessage }
-
-  member _.TryPostAndReply (buildMessage: TaskCompletionSource<_> -> 'Msg) =
-    postAndReply 
-      buildMessage 
-      (fun tsc -> Some tsc.Task.Result) 
-      (fun _ -> None)
-
-  member self.TryPostAndReplyAsync (buildMessage: TaskCompletionSource<_> -> 'Msg) =
-    task { return self.TryPostAndReply buildMessage }
+  member self.PostAndReply (buildMessage: TaskCompletionSource<_> -> 'Msg) =
+    let result = self.PostAndReplyAsync buildMessage
+    result.Result
 
   interface IDisposable with
     member _.Dispose() = cts.Cancel()
 
-  static member MakeDefault(body: 'Msg -> Task<unit>) =
+  static member MakeDefault (body: 'Msg -> Task<unit>) =
     new Agent<'Msg>(AgentConstructor.Default body)
 
-  static member MakeAndStartDefault(body: 'Msg -> Task<unit>) =
+  static member MakeAndStartDefault (body: 'Msg -> Task<unit>) =
     let agent = Agent.MakeDefault body
     agent.Start()
     agent
 
-  static member MakeInjected(body: Agent<'Msg> -> 'Msg -> Task<unit>) =
+  static member MakeInjected (body: Agent<'Msg> -> 'Msg -> Task<unit>) =
     new Agent<'Msg>(AgentConstructor.WithAgentInjected body)
 
-  static member MakeAndStartInjected(body: Agent<'Msg> -> 'Msg -> Task<unit>) =
+  static member MakeAndStartInjected (body: Agent<'Msg> -> 'Msg -> Task<unit>) =
     let agent = Agent.MakeInjected body
     agent.Start()
     agent
+
+[<RequireQualifiedAccess>]
+module Agent =
+  
+  let post item (agent: Agent<_>) =
+    agent.Post item
+
+  let postAndReply item (agent: Agent<_>) =
+    agent.PostAndReply(item)
+
+  let postAndReplyAsync item (agent: Agent<_>) =
+    agent.PostAndReplyAsync(item)
+
+module ChannelCollections =
+  
+  [<Struct>]
+  [<NoComparison>]
+  [<RequireQualifiedAccess>]
+  type private ChannelDictionaryMessage<'Key, 'Value> =
+    | AddOrUpdate of addKey:'Key * addValue:'Value
+    | Remove of removeKey:'Key
+    | Get of key:'Key * getTcs:TaskCompletionSource<'Value>
+    | Values of valueTcs:TaskCompletionSource<Dictionary.ValueCollection<'Key, 'Value>>
+    | Keys of keysTcs:TaskCompletionSource<Dictionary.KeyCollection<'Key, 'Value>>
+    | ContainsKey of containKey:'Key * keyTcs:TaskCompletionSource<bool>
+    | TryGet of tryKey:'Key * tryGetTcs:TaskCompletionSource<'Value ValueOption>
+    | ToList of listTcs:TaskCompletionSource<list<'Key * 'Value>>
+  
+  type ChannelDictionary<'Key, 'Value when 'Key : equality>() = 
+    let cts = new CancellationTokenSource()
+    let options = UnboundedChannelOptions(SingleReader = true)
+    let mailbox: Channel<ChannelDictionaryMessage<'Key, 'Value>> =
+      Channel.CreateUnbounded<ChannelDictionaryMessage<'Key, 'Value>>(options)
+    let dict = Dictionary<'Key, 'Value>()
+  
+    let body msg = task {
+      match msg with
+      | ChannelDictionaryMessage.ToList tcs -> 
+        if dict.Count > 0 then
+          tcs.SetResult [ for keyValue in dict do yield (keyValue.Key, keyValue.Value)]
+        else 
+          tcs.SetResult [ ]
+      | ChannelDictionaryMessage.AddOrUpdate (key, value) -> dict[key] <- value
+      | ChannelDictionaryMessage.Remove key -> dict.Remove(key) |> ignore
+      | ChannelDictionaryMessage.Get (key, tcs) ->
+        try
+          let value = dict[key]
+          tcs.SetResult value
+        with ex ->
+          tcs.SetException ex
+      | ChannelDictionaryMessage.TryGet (key, tcs) ->
+        if dict.ContainsKey(key) then
+          dict[key] |> ValueSome |> tcs.SetResult
+        else
+          ValueNone |> tcs.SetResult
+      | ChannelDictionaryMessage.Values tcs -> tcs.SetResult dict.Values
+      | ChannelDictionaryMessage.Keys tcs -> tcs.SetResult dict.Keys
+      | ChannelDictionaryMessage.ContainsKey (key, tcs) -> dict.ContainsKey(key) |> tcs.SetResult
+    }
+  
+    let loop (mailbox: ChannelReader<ChannelDictionaryMessage<'Key, 'Value>>) (token: CancellationToken) =
+      task {
+        try
+          while not token.IsCancellationRequested do
+            match! Channel.tryReadAsync mailbox token with
+            | ValueNone -> ()
+            | ValueSome msg -> do! body msg
+        with 
+          | :? OperationCanceledException ->
+            dict.Clear()
+          | ex ->
+            eprintfn $"Channel dictionary error: {ex}"
+      }
+  
+    do
+      Task.Run<unit>(fun _ -> loop mailbox.Reader cts.Token) |> ignore
+  
+    member _.AddOrUpdate(key, value) = 
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.AddOrUpdate(key, value)) |> ignore
+  
+    member _.Remove(key) = 
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.Remove key) |> ignore
+  
+    member _.GetAsync(key) =
+      let tcs = new TaskCompletionSource<'Value>()
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.Get(key, tcs)) |> ignore
+      tcs.Task
+  
+    member _.TryGetAsync(key) =
+      let tcs = new TaskCompletionSource<'Value ValueOption>()
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.TryGet(key, tcs)) |> ignore
+      tcs.Task
+  
+    member _.ValuesAsync() =
+      let tcs = new TaskCompletionSource<Dictionary.ValueCollection<'Key, 'Value>>()
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.Values tcs) |> ignore
+      tcs.Task
+  
+    member _.KeysAsync() =
+      let tcs = new TaskCompletionSource<Dictionary.KeyCollection<'Key, 'Value>>()
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.Keys tcs) |> ignore
+      tcs.Task
+
+    member _.ToListAsync() =
+      let tcs = new TaskCompletionSource<list<'Key * 'Value>>()
+      mailbox.Writer.TryWrite(ChannelDictionaryMessage.ToList tcs) |> ignore
+      tcs.Task
+  
+    member self.Item
+      with get(key) = self.GetAsync(key)
+  
+  
+    interface IDisposable with
+      member _.Dispose() = cts.Cancel()
+      
+
+  [<RequireQualifiedAccess>]
+  module ChannelDictionary =
+    
+    let remove key (dict: ChannelDictionary<_,_>) = dict.Remove(key)
+    let addOrUpdate key value (dict: ChannelDictionary<_,_>) = dict.AddOrUpdate(key, value)
+    let getAsync key (dict: ChannelDictionary<_,_>) = dict.GetAsync(key)
+    let tryGetAsync key (dict: ChannelDictionary<_,_>) = dict.TryGetAsync(key)
+    let valuesAsync (dict: ChannelDictionary<_,_>) = dict.ValuesAsync()
+    let keysAsync (dict: ChannelDictionary<_,_>) = dict.KeysAsync()
+
+    let ofPair key value =
+      let chDict = new ChannelDictionary<_, _>()
+      chDict.AddOrUpdate(key, value)
+      chDict
+
+    let ofList (keyValuePairList: list<'key * 'value>) =
+      let chDict = new ChannelDictionary<_, _>()
+      for (key, value) in keyValuePairList do
+        chDict.AddOrUpdate(key, value)
+      chDict
+
+    let toListAsync (dict: ChannelDictionary<_,_>) =
+      dict.ToListAsync()
+
+  type ChannelList<'Value>() = class end
+
+  [<RequireQualifiedAccess>]
+  module ChannelList =
+
+    let a = ()
 
 type ExtBool =
   | True

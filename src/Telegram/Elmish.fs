@@ -98,7 +98,7 @@ module Elmish =
 
   type Dispatch<'Message> = 'Message -> unit
   type CallInit<'Model> = unit -> 'Model
-  type CallGetChatState = unit -> Message list
+  type CallGetChatState = unit -> MessagesMap
   type CallSaveChatState = Message -> unit
   type CallDelChatState = Message -> unit
 
@@ -109,7 +109,7 @@ module Elmish =
       { Init: Message -> 'Model
         Update: 'Message -> 'Model -> CallInit<'Model> -> 'Model
         View: Dispatch<'Message> -> 'Model -> RenderView
-        AppEnv: IAppEnv<'CacheCommand, 'ElmishCommand>
+        AppEnv: IAppEnv<'ElmishCommand, 'CacheCommand>
         GetChatStates: CallGetChatState option
         SaveChatState: CallSaveChatState option
         DelChatState: CallDelChatState option }
@@ -261,7 +261,7 @@ module Elmish =
 
         for message in messages do
 
-          Funogram.Telegram.Req.EditMessageText.Make("Инициализация...", Int message.Chat.Id, message.MessageId)
+          Funogram.Telegram.Req.EditMessageText.Make("Инициализация...", Int message.Value.Chat.Id, message.Value.MessageId)
           |> Funogram.Api.api config
           |> Async.RunSynchronously
           |> function

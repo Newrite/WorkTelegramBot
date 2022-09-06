@@ -38,11 +38,13 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Env.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="Logger.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Cache.fs" />
+    <Compile Include="Repository.fs" />
     <Compile Include="Configurer.fs" />
+    <Compile Include="Env.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Donald" Version="7.1.0" />

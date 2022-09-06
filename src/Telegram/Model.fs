@@ -1,7 +1,7 @@
 ﻿namespace WorkTelegram.Telegram
 
 open WorkTelegram.Core
-open WorkTelegram.Telegram
+open WorkTelegram.Infrastructure
 
 module AuthProcess =
 
@@ -56,7 +56,7 @@ module ManagerProcess =
   type ManagerModel =
     | NoOffices
     | MakeOffice of MakeOffice
-    | ChooseOffice of Office list
+    | ChooseOffice of OfficesMap
     | InOffice of Office
     | AuthEmployers of Office
     | DeAuthEmployers of Office
@@ -97,13 +97,13 @@ module Model =
 
       let startInit () =
 
-        let manager = Cache.tryGetManagerByChatId env chatId
-        let employer = Cache.tryGetEmployerByChatId env chatId
+        let manager = Repository.tryManagerByChatId env chatId
+        let employer = Repository.tryEmployerByChatId env chatId
 
         if manager.IsSome then
-          let offices = Cache.getOfficesByManagerId env manager.Value.ChatId
+          let offices = Repository.tryOfficeByChatId env manager.Value.ChatId
 
-          match offices.Length with
+          match offices.Count with
           | 0 ->
             let ctx =
               { ManagerProcess.ManagerContext.Manager = manager.Value
@@ -115,11 +115,11 @@ module Model =
             let ctx =
               { ManagerProcess.ManagerContext.Manager = manager.Value
                 ManagerProcess.ManagerContext.Model =
-                  ManagerProcess.ManagerModel.InOffice offices[0] }
+                  ManagerProcess.ManagerModel.InOffice (offices |> Map.toArray |> Array.head |> snd)}
 
             { History = history
               Model = CoreModel.Manager ctx }
-          | _ when offices.Length > 1 ->
+          | _ when offices.Count > 1 ->
             let ctx =
               { ManagerProcess.ManagerContext.Manager = manager.Value
                 ManagerProcess.ManagerContext.Model =
@@ -128,7 +128,7 @@ module Model =
             { History = history
               Model = CoreModel.Manager ctx }
           | _ ->
-            NegativeOfficesCountException($"Offices count is {offices.Length}")
+            NegativeOfficesCountException($"Offices count is {offices.Count}")
             |> raise
         elif employer.IsSome then
           let ctx =

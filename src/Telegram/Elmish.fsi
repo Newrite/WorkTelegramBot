@@ -79,7 +79,7 @@ namespace WorkTelegram.Telegram
         
         type CallInit<'Model> = unit -> 'Model
         
-        type CallGetChatState = unit -> Funogram.Telegram.Types.Message list
+        type CallGetChatState = unit -> Infrastructure.MessagesMap
         
         type CallSaveChatState = Funogram.Telegram.Types.Message -> unit
         
@@ -92,8 +92,7 @@ namespace WorkTelegram.Telegram
               Init: (Funogram.Telegram.Types.Message -> 'Model)
               Update: ('Message -> 'Model -> CallInit<'Model> -> 'Model)
               View: (Dispatch<'Message> -> 'Model -> RenderView)
-              AppEnv:
-                Infrastructure.AppEnv.IAppEnv<'CacheCommand,'ElmishCommand>
+              AppEnv: Infrastructure.IAppEnv<'ElmishCommand,'CacheCommand>
               GetChatStates: CallGetChatState option
               SaveChatState: CallSaveChatState option
               DelChatState: CallDelChatState option
@@ -108,11 +107,11 @@ namespace WorkTelegram.Telegram
         module Program =
             
             val mkProgram:
-              env: Infrastructure.AppEnv.IAppEnv<'a,'b> ->
+              env: Infrastructure.IAppEnv<'a,'b> ->
                 view: (Dispatch<'c> -> 'd -> RenderView) ->
                 update: ('c -> 'd -> CallInit<'d> -> 'd) ->
                 init: (Funogram.Telegram.Types.Message -> 'd) ->
-                Program<'d,'c,'a,'b>
+                Program<'d,'c,'b,'a>
             
             val withState:
               getState: CallGetChatState ->
@@ -124,6 +123,5 @@ namespace WorkTelegram.Telegram
             
             val startProgram:
               onUpdate: (Funogram.Telegram.Bot.UpdateContext -> unit) ->
-                program: Program<'a,'b,'c,Agent<ProcessorCommands<'b>>> ->
-                Async<unit>
+                program: Program<'a,'b,'c,ProcessorCommands<'b>> -> Async<unit>
 

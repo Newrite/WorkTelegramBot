@@ -1,6 +1,15 @@
 ﻿namespace WorkTelegram.Infrastructure
 
-open WorkTelegram.Infrastructure
+open System.Collections.Concurrent
+
+[<Interface>]
+type IConfigurer<'ElmishCommand> =
+  abstract BotConfig: Funogram.Types.BotConfig
+  abstract ElmishDict: ConcurrentDictionary<int64, Agent<'ElmishCommand>>
+
+[<Interface>]
+type ICfg<'ElmishCommand> =
+  abstract Configurer: IConfigurer<'ElmishCommand>
 
 module Configurer =
 

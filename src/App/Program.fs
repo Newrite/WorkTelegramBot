@@ -15,10 +15,12 @@ let main _ =
 
   let tgToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
+  let logFile = "WorkTelegramBotLog.txt"
+
   let logger =
     LoggerConfiguration()
       .WriteTo.Console()
-      .WriteTo.File("WorkTelegramBotLog.txt")
+      .WriteTo.File(logFile)
       .MinimumLevel.Verbose()
       .CreateLogger()
 
@@ -33,10 +35,13 @@ let main _ =
 
   Database.initTables iDb iLog |> ignore
 
-  let iCache =
-    let agent = Agent.MakeAndStartDefault(Cache.cacheActor { Logger = iLog; Database = iDb })
+  let iRep =
+    
+    let cache = Cache.initializationCache iLog iDb Repository.errorHandler
 
-    Cache.ICacheBuilder agent
+    let cacheAgent = Agent.MakeAndStartDefault(Cache.cacheAgent cache)
+
+    Repository.IRepBuilder cacheAgent
     
   let mutable cts = new CancellationTokenSource()
     
@@ -49,7 +54,7 @@ let main _ =
     
   let iCfg = Configurer.IConfigurerBuilder { Config.defaultConfig with Token = tgToken; OnError = onError } (Elmish.ElmishProcessorDict<_>())
 
-  let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
+  let env = IAppEnvBuilder iLog.Logger iDb.Db iRep.Repository iCfg.Configurer
 
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"
@@ -84,15 +89,17 @@ let main _ =
 
     try
 
-      let getState = fun () -> Cache.getTelegramMessages env
+      let getState = fun () -> Repository.messages env
 
-      let setState message =
-        Cache.tryAddOrUpdateTelegramMessage env message
-        |> ignore
+      let setState (message: TelegramMessage) =
+        let messages = getState()
+        if messages.ContainsKey(%message.Chat.Id) then
+          Repository.tryUpdateMessage env message |> ignore
+        else
+          Repository.tryAddMessage env message |> ignore
 
       let delState (message: TelegramMessage) =
-        Cache.tryDeleteTelegramMessage env %message.Chat.Id
-        |> ignore
+        Repository.tryDeleteMessage env message |> ignore
 
       let view = View.view env
       let update = Update.update env

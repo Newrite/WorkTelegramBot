@@ -63,8 +63,14 @@ module Types =
   type AppError =
     | DatabaseError of DbError
     | BusinessError of BusinessError
+    | Bug of Exception
 
   module ErrorPatterns =
+
+    let (|ErrBugSomeThrowException|_|) (error: AppError) =
+      match error with
+      | AppError.Bug exn -> Some exn
+      | _ -> None
 
     [<AutoOpen>]
     module DatabasePatterns =
@@ -415,11 +421,6 @@ module Types =
         Количество     : {self.Count.Value}
         Дата           : {self.Time}"""
 
-    member self.Inspired() =
-      let now = DateTime.Now
-      let sinceTime = now - self.Time
-      sinceTime.TotalHours >= 24.0
-
   [<RequireQualifiedAccess>]
   module DeletionItem =
 
@@ -433,3 +434,50 @@ module Types =
         IsReadyToDeletion = false
         Location = location
         Employer = employer }
+
+    let createExcelTableFromItemsAsByte items =
+      let headers =
+        [ "Имя"
+          "Серийный номер"
+          "Мак адрес"
+          "Куда или для чего"
+          "Количество"
+          "Сотрудник"
+          "Дата" ]
+
+      [ for head in headers do
+          FsExcel.Cell [ FsExcel.String head ]
+        FsExcel.Go FsExcel.NewRow
+        for item in items do
+          let count = let c = item.Count in c.Value
+          FsExcel.Cell [ FsExcel.String %item.Item.Name ]
+          FsExcel.Cell [ FsExcel.String(Option.string item.Item.Serial) ]
+
+          FsExcel.Cell [ FsExcel.String(Option.string item.Item.MacAddress) ]
+
+          FsExcel.Cell [ FsExcel.String(Option.string item.Location) ]
+          FsExcel.Cell [ FsExcel.Integer(int count) ]
+
+          FsExcel.Cell [ FsExcel.String($"{item.Employer.FirstName} {item.Employer.LastName}") ]
+
+          FsExcel.Cell [ FsExcel.DateTime item.Time ]
+          FsExcel.Go FsExcel.NewRow
+        FsExcel.AutoFit FsExcel.AllCols ]
+      |> FsExcel.Render.AsStreamBytes
+
+    let inspiredItem currentTime (item: DeletionItem) =
+      let sinceTime = currentTime - item.Time
+      sinceTime.TotalHours >= 24.0
+
+    let readyToDeletionItem (item: DeletionItem) =
+      item.IsReadyToDeletion
+
+    let hiddenItem (item: DeletionItem) = 
+      item.IsHidden
+
+    let notHiddenItem (item: DeletionItem) = 
+      not item.IsHidden
+
+    let itemToDeletion currentTime (item: DeletionItem) =
+      not item.IsHidden && item.IsReadyToDeletion && inspiredItem currentTime item
+      

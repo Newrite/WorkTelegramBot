@@ -8,6 +8,14 @@ open Microsoft.Data.Sqlite
 
 #nowarn "64"
 
+[<Interface>]
+type IDatabase =
+  abstract Conn: SqliteConnection
+
+[<Interface>]
+type IDb =
+  abstract Db: IDatabase
+
 module Database =
 
   exception private DatabaseVersionTableNotExistException of string
@@ -16,8 +24,7 @@ module Database =
   exception private DatabaseVersionHandleVersionException of DbError
   exception private DatabaseTryReadDatabaseVersionTableException of DbError
 
-  let dbConn (env: #IDb) =
-    env.Db.Conn
+  let dbConn (env: #IDb) = env.Db.Conn
 
   let IDbBuilder conn =
     { new IDb with
@@ -26,8 +33,11 @@ module Database =
               member _.Conn = conn } }
 
 
-  let [<Literal>] DbVersionTable = "DB_VERSION"
-  let [<Literal>] DbVersionField = "VERSION"
+  [<Literal>]
+  let DbVersionTable = "DB_VERSION"
+
+  [<Literal>]
+  let DbVersionField = "VERSION"
 
   let private versionSchema =
     $@"CREATE TABLE IF NOT EXISTS {DbVersionTable} (
@@ -87,9 +97,12 @@ module Database =
         FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
       );"
 
-  let [<Literal>] ACTUAL_VERISON = 2L
+  type DatabaseVersions =
+    | FirstVersion = 1
+    // | SECOND_VERSION = 2
+    | ActualVersion = 2
 
-  let private selectVersion envDb envLog = 
+  let private selectVersion envDb envLog =
 
     let conn = dbConn envDb
 
@@ -97,25 +110,26 @@ module Database =
     Logger.info envLog $"Get version db with command: {sqlCommadVersionCheck}"
 
     Db.newCommand sqlCommadVersionCheck conn
-    |> Db.querySingle (fun rd -> rd.ReadInt64 DbVersionField)
+    |> Db.querySingle (fun rd -> rd.ReadInt32 DbVersionField)
     |> function
-    | Ok opt -> opt
-    | Error err ->
-      Logger.fatal envLog $"Error when try read version: {err}"
-      DatabaseTryReadDatabaseVersionTableException(err)
-      |> raise
+      | Ok opt -> opt |> Option.map enum<DatabaseVersions>
+      | Error err ->
+        Logger.fatal envLog $"Error when try read version: {err}"
+
+        DatabaseTryReadDatabaseVersionTableException(err)
+        |> raise
 
   let private versionHandler envDb envLog =
 
     let conn = dbConn envDb
 
     let rec handler version =
-      if version = ACTUAL_VERISON then
-        Logger.info envLog $"Db is actual version: {ACTUAL_VERISON}"
-      elif version = 1L then
+      if version = DatabaseVersions.ActualVersion then
+        Logger.info envLog $"Db is actual version: {DatabaseVersions.ActualVersion}"
+      elif version = DatabaseVersions.FirstVersion then
 
-        let nextVersion = version + 1L
-          
+        let nextVersion = enum<DatabaseVersions>(int version + 1)
+
         Logger.info envLog $"Db version is {version}, try update to {nextVersion} version"
 
         use tran = conn.TryBeginTransaction()
@@ -156,33 +170,93 @@ module Database =
              
             UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersion};"
 
-        Logger.info envLog $"Start transaction update from {version} to {nextVersion}, update {DeletionItemDto.TableName}, old table name now {oldDeletionTableName}"
-        
+        Logger.info
+          envLog
+          $"Start transaction update from {version} to {nextVersion}, update {DeletionItemDto.TableName}, old table name now {oldDeletionTableName}"
+
         Db.newCommand sqlCommandVersion1 conn
         |> Db.setTransaction tran
         |> Db.exec
         |> function
-        | Ok () ->
-          tran.TryCommit()
-          Logger.info envLog $"Success update from {version} to {nextVersion}"
-          handler nextVersion
-        | Error err ->
-          Logger.fatal envLog $"Try rollback, error when try update from {version} to {nextVersion}, erorr: {err}"
-          tran.TryRollback()
-          DatabaseVersionHandleVersionException(err) |> raise
+          | Ok () ->
+            tran.TryCommit()
+            Logger.info envLog $"Success update from {version} to {nextVersion}"
+            handler nextVersion
+          | Error err ->
+            Logger.fatal
+              envLog
+              $"Try rollback, error when try update from {version} to {nextVersion}, erorr: {err}"
 
+            tran.TryRollback()
+
+            DatabaseVersionHandleVersionException(err)
+            |> raise
+
+      //elif version = DATABASE_VERSIONS.SECOND_VERSION then
+      //
+      //  let oldOfficeTableName = $"{OfficeDto.TableName}_OldV{version}"
+      //  let oldEmployerTableName = $"{EmployerDto.TableName}_OldV{version}"
+      //  let oldManagerTableName = $"{ManagerDto.TableName}_DeprecetedInV{version}"
+      //
+      //  let sqlCommandVersion2 =
+      //    $@"ALTER TABLE {OfficeDto.TableName} RENAME TO {oldOfficeTableName};
+      //
+      //       ALTER TABLE {EmployerDto.TableName} RENAME TO {oldEmployerTableName};
+      //
+      //       ALTER TABLE {ManagerDto.TableName} RENAME TO {oldManagerTableName};
+      //
+      //       CREATE TABLE IF NOT EXISTS {DeletionItemDto.TableName} (
+      //        {Field.DeletionId} GUID NOT NULL PRIMARY KEY,
+      //        {Field.ItemName} TEXT NOT NULL,
+      //        {Field.ItemSerial} TEXT DEFAULT(NULL),
+      //        {Field.ItemMac} TEXT DEFAULT(NULL),
+      //        {Field.Count} INTEGER NOT NULL,
+      //        {Field.Date} INTEGER NOT NULL,
+      //        {Field.IsDeletion} BOOL NOT NULL,
+      //        {Field.IsHidden} BOOL NOT NULL,
+      //        {Field.ToLocation} TEXT DEFAULT(NULL),
+      //        {Field.IsReadyToDeletion} BOOL NOT NULL DEFAULT(false),
+      //        {Field.OfficeId} GUID NOT NULL,
+      //        {Field.ChatId} INTEGER NOT NULL,
+      //        FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId}),
+      //        FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
+      //      );
+      //      
+      //      INSERT INTO {DeletionItemDto.TableName} 
+      //       ({Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
+      //        {Field.ItemMac}, {Field.Count}, {Field.Date},
+      //        {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
+      //        {Field.OfficeId}, {Field.ChatId})
+      //       SELECT 
+      //        {Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
+      //        {Field.ItemMac}, {Field.Count}, {Field.Date},
+      //        {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
+      //        {Field.OfficeId}, {Field.ChatId}
+      //       FROM {oldDeletionTableName};
+      //       
+      //      UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersion};"
+      //
+      //  ()
+      //
       else
-        Logger.fatal envLog $"Try handle unhandled version of db: {version}"
-        DatabaseUnhandledVersionException($"Unhandled version in database version handler, version: {version}") |> raise
-        
+
+      Logger.fatal envLog $"Try handle unhandled version of db: {version}"
+
+      DatabaseUnhandledVersionException(
+        $"Unhandled version in database version handler, version: {version}"
+      )
+      |> raise
+
     match selectVersion envDb envLog with
     | Some version ->
       Logger.info envLog "Success get version, go handle it"
       handler version
     | None ->
-      Logger.fatal envLog $"Error, not found version in database"
-      DatabaseVersionTableNotExistException($"Not found version table in database")
-      |> raise
+
+    Logger.fatal envLog $"Error, not found version in database"
+
+    DatabaseVersionTableNotExistException($"Not found version table in database")
+    |> raise
 
   let createConnection env databaseName =
     Logger.info env "Start create connection to database"
@@ -201,7 +275,7 @@ module Database =
       reraise ()
 
   let initTables envDb envLog =
-    
+
     let conn = dbConn envDb
 
     Logger.info envLog "Execute schema version script"
@@ -218,23 +292,22 @@ module Database =
       | None ->
         Logger.info envLog "Create value for version table"
 
-        let sqlCommand = 
+        let sqlCommand =
           $@"INSERT OR IGNORE INTO {DbVersionTable}
            ({DbVersionField})
            VALUES
            (@{DbVersionField})"
 
-        let sqlParam =
-          [ DbVersionField, SqlType.Int64 1L ]
+        let sqlParam = [ DbVersionField, SqlType.Int64 1L ]
 
         Db.newCommand sqlCommand conn
         |> Db.setParams sqlParam
         |> Db.exec
         |> function
-        | Ok () -> Logger.info envLog "Successfull create value for version table"
-        | Error err ->
-          Logger.fatal envLog $"Error when try add value to version table {err}"
-          DatabaseVersionTryAddValueException(err) |> raise
+          | Ok () -> Logger.info envLog "Successfull create value for version table"
+          | Error err ->
+            Logger.fatal envLog $"Error when try add value to version table {err}"
+            DatabaseVersionTryAddValueException(err) |> raise
 
     versionHandler envDb envLog
 
@@ -252,13 +325,18 @@ module Database =
       SqlType.Null
 
   let private genericSelectMany<'a> (env: #IDb) tableName (ofDataReader: IDataReader -> 'a) =
-    let sql = $"SELECT * FROM {tableName}"
 
-    Db.newCommand sql env.Db.Conn
-    |> Db.query ofDataReader
-    |> function
-      | Ok list -> list |> Ok
-      | Error err -> err |> AppError.DatabaseError |> Error
+    try
+
+      let sql = $"SELECT * FROM {tableName}"
+
+      Db.newCommand sql env.Db.Conn
+      |> Db.query ofDataReader
+      |> function
+        | Ok list -> list |> Ok
+        | Error err -> err |> AppError.DatabaseError |> Error
+
+    with exn -> exn |> AppError.Bug |> Error
 
   let private genericSelectManyWithWhere<'a>
     conn
@@ -266,12 +344,17 @@ module Database =
     sqlParam
     (ofDataReader: IDataReader -> 'a)
     =
-    Db.newCommand sqlCommand conn
-    |> Db.setParams sqlParam
-    |> Db.query ofDataReader
-    |> function
-      | Ok list -> list |> Ok
-      | Error err -> err |> AppError.DatabaseError |> Error
+
+    try
+
+      Db.newCommand sqlCommand conn
+      |> Db.setParams sqlParam
+      |> Db.query ofDataReader
+      |> function
+        | Ok list -> list |> Ok
+        | Error err -> err |> AppError.DatabaseError |> Error
+
+    with exn -> exn |> AppError.Bug |> Error
 
   let private genericSelectSingle<'a>
     (env: #IDb)
@@ -279,49 +362,62 @@ module Database =
     sqlParam
     (ofDataReader: IDataReader -> 'a)
     =
-    Db.newCommand sqlCommand env.Db.Conn
-    |> Db.setParams sqlParam
-    |> Db.querySingle ofDataReader
-    |> function
-      | Ok opt ->
-        match opt with
-        | Some v -> Ok v
-        | None ->
-          BusinessError.NotFoundInDatabase(typedefof<'a>)
-          |> AppError.BusinessError
-          |> Error
-      | Error err -> err |> AppError.DatabaseError |> Error
 
-  let private transactionSingleExn (env: #IDb) sqlCommand sqlParam =
+    try
 
-    use tran = env.Db.Conn.TryBeginTransaction()
-
-    let result =
       Db.newCommand sqlCommand env.Db.Conn
       |> Db.setParams sqlParam
-      |> Db.setTransaction tran
-      |> Db.exec
+      |> Db.querySingle ofDataReader
+      |> function
+        | Ok opt ->
+          match opt with
+          | Some v -> Ok v
+          | None ->
+            BusinessError.NotFoundInDatabase(typedefof<'a>)
+            |> AppError.BusinessError
+            |> Error
+        | Error err -> err |> AppError.DatabaseError |> Error
 
-    tran.TryCommit()
+    with exn -> exn |> AppError.Bug |> Error
 
-    match result with
-    | Ok _ -> Ok()
-    | Error err -> err |> AppError.DatabaseError |> Error
+  let private transactionSingleExn (env: #IDb) sqlCommand sqlParam =
+    
+    try
+
+      use tran = env.Db.Conn.TryBeginTransaction()
+
+      let result =
+        Db.newCommand sqlCommand env.Db.Conn
+        |> Db.setParams sqlParam
+        |> Db.setTransaction tran
+        |> Db.exec
+
+      tran.TryCommit()
+
+      match result with
+      | Ok _ -> Ok()
+      | Error err -> err |> AppError.DatabaseError |> Error
+
+    with exn -> exn |> AppError.Bug |> Error
 
   let private transactionManyExn (env: #IDb) sqlCommand sqlParam =
 
-    use tran = env.Db.Conn.TryBeginTransaction()
+    try
 
-    let result =
-      Db.newCommand sqlCommand env.Db.Conn
-      |> Db.setTransaction tran
-      |> Db.execMany sqlParam
+      use tran = env.Db.Conn.TryBeginTransaction()
 
-    tran.TryCommit()
+      let result =
+        Db.newCommand sqlCommand env.Db.Conn
+        |> Db.setTransaction tran
+        |> Db.execMany sqlParam
 
-    match result with
-    | Ok _ -> Ok()
-    | Error err -> err |> AppError.DatabaseError |> Error
+      tran.TryCommit()
+
+      match result with
+      | Ok _ -> Ok()
+      | Error err -> err |> AppError.DatabaseError |> Error
+
+    with exn -> exn |> AppError.Bug |> Error
 
   let selectTelegramMessages env =
     genericSelectMany<TelegramMessageDto>
@@ -444,79 +540,111 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let updateEmployerApprovedByChatId env (chatIdDto: ChatIdDto) isApproved =
+  let updateEmployer env (employerDto: EmployerDto) =
     let sqlCommand =
       $"UPDATE {EmployerDto.TableName} 
-        SET {Field.IsApproved} = (@{Field.IsApproved})
+        SET 
+          {Field.FirstName} = (@{Field.FirstName}),
+          {Field.LastName} = (@{Field.LastName}),
+          {Field.IsApproved} = (@{Field.IsApproved}),
+          {Field.OfficeId} = (@{Field.OfficeId})
         WHERE {Field.ChatId} = (@{Field.ChatId})"
 
     let sqlParam =
-      [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId
-        Field.IsApproved, SqlType.Boolean isApproved ]
+      [ Field.FirstName, SqlType.String employerDto.FirstName
+        Field.LastName, SqlType.String employerDto.LastName
+        Field.IsApproved, SqlType.Boolean employerDto.IsApproved
+        Field.OfficeId, SqlType.Guid employerDto.OfficeId
+        Field.ChatId, SqlType.Int64 employerDto.ChatId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let updateOfficeManagerId env officeId managerId =
+  let updateOffice env (officeDto: OfficeDto) =
 
     let sqlCommand =
       $"UPDATE {OfficeDto.TableName}
-        SET {Field.ManagerId} = (@{Field.ManagerId})
+        SET
+          {Field.OfficeName} = (@{Field.OfficeName}),
+          {Field.IsHidden} = (@{Field.IsHidden}),
+          {Field.ManagerId} = (@{Field.ManagerId})
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
 
     let sqlParam =
-      [ Field.ManagerId, SqlType.Int64 managerId
-        Field.OfficeId, SqlType.Int64 officeId ]
+      [ Field.OfficeName, SqlType.String officeDto.OfficeName
+        Field.IsHidden, SqlType.Boolean officeDto.IsHidden
+        Field.ManagerId, SqlType.Int64 officeDto.ManagerId
+        Field.OfficeId, SqlType.Guid officeDto.OfficeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let deletionDeletionitemsOfOffice env officeId =
-
-    let ticksInDay = 864000000000L
-    let currentTicks = let a = System.DateTime.Now in a.Ticks
+  let updateDeletionItems (env: IDb) (deletionItemsDtos: DeletionItemDto list) =
 
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
-        SET {Field.IsDeletion} = (@{Field.IsDeletion})
-        WHERE {Field.OfficeId} = (@{Field.OfficeId})
-        AND ({currentTicks} - {Field.Date}) > {ticksInDay}
-        AND {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion})"
-
-    let sqlParam =
-      [ Field.IsDeletion, SqlType.Boolean true
-        Field.OfficeId, SqlType.Guid officeId
-        Field.IsReadyToDeletion, SqlType.Boolean true ]
-
-    transactionSingleExn env sqlCommand sqlParam
-
-  let hideDeletionItem env deletionId =
-
-    let sqlCommand =
-      $"UPDATE {DeletionItemDto.TableName}
-        SET {Field.IsHidden} = (@{Field.IsHidden})
+        SET
+          {Field.ItemName} = (@{Field.ItemName}),
+          {Field.ItemSerial} = (@{Field.ItemSerial}),
+          {Field.ItemMac} = (@{Field.ItemMac}),
+          {Field.Count} = (@{Field.Count}),
+          {Field.Date} = (@{Field.Date}),
+          {Field.IsDeletion} = (@{Field.IsDeletion}),
+          {Field.IsHidden} = (@{Field.IsHidden}),
+          {Field.ToLocation} = (@{Field.ToLocation}),
+          {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion}),
+          {Field.OfficeId} = (@{Field.OfficeId}),
+          {Field.ChatId} = (@{Field.ChatId})
         WHERE {Field.DeletionId} = (@{Field.DeletionId})"
 
-    let sqlParam =
-      [ Field.IsHidden, SqlType.Boolean true
-        Field.DeletionId, SqlType.Guid deletionId ]
+    let sqlParamsList: RawDbParams list =
+      [ for deletionItemDto in deletionItemsDtos do
+          [ Field.ItemName, SqlType.String deletionItemDto.ItemName
+            Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial 
+            Field.ItemMac, stringOrNull deletionItemDto.ItemMac
+            Field.Count, SqlType.Int64 deletionItemDto.Count 
+            Field.Date, SqlType.Int64 deletionItemDto.Date
+            Field.IsDeletion, SqlType.Boolean deletionItemDto.IsDeletion
+            Field.IsHidden, SqlType.Boolean deletionItemDto.IsHidden
+            Field.ToLocation, stringOrNull deletionItemDto.ToLocation
+            Field.IsReadyToDeletion, SqlType.Boolean deletionItemDto.IsReadyToDeletion
+            Field.OfficeId, SqlType.Guid deletionItemDto.OfficeId
+            Field.ChatId, SqlType.Int64 deletionItemDto.ChatId
+            Field.DeletionId, SqlType.Guid deletionItemDto.DeletionId ] ]
 
-    transactionSingleExn env sqlCommand sqlParam
+    transactionManyExn env sqlCommand sqlParamsList
 
-  let setReadyToDeletionOfficeItems env officeId =
-
-    let ticksInDay = 864000000000L
-    let currentTicks = let a = System.DateTime.Now in a.Ticks
+  let updateDeletionItem (env: IDb) (deletionItemDto: DeletionItemDto) =
 
     let sqlCommand =
       $"UPDATE {DeletionItemDto.TableName}
-        SET {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion})
-        WHERE {Field.OfficeId} = (@{Field.OfficeId})
-        AND ({currentTicks} - {Field.Date}) > {ticksInDay}"
+        SET
+          {Field.ItemName} = (@{Field.ItemName}),
+          {Field.ItemSerial} = (@{Field.ItemSerial}),
+          {Field.ItemMac} = (@{Field.ItemMac}),
+          {Field.Count} = (@{Field.Count}),
+          {Field.Date} = (@{Field.Date}),
+          {Field.IsDeletion} = (@{Field.IsDeletion}),
+          {Field.IsHidden} = (@{Field.IsHidden}),
+          {Field.ToLocation} = (@{Field.ToLocation}),
+          {Field.IsReadyToDeletion} = (@{Field.IsReadyToDeletion}),
+          {Field.OfficeId} = (@{Field.OfficeId}),
+          {Field.ChatId} = (@{Field.ChatId})
+        WHERE {Field.DeletionId} = (@{Field.DeletionId})"
 
-    let sqlParam =
-      [ Field.IsReadyToDeletion, SqlType.Boolean true
-        Field.OfficeId, SqlType.Guid officeId ]
+    let sqlParams =
+      [ Field.ItemName, SqlType.String deletionItemDto.ItemName
+        Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial 
+        Field.ItemMac, stringOrNull deletionItemDto.ItemMac
+        Field.Count, SqlType.Int64 deletionItemDto.Count 
+        Field.Date, SqlType.Int64 deletionItemDto.Date
+        Field.IsDeletion, SqlType.Boolean deletionItemDto.IsDeletion
+        Field.IsHidden, SqlType.Boolean deletionItemDto.IsHidden
+        Field.ToLocation, stringOrNull deletionItemDto.ToLocation
+        Field.IsReadyToDeletion, SqlType.Boolean deletionItemDto.IsReadyToDeletion
+        Field.OfficeId, SqlType.Guid deletionItemDto.OfficeId
+        Field.ChatId, SqlType.Int64 deletionItemDto.ChatId
+        Field.DeletionId, SqlType.Guid deletionItemDto.DeletionId ]
 
-    transactionSingleExn env sqlCommand sqlParam
+    transactionSingleExn env sqlCommand sqlParams
 
   let updateTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
@@ -530,21 +658,21 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let deleteOffice env officeId =
+  let deleteOffice env (officeDto: OfficeDto) =
     let sqlCommand =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
 
-    let sqlParam = [ Field.OfficeId, SqlType.Guid officeId ]
+    let sqlParam = [ Field.OfficeId, SqlType.Guid officeDto.OfficeId ]
 
     transactionSingleExn env sqlCommand sqlParam
 
-  let deleteTelegramMessage env (chatIdDto: ChatIdDto) =
+  let deleteTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
       $"DELETE FROM {TelegramMessageDto.TableName}
         WHERE {Field.ChatId} = (@{Field.ChatId})"
 
-    let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
+    let sqlParam = [ Field.ChatId, SqlType.Int64 messageDto.ChatId ]
 
     transactionSingleExn env sqlCommand sqlParam
 

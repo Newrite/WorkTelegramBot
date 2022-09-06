@@ -32,7 +32,7 @@ namespace WorkTelegram.Telegram
             model: Model.ModelContext<Model.CoreModel> ->
             callInitModelFunction: (unit -> Model.ModelContext<Model.CoreModel>) ->
             Model.ModelContext<Model.CoreModel>
-            when 'a :> Infrastructure.AppEnv.ILog and
-                 'a :> Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
-                 'a :> Infrastructure.AppEnv.ICfg<'b>
+            when 'a :> Infrastructure.IRep<Infrastructure.CacheCommand> and
+                 'a :> Infrastructure.ILog and 'a :> Infrastructure.IDb and
+                 'a :> Infrastructure.ICfg<'b>
 

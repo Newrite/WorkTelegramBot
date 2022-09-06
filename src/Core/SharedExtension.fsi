@@ -3,7 +3,7 @@ module Operators
 
 val inline (^) : f: ('a -> 'b) -> x: 'a -> 'b
 
-module internal Agent
+module internal Channel
 
 val tryReadAsync:
   mailbox: System.Threading.Channels.ChannelReader<'Msg> ->
@@ -46,22 +46,128 @@ and Agent<'Msg> =
                                      'Msg) -> 'a
     
     member
-      PostAndReplyAsync: buildMessage: (System.Threading.Tasks.TaskCompletionSource<unit> ->
+      PostAndReplyAsync: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
                                           'Msg) ->
-                           System.Threading.Tasks.Task<unit>
+                           System.Threading.Tasks.Task<'a>
     
     member Start: unit -> unit
+
+module Agent
+
+val post: item: 'a -> agent: Agent<'a> -> unit
+
+val postAndReply:
+  item: (System.Threading.Tasks.TaskCompletionSource<'a> -> 'b) ->
+    agent: Agent<'b> -> 'a
+
+val postAndReplyAsync:
+  item: (System.Threading.Tasks.TaskCompletionSource<'a> -> 'b) ->
+    agent: Agent<'b> -> System.Threading.Tasks.Task<'a>
+
+module ChannelCollections
+
+[<NoComparison; RequireQualifiedAccess; Struct>]
+type private ChannelDictionaryMessage<'Key,'Value> =
+    | AddOrUpdate of addKey: 'Key * addValue: 'Value
+    | Remove of removeKey: 'Key
+    | Get of
+      key: 'Key * getTcs: System.Threading.Tasks.TaskCompletionSource<'Value>
+    | Values of
+      valueTcs:
+        System.Threading.Tasks.TaskCompletionSource<System.Collections.Generic.Dictionary`2.ValueCollection<'Key,
+                                                                                                            'Value>>
+    | Keys of
+      keysTcs:
+        System.Threading.Tasks.TaskCompletionSource<System.Collections.Generic.Dictionary`2.KeyCollection<'Key,
+                                                                                                          'Value>>
+    | ContainsKey of
+      containKey: 'Key *
+      keyTcs: System.Threading.Tasks.TaskCompletionSource<bool>
+    | TryGet of
+      tryKey: 'Key *
+      tryGetTcs:
+        System.Threading.Tasks.TaskCompletionSource<ValueOption<'Value>>
+    | ToList of
+      listTcs: System.Threading.Tasks.TaskCompletionSource<('Key * 'Value) list>
+
+type ChannelDictionary<'Key,'Value when 'Key: equality> =
+    interface System.IDisposable
     
-    member TryPost: item: 'Msg -> bool
+    new: unit -> ChannelDictionary<'Key,'Value>
+    
+    member AddOrUpdate: key: 'Key * value: 'Value -> unit
+    
+    member GetAsync: key: 'Key -> System.Threading.Tasks.Task<'Value>
     
     member
-      TryPostAndReply: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
-                                        'Msg) -> 'a option
+      KeysAsync: unit ->
+                   System.Threading.Tasks.Task<System.Collections.Generic.Dictionary`2.KeyCollection<'Key,
+                                                                                                     'Value>>
+    
+    member Remove: key: 'Key -> unit
     
     member
-      TryPostAndReplyAsync: buildMessage: (System.Threading.Tasks.TaskCompletionSource<'a> ->
-                                             'Msg) ->
-                              System.Threading.Tasks.Task<'a option>
+      ToListAsync: unit -> System.Threading.Tasks.Task<('Key * 'Value) list>
+    
+    member
+      TryGetAsync: key: 'Key -> System.Threading.Tasks.Task<ValueOption<'Value>>
+    
+    member
+      ValuesAsync: unit ->
+                     System.Threading.Tasks.Task<System.Collections.Generic.Dictionary`2.ValueCollection<'Key,
+                                                                                                         'Value>>
+    
+    member Item: key: 'Key -> System.Threading.Tasks.Task<'Value> with get
+
+module ChannelDictionary =
+    
+    val remove:
+      key: 'a -> dict: ChannelDictionary<'a,'b> -> unit when 'a: equality
+    
+    val addOrUpdate:
+      key: 'a -> value: 'b -> dict: ChannelDictionary<'a,'b> -> unit
+        when 'a: equality
+    
+    val getAsync:
+      key: 'a ->
+        dict: ChannelDictionary<'a,'b> -> System.Threading.Tasks.Task<'b>
+        when 'a: equality
+    
+    val tryGetAsync:
+      key: 'a ->
+        dict: ChannelDictionary<'a,'b> ->
+        System.Threading.Tasks.Task<ValueOption<'b>> when 'a: equality
+    
+    val valuesAsync:
+      dict: ChannelDictionary<'a,'b> ->
+        System.Threading.Tasks.Task<System.Collections.Generic.Dictionary`2.ValueCollection<'a,
+                                                                                            'b>>
+        when 'a: equality
+    
+    val keysAsync:
+      dict: ChannelDictionary<'a,'b> ->
+        System.Threading.Tasks.Task<System.Collections.Generic.Dictionary`2.KeyCollection<'a,
+                                                                                          'b>>
+        when 'a: equality
+    
+    val ofPair:
+      key: 'a -> value: 'b -> ChannelDictionary<'a,'b> when 'a: equality
+    
+    val ofList:
+      keyValuePairList: ('key * 'value) list -> ChannelDictionary<'key,'value>
+        when 'key: equality
+    
+    val toListAsync:
+      dict: ChannelDictionary<'a,'b> ->
+        System.Threading.Tasks.Task<('a * 'b) list> when 'a: equality
+
+type ChannelList<'Value> =
+    
+    new: unit -> ChannelList<'Value>
+
+module ChannelList =
+    
+    val a: unit
 
 type ExtBool =
     | True

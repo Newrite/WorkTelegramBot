@@ -18,47 +18,18 @@ module View =
 
   [<NoEquality>]
   [<NoComparison>]
-  type private ViewContext<'CacheCommand, 'ElmishCommand> =
+  type private ViewContext<'ElmishCommand, 'CacheCommand> =
     { Dispatch: UpdateMessage -> unit
       BackCancelKeyboard: Keyboard
-      AppEnv: IAppEnv<'CacheCommand, 'ElmishCommand> }
+      AppEnv: IAppEnv<'ElmishCommand, 'CacheCommand>
+      Notify: ChatId -> string -> int -> unit }
 
   [<RequireQualifiedAccess>]
   module private Functions =
 
-    let createExcelTableFromItemsAsBytes items =
-      let headers =
-        [ "Имя"
-          "Серийный номер"
-          "Мак адрес"
-          "Куда или для чего"
-          "Количество"
-          "Сотрудник"
-          "Дата" ]
-
-      [ for head in headers do
-          FsExcel.Cell [ FsExcel.String head ]
-        FsExcel.Go FsExcel.NewRow
-        for item in items do
-          let count = let c = item.Count in c.Value
-          FsExcel.Cell [ FsExcel.String %item.Item.Name ]
-          FsExcel.Cell [ FsExcel.String(Option.string item.Item.Serial) ]
-
-          FsExcel.Cell [ FsExcel.String(Option.string item.Item.MacAddress) ]
-
-          FsExcel.Cell [ FsExcel.String(Option.string item.Location) ]
-          FsExcel.Cell [ FsExcel.Integer(int count) ]
-
-          FsExcel.Cell [ FsExcel.String($"{item.Employer.FirstName} {item.Employer.LastName}") ]
-
-          FsExcel.Cell [ FsExcel.DateTime item.Time ]
-          FsExcel.Go FsExcel.NewRow
-        FsExcel.AutoFit FsExcel.AllCols ]
-      |> FsExcel.Render.AsStreamBytes
-
-    let sendExcelItemsDocumentExn ctx managerState items officeId =
+    let sendExcelItemsDocumentExn ctx managerState items =
       let streamWithDocument =
-        let bytes = createExcelTableFromItemsAsBytes items
+        let bytes = DeletionItem.createExcelTableFromItemsAsByte items
         new System.IO.MemoryStream(bytes)
 
       let documentName =
@@ -75,19 +46,20 @@ module View =
 
       match Utils.sendDocument ctx.AppEnv managerState.Manager.ChatId documentName streamWithDocument with
       | Ok message ->
-        match Database.setReadyToDeletionOfficeItems ctx.AppEnv %officeId with
-        | Ok () ->
+        let updatedItems = List.map (fun item -> { item with DeletionItem.IsReadyToDeletion = true }) items
+        match Repository.tryUpdateDeletionItems ctx.AppEnv updatedItems with
+        | true ->
           let text = "Файл отправлен, сообщение с ним будет удалено спустя 90 секунд"
-          Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+          ctx.Notify managerState.Manager.ChatId text 5000
 
           task {
             do! Async.Sleep(delay)
             Utils.deleteMessageBase ctx.AppEnv message |> ignore
           }
         |> ignore
-        | Error err ->
-          let text = $"Произошла ошибка обращения в базу данных: {err}, перезапросите файл еще раз"
-          Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+        | false ->
+          let text = $"Произошла ошибка обращения в базу данных, перезапросите файл еще раз"
+          ctx.Notify managerState.Manager.ChatId text 5000
       | Error _ -> ()
 
       streamWithDocument.Dispose()
@@ -107,7 +79,7 @@ module View =
       else
 
       let text = "Некорректный ввод, попробуйте еще раз"
-      Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
+      ctx.Notify %message.Chat.Id text 3000
 
     let enteringOfficeNameMessageHandle ctx managerState (message: TelegramMessage) =
 
@@ -120,21 +92,12 @@ module View =
         UpdateMessage.ManagerMakeOfficeChange(managerState, MakeOffice.AskingFinish office)
         |> ctx.Dispatch
 
-      let rec officeAlreadyExist officeName offices =
-        match offices with
-        | head :: tail ->
-          if OfficeName.equals officeName head.OfficeName then
-            true
-          else
-            officeAlreadyExist officeName tail
-        | [] -> false
+      let offices = Repository.offices ctx.AppEnv
 
-      let offices = Cache.getOffices ctx.AppEnv
-
-      if officeAlreadyExist officeName offices then
+      if Map.exists(fun _ office -> OfficeName.equals officeName office.OfficeName) offices then
         let text = "Офис с таким названием уже существует, попробуйте другое"
 
-        Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 3000
+        ctx.Notify managerState.Manager.ChatId text 3000
       else
         dispatch ()
 
@@ -153,7 +116,7 @@ module View =
       else
 
       let text = "Некорректный ввод, попробуйте еще раз"
-      Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
+      ctx.Notify %message.Chat.Id text 3000
 
     let enteringNameMessageHandle employerState ctx (message: TelegramMessage) =
       let name: ItemName = % message.Text.Value.ToUpper()
@@ -197,7 +160,7 @@ module View =
         |> ctx.Dispatch
       | Error _ ->
         let text = "Некорректный ввод мак адреса, попробуйте еще раз"
-        Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv %message.Chat.Id text 3000
+        ctx.Notify %message.Chat.Id text 3000
 
     let enteringCountMessageHandleExn ctx employerState item (message: TelegramMessage) =
       match PositiveInt.tryParse message.Text.Value with
@@ -208,14 +171,12 @@ module View =
 
       match err with
       | BusinessError.NumberMustBePositive incorrectNumber ->
-        Utils.sendMessageAndDeleteAfterDelay
-          ctx.AppEnv
+        ctx.Notify
           %message.Chat.Id
           $"Значение должно быть больше нуля, попробуйте еще раз: Введенное значение {incorrectNumber}"
           3000
       | BusinessError.IncorrectParsePositiveNumber incorrectString ->
-        Utils.sendMessageAndDeleteAfterDelay
-          ctx.AppEnv
+        ctx.Notify
           %message.Chat.Id
           $"Некорректный ввод, попробуйте еще раз: Введенное значение {incorrectString}"
           3000
@@ -304,15 +265,15 @@ module View =
           $"{item.Item.Name} - Serial {serial} - Mac {mac}"
 
         Keyboard.createSingle text (fun _ ->
-          match Cache.tryDeleteDeletionItem ctx.AppEnv item.DeletionId with
+          match Repository.tryUpdateDeletionItem ctx.AppEnv {item with IsHidden = true} with
           | true ->
             let text = "Запись успешно удалена"
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv employerState.Employer.ChatId text 3000
+            ctx.Notify employerState.Employer.ChatId text 3000
             ctx.Dispatch UpdateMessage.ReRender
 
           | false ->
             let text = "Не удалось удалить запись, попробуйте еще раз или попозже"
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv employerState.Employer.ChatId text 3000
+            ctx.Notify employerState.Employer.ChatId text 3000
             ctx.Dispatch UpdateMessage.ReRender)
 
       let renderOffice office onClick = Keyboard.createSingle %office.OfficeName onClick
@@ -334,16 +295,16 @@ module View =
       let deAuthEmployer ctx (managerState: ManagerContext) employer =
 
         let onClick employer _ =
-          match Cache.tryChangeEmployerApproved ctx.AppEnv employer false with
+          match Repository.tryUpdateEmployer ctx.AppEnv { employer with IsApproved = false } with
           | false ->
             let text =
               "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
 
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+            ctx.Notify managerState.Manager.ChatId text 5000
             ctx.Dispatch UpdateMessage.ReRender
           | true ->
             let text = "Авторизация сотрудника успешно убрана"
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 3000
+            ctx.Notify managerState.Manager.ChatId text 3000
             ctx.Dispatch UpdateMessage.ReRender
 
         Keyboard.createSingle $"{employer.FirstName} {employer.LastName}" (onClick employer)
@@ -351,16 +312,16 @@ module View =
       let authEmployer ctx (managerState: ManagerContext) employer =
 
         let onClick employer _ =
-          match Cache.tryChangeEmployerApproved ctx.AppEnv employer true with
+          match Repository.tryUpdateEmployer ctx.AppEnv { employer with IsApproved = true } with
           | false ->
             let text =
               "Произошла ошибка во время изменения авторизации сотрудника, попробуйте еще раз"
 
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+            ctx.Notify managerState.Manager.ChatId text 5000
             ctx.Dispatch UpdateMessage.ReRender
           | true ->
             let text = "Авторизация прошла успешно"
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 3000
+            ctx.Notify managerState.Manager.ChatId text 3000
             ctx.Dispatch UpdateMessage.ReRender
 
         Keyboard.createSingle $"{employer.FirstName} {employer.LastName}" (onClick employer)
@@ -383,12 +344,11 @@ module View =
                             )
                             |> ctx.Dispatch)
                           Button.create "Удалить офис" (fun _ ->
-                            match Cache.tryDeleteOffice ctx.AppEnv office.OfficeId with
+                            match Repository.tryDeleteOffice ctx.AppEnv office with
                             | true ->
                               let text = $"Офис {office.OfficeName} успешно удален"
 
-                              Utils.sendMessageAndDeleteAfterDelay
-                                ctx.AppEnv
+                              ctx.Notify
                                 office.Manager.ChatId
                                 text
                                 3000
@@ -399,8 +359,7 @@ module View =
                                 "Нет возможности удалить офис,
                     возможно с офисом уже связаны какая либо запись либо сотрудник"
 
-                              Utils.sendMessageAndDeleteAfterDelay
-                                ctx.AppEnv
+                              ctx.Notify
                                 office.Manager.ChatId
                                 text
                                 5000
@@ -410,30 +369,25 @@ module View =
       let managerMenuGetExcelTableOfActualItems ctx managerState office =
 
         Keyboard.createSingle "Получить таблицу актуальных записей" (fun _ ->
-          let items =
-            query {
-              for item in Cache.getDeletionItems ctx.AppEnv do
-                where (
-                  item.IsDeletion |> not
-                  && item.IsHidden |> not
-                  && item.Inspired()
-                  && item.Employer.Office.OfficeId = office.OfficeId
-                )
 
-                select item
-            }
-            |> List.ofSeq
+          let items = 
+            Repository.deletionItems ctx.AppEnv 
+            |> Map.toList 
+            |> List.map snd
+            |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> not item.IsHidden && not item.IsDeletion)
+            |> List.filter (DeletionItem.inspiredItem System.DateTime.Now)
 
           if items.Length > 0 then
             try
 
-              Functions.sendExcelItemsDocumentExn ctx managerState items office.OfficeId
+              Functions.sendExcelItemsDocumentExn ctx managerState items
 
             with
             | exn ->
               let text = $"Произошла ошибка во время создания таблицы {exn.Message}"
 
-              Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+              ctx.Notify managerState.Manager.ChatId text 5000
 
               Logger.error
                 ctx.AppEnv
@@ -443,7 +397,7 @@ module View =
 
           let text = "Не обнаружено актуальных записей для создания таблицы"
 
-          Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv managerState.Manager.ChatId text 5000
+          ctx.Notify managerState.Manager.ChatId text 5000
 
           UpdateMessage.ReRender |> ctx.Dispatch)
 
@@ -462,20 +416,30 @@ module View =
 
       let managerMenuDeletionAllItemRecords ctx office =
         Keyboard.createSingle "Списать все записи" (fun _ ->
-          match Cache.tryDeletionDeletionItemsOfOffice ctx.AppEnv office.OfficeId with
-          | True ->
-            let text = "Операция прошла успешно"
+          let items =
+            Repository.deletionItems ctx.AppEnv 
+            |> Map.toList 
+            |> List.map snd
+            |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> not item.IsHidden && item.IsReadyToDeletion && not item.IsDeletion)
+            |> List.filter (DeletionItem.inspiredItem System.DateTime.Now)
 
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv office.Manager.ChatId text 3000
-          | False ->
-            let text = "Не удалось списать записи, попробуйте попозже"
+          if items.Length > 0 then
+            let updatedItems = List.map (fun item -> { item with DeletionItem.IsDeletion = true }) items
+            match Repository.tryUpdateDeletionItems ctx.AppEnv updatedItems with
+            | true ->
+              let text = "Операция прошла успешно"
 
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv office.Manager.ChatId text 5000
+              ctx.Notify office.Manager.ChatId text 3000
+            | false ->
+              let text = "Не удалось списать записи, попробуйте попозже"
 
-          | Partial ->
+              ctx.Notify office.Manager.ChatId text 5000
+
+          else
             let text = "Нет записей для списания"
 
-            Utils.sendMessageAndDeleteAfterDelay ctx.AppEnv office.Manager.ChatId text 5000
+            ctx.Notify office.Manager.ChatId text 5000
 
           ctx.Dispatch UpdateMessage.ReRender)
 
@@ -553,11 +517,11 @@ module View =
               Keyboard.hideDeletionItem ctx employerState item
             ctx.BackCancelKeyboard ]
 
-      let renderOffices ctx offices onClick =
+      let renderOffices ctx (offices: OfficesMap) onClick =
         RenderView.create
           "Выберите офис из списка"
           [ for office in offices do
-              Keyboard.renderOffice office (onClick office)
+              Keyboard.renderOffice office.Value (onClick office.Value)
             ctx.BackCancelKeyboard ]
 
       let employerAuthAskingFinish ctx (employer: Types.Employer) onClick =
@@ -584,18 +548,18 @@ module View =
             Keyboard.noAuthEmployer ctx
             ctx.BackCancelKeyboard ]
 
-      let deAuthEmployers ctx managerState employers =
+      let deAuthEmployers ctx managerState (employers: EmployersMap) =
         RenderView.create
           "Выберите сотрудника для которого хотите убрать авторизацию"
           [ for employer in employers do
-              Keyboard.deAuthEmployer ctx managerState employer
+              Keyboard.deAuthEmployer ctx managerState employer.Value
             ctx.BackCancelKeyboard ]
 
-      let authEmployers ctx managerState employers =
+      let authEmployers ctx managerState (employers: EmployersMap) =
         RenderView.create
           "Выберите сотрудника которого хотите авторизовать"
           [ for employer in employers do
-              Keyboard.authEmployer ctx managerState employer
+              Keyboard.authEmployer ctx managerState employer.Value
             ctx.BackCancelKeyboard ]
 
       let managerMenuInOffice ctx managerState (office: Office) asEmployerState =
@@ -634,10 +598,12 @@ module View =
   module private ViewEmployer =
 
     let waitChoice ctx employerState =
+      
+      let employer = Repository.tryEmployerByChatId ctx.AppEnv employerState.Employer.ChatId
 
-      if Cache.isApprovedEmployer ctx.AppEnv employerState.Employer then
+      if employer.IsSome && employer.Value.IsApproved then
 
-        Forms.RenderView.approvedEmployerMenu ctx employerState []
+        Forms.RenderView.approvedEmployerMenu ctx {employerState with EmployerContext.Employer = employer.Value } []
       else
 
         Forms.RenderView.waitingApproveEmployerMenu ctx []
@@ -645,19 +611,15 @@ module View =
     let editDeletionItems ctx employerState =
 
       let items =
+        
+        let currentTime = System.DateTime.Now
 
-        query {
-          for item in Cache.getDeletionItems ctx.AppEnv do
-            where (
-              item.Employer.ChatId = employerState.Employer.ChatId
-              && item.Inspired() |> not
-              && item.IsDeletion |> not
-              && item.IsHidden |> not
-            )
-
-            select item
-        }
-        |> List.ofSeq
+        Repository.deletionItems ctx.AppEnv
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun item -> item.Employer.Office.OfficeId = employerState.Employer.Office.OfficeId)
+        |> List.filter (fun item -> not item.IsHidden && not item.IsReadyToDeletion && not item.IsDeletion)
+        |> List.filter (fun item -> DeletionItem.inspiredItem currentTime item |> not)
 
       if items.Length < 1 then
         RenderView.create
@@ -711,7 +673,7 @@ module View =
     module AuthProcess =
 
       let enteringOffice ctx =
-        let offices = Cache.getOffices ctx.AppEnv
+        let offices = Repository.offices ctx.AppEnv
 
         let onClick office _ =
           office
@@ -719,7 +681,7 @@ module View =
           |> UpdateMessage.AuthEmployerChange
           |> ctx.Dispatch
 
-        if offices.Length > 0 then
+        if offices.Count > 0 then
           Forms.RenderView.renderOffices ctx offices onClick []
         else
           RenderView.create "Нет офисов" [ ctx.BackCancelKeyboard ] []
@@ -794,25 +756,15 @@ module View =
 
     let deAuthEmployers ctx managerState =
       let employers =
-        query {
-          for employer in Cache.getEmployers ctx.AppEnv do
-            where (Cache.isApprovedEmployer ctx.AppEnv employer)
-            select employer
-        }
+        Repository.employers ctx.AppEnv
+        |> Map.filter (fun _ employer -> employer.IsApproved)
 
       Forms.RenderView.deAuthEmployers ctx managerState employers []
 
     let authEmployers ctx managerState =
       let employers =
-        query {
-          for employer in Cache.getEmployers ctx.AppEnv do
-            where (
-              Cache.isApprovedEmployer ctx.AppEnv employer
-              |> not
-            )
-
-            select employer
-        }
+        Repository.employers ctx.AppEnv
+        |> Map.filter (fun _ employer -> not employer.IsApproved)
 
       Forms.RenderView.authEmployers ctx managerState employers []
 
@@ -877,7 +829,8 @@ module View =
     let ctx =
       { Dispatch = dispatch
         BackCancelKeyboard = backCancelKeyboard
-        AppEnv = env }
+        AppEnv = env
+        Notify = Utils.sendMessageAndDeleteAfterDelay env }
 
     match model.Model with
     | CoreModel.Error message -> Forms.RenderView.coreModelCatchError ctx message []

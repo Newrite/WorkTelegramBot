@@ -53,6 +53,7 @@
 
   <ItemGroup>
     <PackageReference Include="Donald" Version="7.1.0" />
+    <PackageReference Include="FsExcel" Version="0.0.37" />
     <PackageReference Include="FSharp.Json" Version="0.4.1" />
     <PackageReference Include="FSharp.UMX" Version="1.1.0" />
     <PackageReference Include="Funogram.Telegram" Version="6.1.0.2" />

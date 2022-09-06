@@ -9,8 +9,7 @@ namespace WorkTelegram.Telegram
             markup: Funogram.Telegram.Types.Markup ->
             Result<Funogram.Telegram.Types.Message,
                    Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val sendMessage:
           env: 'a ->
@@ -18,8 +17,7 @@ namespace WorkTelegram.Telegram
             text: string ->
             Result<Funogram.Telegram.Types.Message,
                    Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val editMessageTextBase:
           env: 'a ->
@@ -27,8 +25,7 @@ namespace WorkTelegram.Telegram
             text: string ->
             Result<Funogram.Telegram.Types.EditMessageResult,
                    Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val editMessageTextBaseMarkup:
           env: 'a ->
@@ -37,21 +34,18 @@ namespace WorkTelegram.Telegram
             markup: Funogram.Telegram.Types.InlineKeyboardMarkup ->
             Result<Funogram.Telegram.Types.EditMessageResult,
                    Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val deleteMessageBase:
           env: 'a ->
             message: Core.Types.TelegramMessage ->
             Result<bool,Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val sendMessageAndDeleteAfterDelay:
           env: 'a ->
             chatId: Core.UMX.ChatId -> text: string -> delay: int -> unit
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val sendDocument:
           env: 'a ->
@@ -60,14 +54,12 @@ namespace WorkTelegram.Telegram
             fileStream: System.IO.Stream ->
             Result<Funogram.Telegram.Types.Message,
                    Funogram.Types.ApiResponseError>
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
         
         val sendDocumentAndDeleteAfterDelay:
           env: 'a ->
             chatId: Core.UMX.ChatId ->
             fileName: string ->
             fileStream: System.IO.Stream -> delay: int -> unit
-            when 'a :> Infrastructure.AppEnv.ICfg<'b> and
-                 'a :> Infrastructure.AppEnv.ILog
+            when 'a :> Infrastructure.ICfg<'b> and 'a :> Infrastructure.ILog
 

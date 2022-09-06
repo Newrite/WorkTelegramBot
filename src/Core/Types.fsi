@@ -63,8 +63,12 @@ namespace WorkTelegram.Core
         type AppError =
             | DatabaseError of Donald.DbError
             | BusinessError of BusinessError
+            | Bug of System.Exception
         
         module ErrorPatterns =
+            
+            val (|ErrBugSomeThrowException|_|) :
+              error: AppError -> System.Exception option
             
             module DatabasePatterns =
                 
@@ -246,8 +250,6 @@ namespace WorkTelegram.Core
               Employer: Employer
             }
             
-            member Inspired: unit -> bool
-            
             override ToString: unit -> string
         
         module DeletionItem =
@@ -257,4 +259,19 @@ namespace WorkTelegram.Core
                 count: PositiveInt ->
                 location: UMX.Location option ->
                 employer: Employer -> DeletionItem
+            
+            val createExcelTableFromItemsAsByte:
+              items: seq<DeletionItem> -> byte[]
+            
+            val inspiredItem:
+              currentTime: System.DateTime -> item: DeletionItem -> bool
+            
+            val readyToDeletionItem: item: DeletionItem -> bool
+            
+            val hiddenItem: item: DeletionItem -> bool
+            
+            val notHiddenItem: item: DeletionItem -> bool
+            
+            val itemToDeletion:
+              currentTime: System.DateTime -> item: DeletionItem -> bool
 

@@ -63,11 +63,11 @@ module Update =
       |> CoreModel.Manager
       |> model.Transform
     | UpdateMessage.FinishDeletionProcess (state, rDeletionItem) ->
-      match Cache.tryAddDeletionItem env rDeletionItem with
-      | Some _ ->
+      match Repository.tryAddDeletionItem env rDeletionItem with
+      | true ->
         let text = "Позиция успешно добавлена в базу данных"
         Utils.sendMessageAndDeleteAfterDelay env state.Employer.ChatId text 5000
-      | None ->
+      | false ->
         let text =
           "Добавление позиции в базу данных не удалось, 
               предположительно база данных недоступна, попробуйте позже"
@@ -84,21 +84,21 @@ module Update =
       |> CoreModel.Manager
       |> model.Transform
     | UpdateMessage.FinishManagerAuth manager ->
-      match Cache.tryAddManager env manager with
-      | Some _ ->
+      match Repository.tryAddManager env manager with
+      | true ->
         let text = "Аутентификация прошла успешно"
         Utils.sendMessageAndDeleteAfterDelay env %manager.ChatId text 5000
-      | None ->
+      | false ->
         let text = "Провести аутентификацию не удалось, попробуйте попозже"
         Utils.sendMessageAndDeleteAfterDelay env %manager.ChatId text 3000
 
       callInitModelFunction ()
     | UpdateMessage.FinishMakeOfficeProcess office ->
-      match Cache.tryAddOffice env office with
-      | Some _ ->
+      match Repository.tryAddOffice env office with
+      | true ->
         let text = "Офис успешно создан"
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 5000
-      | None ->
+      | false ->
         let text = "Произошла ошибка при создании офиса, попробуйте попозже"
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
 
@@ -111,11 +111,11 @@ module Update =
       else
         model
     | UpdateMessage.FinishEmployerAuth employer ->
-      match Cache.tryAddEmployer env employer with
-      | Some _ ->
+      match Repository.tryAddEmployer env employer with
+      | true ->
         let text = "Аутентификация прошла успешно"
         Utils.sendMessageAndDeleteAfterDelay env %employer.ChatId text 5000
-      | None ->
+      | false ->
         let text = "Провести аутентификацию не удалось, попробуйте попозже"
         Utils.sendMessageAndDeleteAfterDelay env %employer.ChatId text 3000
 

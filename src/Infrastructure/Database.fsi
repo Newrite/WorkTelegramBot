@@ -1,5 +1,13 @@
 namespace WorkTelegram.Infrastructure
     
+    type IDatabase =
+        
+        abstract Conn: Microsoft.Data.Sqlite.SqliteConnection
+    
+    type IDb =
+        
+        abstract Db: IDatabase
+    
     module Database =
         
         exception private DatabaseVersionTableNotExistException of string
@@ -12,10 +20,9 @@ namespace WorkTelegram.Infrastructure
         
         exception private DatabaseTryReadDatabaseVersionTableException of Donald.DbError
         
-        val dbConn: env: #AppEnv.IDb -> Microsoft.Data.Sqlite.SqliteConnection
+        val dbConn: env: #IDb -> Microsoft.Data.Sqlite.SqliteConnection
         
-        val IDbBuilder:
-          conn: Microsoft.Data.Sqlite.SqliteConnection -> AppEnv.IDb
+        val IDbBuilder: conn: Microsoft.Data.Sqlite.SqliteConnection -> IDb
         
         [<Literal>]
         val DbVersionTable: string = "DB_VERSION"
@@ -27,25 +34,26 @@ namespace WorkTelegram.Infrastructure
         
         val private schema: string
         
-        [<Literal>]
-        val ACTUAL_VERISON: int64 = 2L
+        [<Struct>]
+        type DatabaseVersions =
+            | FirstVersion = 1
+            | ActualVersion = 2
         
         val private selectVersion:
-          envDb: AppEnv.IDb -> envLog: AppEnv.ILog -> int64 option
+          envDb: IDb -> envLog: ILog -> DatabaseVersions option
         
-        val private versionHandler:
-          envDb: AppEnv.IDb -> envLog: AppEnv.ILog -> unit
+        val private versionHandler: envDb: IDb -> envLog: ILog -> unit
         
         val createConnection:
-          env: AppEnv.ILog ->
+          env: ILog ->
             databaseName: string -> Microsoft.Data.Sqlite.SqliteConnection
         
-        val initTables: envDb: AppEnv.IDb -> envLog: AppEnv.ILog -> int
+        val initTables: envDb: IDb -> envLog: ILog -> int
         
         val private stringOrNull: opt: string option -> Donald.SqlType
         
         val private genericSelectMany:
-          env: AppEnv.IDb ->
+          env: IDb ->
             tableName: string ->
             ofDataReader: (System.Data.IDataReader -> 'a) ->
             Result<'a list,Core.Types.AppError>
@@ -58,98 +66,93 @@ namespace WorkTelegram.Infrastructure
             Result<'a list,Core.Types.AppError>
         
         val private genericSelectSingle:
-          env: AppEnv.IDb ->
+          env: IDb ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams ->
             ofDataReader: (System.Data.IDataReader -> 'a) ->
             Result<'a,Core.Types.AppError>
         
         val private transactionSingleExn:
-          env: #AppEnv.IDb ->
+          env: #IDb ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams -> Result<unit,Core.Types.AppError>
         
         val private transactionManyExn:
-          env: #AppEnv.IDb ->
+          env: #IDb ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams list ->
             Result<unit,Core.Types.AppError>
         
         val selectTelegramMessages:
-          env: AppEnv.IDb ->
-            Result<Core.TelegramMessageDto list,Core.Types.AppError>
+          env: IDb -> Result<Core.TelegramMessageDto list,Core.Types.AppError>
         
         val selectManagers:
-          env: AppEnv.IDb -> Result<Core.ManagerDto list,Core.Types.AppError>
+          env: IDb -> Result<Core.ManagerDto list,Core.Types.AppError>
         
         val selectOffices:
-          env: AppEnv.IDb -> Result<Core.OfficeDto list,Core.Types.AppError>
+          env: IDb -> Result<Core.OfficeDto list,Core.Types.AppError>
         
         val selectEmployers:
-          env: AppEnv.IDb -> Result<Core.EmployerDto list,Core.Types.AppError>
+          env: IDb -> Result<Core.EmployerDto list,Core.Types.AppError>
         
         val selectDeletionItems:
-          env: AppEnv.IDb ->
-            Result<Core.DeletionItemDto list,Core.Types.AppError>
+          env: IDb -> Result<Core.DeletionItemDto list,Core.Types.AppError>
         
         val insertTelegramMessage:
-          env: AppEnv.IDb ->
+          env: IDb ->
             messageDto: Core.TelegramMessageDto ->
             Result<unit,Core.Types.AppError>
         
         val insertManager:
-          env: AppEnv.IDb ->
+          env: IDb ->
             managerDto: Core.ManagerDto -> Result<unit,Core.Types.AppError>
         
         val insertOffice:
-          env: AppEnv.IDb ->
+          env: IDb ->
             officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
         
         val insertEmployer:
-          env: AppEnv.IDb ->
+          env: IDb ->
             employerDto: Core.EmployerDto -> Result<unit,Core.Types.AppError>
         
         val insertDeletionItem:
-          env: AppEnv.IDb ->
+          env: IDb ->
             deletionItemDto: Core.DeletionItemDto ->
             Result<unit,Core.Types.AppError>
         
-        val updateEmployerApprovedByChatId:
-          env: AppEnv.IDb ->
-            chatIdDto: Core.ChatIdDto ->
-            isApproved: bool -> Result<unit,Core.Types.AppError>
+        val updateEmployer:
+          env: IDb ->
+            employerDto: Core.EmployerDto -> Result<unit,Core.Types.AppError>
         
-        val updateOfficeManagerId:
-          env: AppEnv.IDb ->
-            officeId: int64 ->
-            managerId: int64 -> Result<unit,Core.Types.AppError>
+        val updateOffice:
+          env: IDb ->
+            officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
         
-        val deletionDeletionitemsOfOffice:
-          env: AppEnv.IDb ->
-            officeId: System.Guid -> Result<unit,Core.Types.AppError>
+        val updateDeletionItems:
+          env: IDb ->
+            deletionItemsDtos: Core.DeletionItemDto list ->
+            Result<unit,Core.Types.AppError>
         
-        val hideDeletionItem:
-          env: AppEnv.IDb ->
-            deletionId: System.Guid -> Result<unit,Core.Types.AppError>
-        
-        val setReadyToDeletionOfficeItems:
-          env: AppEnv.IDb ->
-            officeId: System.Guid -> Result<unit,Core.Types.AppError>
+        val updateDeletionItem:
+          env: IDb ->
+            deletionItemDto: Core.DeletionItemDto ->
+            Result<unit,Core.Types.AppError>
         
         val updateTelegramMessage:
-          env: AppEnv.IDb ->
+          env: IDb ->
             messageDto: Core.TelegramMessageDto ->
             Result<unit,Core.Types.AppError>
         
         val deleteOffice:
-          env: AppEnv.IDb ->
-            officeId: System.Guid -> Result<unit,Core.Types.AppError>
+          env: IDb ->
+            officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
         
         val deleteTelegramMessage:
-          env: AppEnv.IDb ->
-            chatIdDto: Core.ChatIdDto -> Result<unit,Core.Types.AppError>
+          env: IDb ->
+            messageDto: Core.TelegramMessageDto ->
+            Result<unit,Core.Types.AppError>
         
         val insertChatId:
-          env: AppEnv.IDb ->
+          env: IDb ->
             chatIdDto: Core.ChatIdDto -> Result<unit,Core.Types.AppError>
 
