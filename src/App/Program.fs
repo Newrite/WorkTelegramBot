@@ -112,6 +112,8 @@ let main _ =
         |> Elmish.Program.withState getState setState delState
         |> Elmish.Program.startProgram botUpdate
 
+      Async.RunSynchronously(asyncProgram, cancellationToken = cts.Token)
+
     with
     | exn ->
 
