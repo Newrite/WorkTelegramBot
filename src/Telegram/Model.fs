@@ -72,7 +72,6 @@ module Model =
 
   open FSharp.UMX
   open Funogram.Telegram.Types
-  open WorkTelegram.Infrastructure
 
   exception private NegativeOfficesCountException of string
 
@@ -141,8 +140,8 @@ module Model =
           { History = history
             Model = CoreModel.Auth AuthProcess.AuthModel.NoAuth }
 
-      match Database.insertChatId env { ChatId = message.Chat.Id } with
-      | Result.Ok _ -> startInit ()
-      | Result.Error err ->
+      match Repository.tryAddChatId env %message.Chat.Id with
+      | true -> startInit ()
+      | false ->
         { History = history
-          Model = CoreModel.Error(string err) }
+          Model = CoreModel.Error("Произошла ошибка при инициализации, попробуйте еще раз позже.") }
