@@ -1,5 +1,17 @@
 ﻿namespace WorkTelegram.Infrastructure
 
+[<Interface>]
+type ILogger =
+  abstract Error: string -> unit
+  abstract Warning: string -> unit
+  abstract Fatal: string -> unit
+  abstract Debug: string -> unit
+  abstract Info: string -> unit
+
+[<Interface>]
+type ILog =
+  abstract Logger: ILogger
+
 module Logger =
 
   let debug (env: #ILog) fmt = Printf.kprintf env.Logger.Debug fmt
@@ -15,7 +27,7 @@ module Logger =
   let ILogBuilder info warning error fatal debug =
     { new ILog with
         member _.Logger =
-          { new IAppLogger with
+          { new ILogger with
               member _.Error str = error str
               member _.Info str = info str
               member _.Warning str = warning str

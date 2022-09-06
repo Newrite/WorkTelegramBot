@@ -41,19 +41,19 @@ jobs:
       - name: Publish
         run: |
           cd ./src/App
-          dotnet publish -c Release  -r linux-arm -p:PublishSingleFile=true --self-contained true -p:PublishedTrimmed=false
+          dotnet publish -c Release  -r linux-x64 -p:PublishSingleFile=true --self-contained true -p:PublishedTrimmed=true
 
       #- name: Test
       #  run: dotnet test --no-restore --verbosity normal
 
       - name: Deploy
-        if: steps.changed-files.outputs.any_changed  == 'true'
+         if: steps.changed-files.outputs.any_changed  == 'true'
         uses: mdallasanta/ssh-scp-deploy@v1.2.0
         with:
-          local: '${{ github.workspace }}/src/App/bin/Release/net6.0/linux-arm/publish/*'                          
-          remote: "/home/newrite/WorkTelegramBot/${{ github.ref_name }}"                            
+          local: '${{ github.workspace }}/src/App/bin/Release/net6.0/linux-x64/publish/*'                          
+          remote: "/home/bot/${{ github.ref_name }}"                            
           host: '${{ secrets.SERVER_IP }}'                        
           port: '${{ secrets.SSH_REMOTE_PORT }}'                     
-          user: 'newrite'                                     
-          password: ${{ secrets.PASSWORD_SFTP }}               
+          user: '${{ secrets.SSH_USERNAME }}'                                     
+          password: ${{ secrets.PASSWORD_SSH }}               
          

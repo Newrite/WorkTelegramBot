@@ -55,7 +55,7 @@ namespace WorkTelegram.Telegram
         type ManagerModel =
             | NoOffices
             | MakeOffice of MakeOffice
-            | ChooseOffice of Core.Types.Office list
+            | ChooseOffice of Infrastructure.OfficesMap
             | InOffice of Core.Types.Office
             | AuthEmployers of Core.Types.Office
             | DeAuthEmployers of Core.Types.Office
@@ -87,12 +87,13 @@ namespace WorkTelegram.Telegram
             }
             
             static member
-              Init: env: 'a -> message: Funogram.Telegram.Types.Message
-                      -> ModelContext<CoreModel>
-                      when 'a :> Infrastructure.AppEnv.ILog and
+              Init: env: 'a ->
+                      message: Core.Types.TelegramMessage ->
+                      ModelContext<CoreModel>
+                      when 'a :> Infrastructure.ILog and
                            'a :>
-                                Infrastructure.AppEnv.ICache<Infrastructure.CacheCommand> and
-                           'a :> Infrastructure.AppEnv.IDb
+                                Infrastructure.IRep<Infrastructure.CacheCommand> and
+                           'a :> Infrastructure.IDb
             
             member Transform: model: CoreModel -> ModelContext<'Model>
 

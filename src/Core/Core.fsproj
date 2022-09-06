@@ -8,10 +8,16 @@
     <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>True</EnableNETAnalyzers>
     <AnalysisLevel>6.0-all</AnalysisLevel>
-    <Platforms>AnyCPU</Platforms>
+    <Platforms>AnyCPU;x86</Platforms>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <WarningLevel>5</WarningLevel>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <OtherFlags>--allsigs</OtherFlags>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <WarningLevel>5</WarningLevel>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <OtherFlags>--allsigs</OtherFlags>
@@ -28,6 +34,12 @@
     <OtherFlags>--allsigs</OtherFlags>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+    <WarningLevel>5</WarningLevel>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <OtherFlags>--allsigs</OtherFlags>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM32'">
     <WarningLevel>5</WarningLevel>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
@@ -35,21 +47,21 @@
 
   <ItemGroup>
     <Compile Include="SharedExtension.fs" />
-    <Compile Include="Extensions.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="DataTranferObjects.fs" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Donald" Version="7.1.0" />
+    <PackageReference Include="FsExcel" Version="0.0.37" />
     <PackageReference Include="FSharp.Json" Version="0.4.1" />
     <PackageReference Include="FSharp.UMX" Version="1.1.0" />
-    <PackageReference Include="Funogram.Telegram" Version="4.4.2.4" />
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.5" />
+    <PackageReference Include="Funogram.Telegram" Version="6.1.0.2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.8" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="6.0.4" />
+    <PackageReference Update="FSharp.Core" Version="6.0.5" />
   </ItemGroup>
 
 </Project>

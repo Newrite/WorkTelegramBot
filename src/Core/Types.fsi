@@ -63,8 +63,12 @@ namespace WorkTelegram.Core
         type AppError =
             | DatabaseError of Donald.DbError
             | BusinessError of BusinessError
+            | Bug of System.Exception
         
         module ErrorPatterns =
+            
+            val (|ErrBugSomeThrowException|_|) :
+              error: AppError -> System.Exception option
             
             module DatabasePatterns =
                 
@@ -151,8 +155,9 @@ namespace WorkTelegram.Core
         module ItemWithMacAddress =
             
             val create:
-              name: UMX.ItemName -> serial: UMX.Serial -> macaddress: MacAddress
-                -> ItemWithMacAddress
+              name: UMX.ItemName ->
+                serial: UMX.Serial ->
+                macaddress: MacAddress -> ItemWithMacAddress
         
         type ItemWithOnlyName =
             { Name: UMX.ItemName }
@@ -179,14 +184,15 @@ namespace WorkTelegram.Core
               name: UMX.ItemName -> serial: UMX.Serial -> Item
             
             val createWithMacAddress:
-              name: UMX.ItemName -> serial: UMX.Serial -> macaddress: MacAddress
-                -> Item
+              name: UMX.ItemName ->
+                serial: UMX.Serial -> macaddress: MacAddress -> Item
             
             val createWithOnlyName: name: UMX.ItemName -> Item
             
             val create:
-              name: UMX.ItemName -> serial: UMX.Serial option
-              -> macaddress: MacAddress option -> Item
+              name: UMX.ItemName ->
+                serial: UMX.Serial option ->
+                macaddress: MacAddress option -> Item
         
         type Manager =
             {
@@ -219,14 +225,15 @@ namespace WorkTelegram.Core
         module Employer =
             
             val create:
-              firstName: UMX.FirstName -> lastName: UMX.LastName
-              -> office: Office -> chatId: UMX.ChatId -> Employer
+              firstName: UMX.FirstName ->
+                lastName: UMX.LastName ->
+                office: Office -> chatId: UMX.ChatId -> Employer
         
         module Manager =
             
             val create:
-              chatId: UMX.ChatId -> firstName: UMX.FirstName
-              -> lastName: UMX.LastName -> Manager
+              chatId: UMX.ChatId ->
+                firstName: UMX.FirstName -> lastName: UMX.LastName -> Manager
             
             val asEmployer: manager: Manager -> office: Office -> Employer
         
@@ -239,6 +246,7 @@ namespace WorkTelegram.Core
               IsDeletion: bool
               IsHidden: bool
               Location: UMX.Location option
+              IsReadyToDeletion: bool
               Employer: Employer
             }
             
@@ -249,6 +257,23 @@ namespace WorkTelegram.Core
         module DeletionItem =
             
             val create:
-              item: Item -> count: PositiveInt -> location: UMX.Location option
-              -> employer: Employer -> DeletionItem
+              item: Item ->
+                count: PositiveInt ->
+                location: UMX.Location option ->
+                employer: Employer -> DeletionItem
+            
+            val createExcelTableFromItemsAsByte:
+              items: seq<DeletionItem> -> byte[]
+            
+            val inspiredItem:
+              currentTime: System.DateTime -> item: DeletionItem -> bool
+            
+            val readyToDeletionItem: item: DeletionItem -> bool
+            
+            val hiddenItem: item: DeletionItem -> bool
+            
+            val notHiddenItem: item: DeletionItem -> bool
+            
+            val itemToDeletion:
+              currentTime: System.DateTime -> item: DeletionItem -> bool
 

@@ -15,10 +15,12 @@ let main _ =
 
   let tgToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
 
+  let logFile = "WorkTelegramBotLog.txt"
+
   let logger =
     LoggerConfiguration()
       .WriteTo.Console()
-      .WriteTo.File("WorkTelegramBotLog.txt")
+      .WriteTo.File(logFile)
       .MinimumLevel.Verbose()
       .CreateLogger()
 
@@ -31,11 +33,17 @@ let main _ =
     let conn = Database.createConnection iLog databaseName
     Database.IDbBuilder conn
 
-  let iCache =
-    let mailbox =
-      MailboxProcessor.Start(Cache.cacheActor { Logger = iLog; Database = iDb })
+  Database.initTables iDb iLog |> ignore
 
-    Cache.ICacheBuilder mailbox
+
+  let iRep =
+    
+    let cache = Cache.initializationCache iLog iDb Repository.errorHandler
+
+    let cacheAgent = Agent.MakeAndStartDefault(Cache.cacheAgent cache)
+
+
+    Repository.IRepBuilder cacheAgent
     
   let mutable cts = new CancellationTokenSource()
     
@@ -46,21 +54,17 @@ let main _ =
         Cancel async token"
     cts.Cancel()
     
-  let iCfg = Configurer.IConfigurerBuilder { defaultConfig with Token = tgToken; OnError = onError }
+  let iCfg = Configurer.IConfigurerBuilder { Config.defaultConfig with Token = tgToken; OnError = onError } (Elmish.ElmishProcessorDict<_>())
 
-  let env = IAppEnvBuilder iLog.Logger iDb.Db iCache.Cache iCfg.Configurer
-
-  Database.initTables env |> ignore
+  let env = IAppEnvBuilder iLog.Logger iDb.Db iRep.Repository iCfg.Configurer
 
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"
-         Description = "Что бы начать взаимодействие с ботом выберите эту комманду" }
-       { Command = "/restart"
-         Description = "Что бы перезапустить работу с ботом выберите эту комманду" }
+         Description = "Что бы начать взаимодействие с ботом либо перезапустить его выберите эту комманду" }
        { Command = "/finish"
          Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" } |]
 
-  Funogram.Telegram.Api.setMyCommands commands
+  Funogram.Telegram.Req.SetMyCommands.Make commands
   |> Funogram.Api.api env.Configurer.BotConfig
   |> Async.RunSynchronously
   |> function
@@ -87,15 +91,17 @@ let main _ =
 
     try
 
-      let getState = fun () -> Cache.getTelegramMessages env
+      let getState = fun () -> Repository.messages env
 
-      let setState message =
-        Cache.tryAddOrUpdateTelegramMessage env message
-        |> ignore
+      let setState (message: TelegramMessage) =
+        let messages = getState()
+        if messages.ContainsKey(%message.Chat.Id) then
+          Repository.tryUpdateMessage env message |> ignore
+        else
+          Repository.tryAddMessage env message |> ignore
 
       let delState (message: TelegramMessage) =
-        Cache.tryDeleteTelegramMessage env %message.Chat.Id
-        |> ignore
+        Repository.tryDeleteMessage env message |> ignore
 
       let view = View.view env
       let update = Update.update env
@@ -104,8 +110,7 @@ let main _ =
       let asyncProgram =
         Elmish.Program.mkProgram env view update init
         |> Elmish.Program.withState getState setState delState
-        |> Elmish.Program.startProgram env.Configurer.BotConfig botUpdate
-      Async.RunSynchronously(asyncProgram, cancellationToken = cts.Token)
+        |> Elmish.Program.startProgram botUpdate
 
     with
     | exn ->
