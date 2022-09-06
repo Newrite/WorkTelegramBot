@@ -35,11 +35,13 @@ let main _ =
 
   Database.initTables iDb iLog |> ignore
 
+
   let iRep =
     
     let cache = Cache.initializationCache iLog iDb Repository.errorHandler
 
     let cacheAgent = Agent.MakeAndStartDefault(Cache.cacheAgent cache)
+
 
     Repository.IRepBuilder cacheAgent
     
@@ -109,7 +111,6 @@ let main _ =
         Elmish.Program.mkProgram env view update init
         |> Elmish.Program.withState getState setState delState
         |> Elmish.Program.startProgram botUpdate
-      Async.RunSynchronously(asyncProgram, cancellationToken = cts.Token)
 
     with
     | exn ->

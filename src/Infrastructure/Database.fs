@@ -418,7 +418,7 @@ module Database =
       | Error err -> err |> AppError.DatabaseError |> Error
 
     with exn -> exn |> AppError.Bug |> Error
-
+    
   let selectTelegramMessages env =
     genericSelectMany<TelegramMessageDto>
       env
@@ -645,7 +645,7 @@ module Database =
         Field.DeletionId, SqlType.Guid deletionItemDto.DeletionId ]
 
     transactionSingleExn env sqlCommand sqlParams
-
+    
   let updateTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
       $"UPDATE {TelegramMessageDto.TableName}
@@ -659,6 +659,7 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let deleteOffice env (officeDto: OfficeDto) =
+  
     let sqlCommand =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
@@ -667,7 +668,9 @@ module Database =
 
     transactionSingleExn env sqlCommand sqlParam
 
+
   let deleteTelegramMessage env (messageDto: TelegramMessageDto) =
+
     let sqlCommand =
       $"DELETE FROM {TelegramMessageDto.TableName}
         WHERE {Field.ChatId} = (@{Field.ChatId})"
