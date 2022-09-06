@@ -129,8 +129,9 @@ module Database =
       elif version = DatabaseVersions.FirstVersion then
 
         let nextVersion = enum<DatabaseVersions>(int version + 1)
+        let nextVersionInt = int nextVersion
 
-        Logger.info envLog $"Db version is {version}, try update to {nextVersion} version"
+        Logger.info envLog $"Db version is {version}, try update to {nextVersion} : {nextVersionInt} version"
 
         use tran = conn.TryBeginTransaction()
 
@@ -168,7 +169,7 @@ module Database =
               {Field.OfficeId}, {Field.ChatId}
              FROM {oldDeletionTableName};
              
-            UPDATE {DbVersionTable} SET {DbVersionField} = {int32 nextVersion};"
+            UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersionInt};"
 
         Logger.info
           envLog
