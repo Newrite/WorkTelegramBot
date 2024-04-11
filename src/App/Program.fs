@@ -1,7 +1,6 @@
 ﻿module Main
 
 open System
-open System.Collections
 open WorkTelegram.Core
 open WorkTelegram.Telegram
 open WorkTelegram.Infrastructure
@@ -10,15 +9,6 @@ open Serilog
 open System.Threading
 open Funogram.Telegram.Bot
 open FSharp.UMX
-
-type A() =
-  
-  member self.Printer() = "check"
-  
-type B() =
-  inherit A()
-  
-  member self.Printer() = "no check"
 
 [<EntryPoint>]
 let main _ =
@@ -147,13 +137,5 @@ let main _ =
       appLoop sleepTime
 
   appLoop 1000
-  
-  let add x y = x + y
-  
-  let addTuple(x, y) = x + y
-  
-  let addPartial = add 5
-  
-  let addTuplePartial = addTuple(5)
 
   0
