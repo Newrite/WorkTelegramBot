@@ -56,103 +56,121 @@ namespace WorkTelegram.Infrastructure
           env: IDb ->
             tableName: string ->
             ofDataReader: (System.Data.IDataReader -> 'a) ->
-            Result<'a list,Core.Types.AppError>
+            Result<'a list,WorkTelegram.Core.Types.AppError>
         
         val private genericSelectManyWithWhere:
           conn: System.Data.IDbConnection ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams ->
             ofDataReader: (System.Data.IDataReader -> 'a) ->
-            Result<'a list,Core.Types.AppError>
+            Result<'a list,WorkTelegram.Core.Types.AppError>
         
         val private genericSelectSingle:
           env: IDb ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams ->
             ofDataReader: (System.Data.IDataReader -> 'a) ->
-            Result<'a,Core.Types.AppError>
+            Result<'a,WorkTelegram.Core.Types.AppError>
         
         val private transactionSingleExn:
           env: #IDb ->
             sqlCommand: string ->
-            sqlParam: Donald.RawDbParams -> Result<unit,Core.Types.AppError>
+            sqlParam: Donald.RawDbParams ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val private transactionManyExn:
           env: #IDb ->
             sqlCommand: string ->
             sqlParam: Donald.RawDbParams list ->
-            Result<unit,Core.Types.AppError>
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val selectTelegramMessages:
-          env: IDb -> Result<Core.TelegramMessageDto list,Core.Types.AppError>
+          env: IDb ->
+            Result<WorkTelegram.Core.TelegramMessageDto list,
+                   WorkTelegram.Core.Types.AppError>
         
         val selectManagers:
-          env: IDb -> Result<Core.ManagerDto list,Core.Types.AppError>
+          env: IDb ->
+            Result<WorkTelegram.Core.ManagerDto list,
+                   WorkTelegram.Core.Types.AppError>
         
         val selectOffices:
-          env: IDb -> Result<Core.OfficeDto list,Core.Types.AppError>
+          env: IDb ->
+            Result<WorkTelegram.Core.OfficeDto list,
+                   WorkTelegram.Core.Types.AppError>
         
         val selectEmployers:
-          env: IDb -> Result<Core.EmployerDto list,Core.Types.AppError>
+          env: IDb ->
+            Result<WorkTelegram.Core.EmployerDto list,
+                   WorkTelegram.Core.Types.AppError>
         
         val selectDeletionItems:
-          env: IDb -> Result<Core.DeletionItemDto list,Core.Types.AppError>
+          env: IDb ->
+            Result<WorkTelegram.Core.DeletionItemDto list,
+                   WorkTelegram.Core.Types.AppError>
         
         val insertTelegramMessage:
           env: IDb ->
-            messageDto: Core.TelegramMessageDto ->
-            Result<unit,Core.Types.AppError>
+            messageDto: WorkTelegram.Core.TelegramMessageDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val insertManager:
           env: IDb ->
-            managerDto: Core.ManagerDto -> Result<unit,Core.Types.AppError>
+            managerDto: WorkTelegram.Core.ManagerDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val insertOffice:
           env: IDb ->
-            officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
+            officeDto: WorkTelegram.Core.OfficeDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val insertEmployer:
           env: IDb ->
-            employerDto: Core.EmployerDto -> Result<unit,Core.Types.AppError>
+            employerDto: WorkTelegram.Core.EmployerDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val insertDeletionItem:
           env: IDb ->
-            deletionItemDto: Core.DeletionItemDto ->
-            Result<unit,Core.Types.AppError>
+            deletionItemDto: WorkTelegram.Core.DeletionItemDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val updateEmployer:
           env: IDb ->
-            employerDto: Core.EmployerDto -> Result<unit,Core.Types.AppError>
+            employerDto: WorkTelegram.Core.EmployerDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val updateOffice:
           env: IDb ->
-            officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
+            officeDto: WorkTelegram.Core.OfficeDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val updateDeletionItems:
           env: IDb ->
-            deletionItemsDtos: Core.DeletionItemDto list ->
-            Result<unit,Core.Types.AppError>
+            deletionItemsDtos: WorkTelegram.Core.DeletionItemDto list ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val updateDeletionItem:
           env: IDb ->
-            deletionItemDto: Core.DeletionItemDto ->
-            Result<unit,Core.Types.AppError>
+            deletionItemDto: WorkTelegram.Core.DeletionItemDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val updateTelegramMessage:
           env: IDb ->
-            messageDto: Core.TelegramMessageDto ->
-            Result<unit,Core.Types.AppError>
+            messageDto: WorkTelegram.Core.TelegramMessageDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val deleteOffice:
           env: IDb ->
-            officeDto: Core.OfficeDto -> Result<unit,Core.Types.AppError>
+            officeDto: WorkTelegram.Core.OfficeDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val deleteTelegramMessage:
           env: IDb ->
-            messageDto: Core.TelegramMessageDto ->
-            Result<unit,Core.Types.AppError>
+            messageDto: WorkTelegram.Core.TelegramMessageDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
         
         val insertChatId:
           env: IDb ->
-            chatIdDto: Core.ChatIdDto -> Result<unit,Core.Types.AppError>
+            chatIdDto: WorkTelegram.Core.ChatIdDto ->
+            Result<unit,WorkTelegram.Core.Types.AppError>
 

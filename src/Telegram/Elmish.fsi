@@ -16,6 +16,7 @@ namespace WorkTelegram.Telegram
               Button: Funogram.Telegram.Types.InlineKeyboardButton
             }
         
+        [<RequireQualifiedAccess>]
         module Button =
             
             val create:
@@ -24,8 +25,9 @@ namespace WorkTelegram.Telegram
         
         [<NoComparison; NoEquality>]
         type Keyboard =
-            { Buttons: Button[] }
+            { Buttons: Button array }
         
+        [<RequireQualifiedAccess>]
         module Keyboard =
             
             val create: buttonList: Button list -> Keyboard
@@ -39,10 +41,11 @@ namespace WorkTelegram.Telegram
         type RenderView =
             {
               MessageText: string
-              Keyboards: Keyboard[]
-              MessageHandlers: (Funogram.Telegram.Types.Message -> unit)[]
+              Keyboards: Keyboard array
+              MessageHandlers: (Funogram.Telegram.Types.Message -> unit) array
             }
         
+        [<RequireQualifiedAccess>]
         module RenderView =
             
             val create:
@@ -79,7 +82,7 @@ namespace WorkTelegram.Telegram
         
         type CallInit<'Model> = unit -> 'Model
         
-        type CallGetChatState = unit -> Infrastructure.MessagesMap
+        type CallGetChatState = unit -> WorkTelegram.Infrastructure.MessagesMap
         
         type CallSaveChatState = Funogram.Telegram.Types.Message -> unit
         
@@ -88,15 +91,17 @@ namespace WorkTelegram.Telegram
         [<NoComparison; NoEquality>]
         type Program<'Model,'Message,'CacheCommand,'ElmishCommand> =
             private
-            {
-              Init: (Funogram.Telegram.Types.Message -> 'Model)
-              Update: ('Message -> 'Model -> CallInit<'Model> -> 'Model)
-              View: (Dispatch<'Message> -> 'Model -> RenderView)
-              AppEnv: Infrastructure.IAppEnv<'ElmishCommand,'CacheCommand>
-              GetChatStates: CallGetChatState option
-              SaveChatState: CallSaveChatState option
-              DelChatState: CallDelChatState option
-            }
+              {
+                Init: (Funogram.Telegram.Types.Message -> 'Model)
+                Update: ('Message -> 'Model -> CallInit<'Model> -> 'Model)
+                View: (Dispatch<'Message> -> 'Model -> RenderView)
+                AppEnv:
+                  WorkTelegram.Infrastructure.IAppEnv<'ElmishCommand,
+                                                      'CacheCommand>
+                GetChatStates: CallGetChatState option
+                SaveChatState: CallSaveChatState option
+                DelChatState: CallDelChatState option
+              }
         
         val modelViewUpdateProcessor:
           processorConfig: ProcessorConfig ->
@@ -104,10 +109,11 @@ namespace WorkTelegram.Telegram
             processor: Agent<ProcessorCommands<'b>> ->
             (ProcessorCommands<'b> -> System.Threading.Tasks.Task<unit>)
         
+        [<RequireQualifiedAccess>]
         module Program =
             
             val mkProgram:
-              env: Infrastructure.IAppEnv<'a,'b> ->
+              env: WorkTelegram.Infrastructure.IAppEnv<'a,'b> ->
                 view: (Dispatch<'c> -> 'd -> RenderView) ->
                 update: ('c -> 'd -> CallInit<'d> -> 'd) ->
                 init: (Funogram.Telegram.Types.Message -> 'd) ->

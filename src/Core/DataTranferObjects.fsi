@@ -59,6 +59,7 @@ namespace WorkTelegram.Core
     type ChatIdDto =
         { ChatId: int64 }
     
+    [<RequireQualifiedAccess>]
     module ChatIdDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> ChatIdDto
@@ -76,6 +77,7 @@ namespace WorkTelegram.Core
           MessageJson: string
         }
     
+    [<RequireQualifiedAccess>]
     module TelegramMessageDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> TelegramMessageDto
@@ -94,6 +96,7 @@ namespace WorkTelegram.Core
           LastName: string
         }
     
+    [<RequireQualifiedAccess>]
     module ManagerDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> ManagerDto
@@ -113,6 +116,7 @@ namespace WorkTelegram.Core
           ManagerId: int64
         }
     
+    [<RequireQualifiedAccess>]
     module OfficeDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> OfficeDto
@@ -136,6 +140,7 @@ namespace WorkTelegram.Core
           OfficeId: System.Guid
         }
     
+    [<RequireQualifiedAccess>]
     module EmployerDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> EmployerDto
@@ -168,6 +173,7 @@ namespace WorkTelegram.Core
           ChatId: int64
         }
     
+    [<RequireQualifiedAccess>]
     module DeletionItemDto =
         
         val ofDataReader: rd: System.Data.IDataReader -> DeletionItemDto

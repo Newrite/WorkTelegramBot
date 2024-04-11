@@ -1,11 +1,7 @@
 ﻿namespace WorkTelegram.Infrastructure
 
-open System.Threading.Tasks
-
 open WorkTelegram.Core
-open FSharp.UMX
 open WorkTelegram.Infrastructure
-open WorkTelegram.Core.Field
 
 [<Interface>]
 type IRepository<'CacheCommand> =
