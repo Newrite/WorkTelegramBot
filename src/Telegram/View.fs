@@ -400,6 +400,39 @@ module View =
           ctx.Notify managerState.Manager.ChatId text 5000
 
           UpdateMessage.ReRender |> ctx.Dispatch)
+        
+      let managerMenuGetExcelTableOfAllItems ctx managerState office =
+
+        Keyboard.createSingle "Получить таблицу всех записей" (fun _ ->
+
+          let items = 
+            Repository.deletionItems ctx.AppEnv 
+            |> Map.toList 
+            |> List.map snd
+            |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+
+          if items.Length > 0 then
+            try
+
+              Functions.sendExcelItemsDocumentExn ctx managerState items
+
+            with
+            | exn ->
+              let text = $"Произошла ошибка во время создания таблицы {exn.Message}"
+
+              ctx.Notify managerState.Manager.ChatId text 5000
+
+              Logger.error
+                ctx.AppEnv
+                $"Exception when try send document excel message = {exn.Message}
+                    Trace: {exn.StackTrace}"
+          else
+
+          let text = "Не обнаружено актуальных записей для создания таблицы"
+
+          ctx.Notify managerState.Manager.ChatId text 5000
+
+          UpdateMessage.ReRender |> ctx.Dispatch)
 
       let managerMenuAddEditItemRecord ctx asEmployerState =
         let addButton =
@@ -572,6 +605,7 @@ module View =
             Keyboard.managerMenuOfficesOperations ctx managerState office
             Keyboard.managerMenuAddEditItemRecord ctx asEmployerState
             Keyboard.managerMenuGetExcelTableOfActualItems ctx managerState office
+            Keyboard.managerMenuGetExcelTableOfAllItems ctx managerState office
             Keyboard.managerMenuDeletionAllItemRecords ctx office
             ctx.BackCancelKeyboard ]
 

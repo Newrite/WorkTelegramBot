@@ -9,14 +9,14 @@ namespace WorkTelegram.Infrastructure
         | Managers of System.Threading.Tasks.TaskCompletionSource<ManagersMap>
         | TelegramMessages of
           System.Threading.Tasks.TaskCompletionSource<MessagesMap>
-        | RemoveOffice of Core.Types.Office
-        | RemoveTelegramMessage of Core.Types.TelegramMessage
-        | UpdateOrAddOffice of Core.Types.Office
-        | UpdateOrAddEmployer of Core.Types.Employer
-        | UpdateOrAddManager of Core.Types.Manager
-        | UpdateOrAddDeletionItem of Core.Types.DeletionItem
-        | UpdateOrAddDeletionItems of Core.Types.DeletionItem list
-        | UpdateOrAddTelegramMessage of Core.Types.TelegramMessage
+        | RemoveOffice of WorkTelegram.Core.Types.Office
+        | RemoveTelegramMessage of WorkTelegram.Core.Types.TelegramMessage
+        | UpdateOrAddOffice of WorkTelegram.Core.Types.Office
+        | UpdateOrAddEmployer of WorkTelegram.Core.Types.Employer
+        | UpdateOrAddManager of WorkTelegram.Core.Types.Manager
+        | UpdateOrAddDeletionItem of WorkTelegram.Core.Types.DeletionItem
+        | UpdateOrAddDeletionItems of WorkTelegram.Core.Types.DeletionItem list
+        | UpdateOrAddTelegramMessage of WorkTelegram.Core.Types.TelegramMessage
     
     [<NoComparison>]
     type Cache =
@@ -33,7 +33,8 @@ namespace WorkTelegram.Infrastructure
         val initializationCache:
           logger: 'a ->
             database: IDb ->
-            errorHandler: ('a -> Core.Types.AppError -> unit) -> Cache
+            errorHandler: ('a -> WorkTelegram.Core.Types.AppError -> unit) ->
+            Cache
         
         val cacheAgent:
           cache: Cache -> (CacheCommand -> System.Threading.Tasks.Task<unit>)

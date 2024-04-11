@@ -7,6 +7,7 @@ namespace WorkTelegram.Infrastructure
         inherit IDb
         inherit ILog
     
+    [<AutoOpen>]
     module AppEnv =
         
         val IAppEnvBuilder:

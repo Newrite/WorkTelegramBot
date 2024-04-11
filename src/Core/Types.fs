@@ -441,6 +441,10 @@ module Types =
         Employer = employer }
 
     let createExcelTableFromItemsAsByte items =
+      
+      // let t = DateTime.UtcNow.Ticks
+      // let ti = DateTime
+      
       let headers =
         [ "Имя"
           "Серийный номер"

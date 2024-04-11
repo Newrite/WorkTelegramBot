@@ -5,13 +5,13 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type AuthEmployer =
             | EnteringOffice
-            | EnteringLastFirstName of Core.Types.Office
-            | AskingFinish of Core.Types.Employer
+            | EnteringLastFirstName of WorkTelegram.Core.Types.Office
+            | AskingFinish of WorkTelegram.Core.Types.Employer
         
         [<RequireQualifiedAccess>]
         type AuthManager =
             | EnteringLastFirstName
-            | AskingFinish of Core.Types.Manager
+            | AskingFinish of WorkTelegram.Core.Types.Manager
         
         [<RequireQualifiedAccess>]
         type AuthModel =
@@ -24,11 +24,12 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type Deletion =
             | EnteringName
-            | EnteringMac of Core.Types.ItemWithSerial
-            | EnteringSerial of Core.Types.ItemWithOnlyName
-            | EnteringCount of Core.Types.Item
-            | EnteringLocation of Core.Types.Item * Core.Types.PositiveInt
-            | AskingFinish of Core.Types.DeletionItem
+            | EnteringMac of WorkTelegram.Core.Types.ItemWithSerial
+            | EnteringSerial of WorkTelegram.Core.Types.ItemWithOnlyName
+            | EnteringCount of WorkTelegram.Core.Types.Item
+            | EnteringLocation of
+              WorkTelegram.Core.Types.Item * WorkTelegram.Core.Types.PositiveInt
+            | AskingFinish of WorkTelegram.Core.Types.DeletionItem
         
         [<RequireQualifiedAccess>]
         type EmployerModel =
@@ -38,7 +39,7 @@ namespace WorkTelegram.Telegram
         
         type EmployerContext =
             {
-              Employer: Core.Types.Employer
+              Employer: WorkTelegram.Core.Types.Employer
               Model: EmployerModel
             }
             
@@ -49,25 +50,26 @@ namespace WorkTelegram.Telegram
         [<RequireQualifiedAccess>]
         type MakeOffice =
             | EnteringName
-            | AskingFinish of Core.Types.Office
+            | AskingFinish of WorkTelegram.Core.Types.Office
         
         [<RequireQualifiedAccess>]
         type ManagerModel =
             | NoOffices
             | MakeOffice of MakeOffice
-            | ChooseOffice of Infrastructure.OfficesMap
-            | InOffice of Core.Types.Office
-            | AuthEmployers of Core.Types.Office
-            | DeAuthEmployers of Core.Types.Office
+            | ChooseOffice of WorkTelegram.Infrastructure.OfficesMap
+            | InOffice of WorkTelegram.Core.Types.Office
+            | AuthEmployers of WorkTelegram.Core.Types.Office
+            | DeAuthEmployers of WorkTelegram.Core.Types.Office
         
         type ManagerContext =
             {
-              Manager: Core.Types.Manager
+              Manager: WorkTelegram.Core.Types.Manager
               Model: ManagerModel
             }
             
             member UpdateModel: model: ManagerModel -> ManagerContext
     
+    [<AutoOpen>]
     module Model =
         
         exception private NegativeOfficesCountException of string
@@ -88,12 +90,12 @@ namespace WorkTelegram.Telegram
             
             static member
               Init: env: 'a ->
-                      message: Core.Types.TelegramMessage ->
+                      message: WorkTelegram.Core.Types.TelegramMessage ->
                       ModelContext<CoreModel>
-                      when 'a :> Infrastructure.ILog and
+                      when 'a :> WorkTelegram.Infrastructure.ILog and
                            'a :>
-                                Infrastructure.IRep<Infrastructure.CacheCommand> and
-                           'a :> Infrastructure.IDb
+                                WorkTelegram.Infrastructure.IRep<WorkTelegram.Infrastructure.CacheCommand> and
+                           'a :> WorkTelegram.Infrastructure.IDb
             
             member Transform: model: CoreModel -> ModelContext<'Model>
 

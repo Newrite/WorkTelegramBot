@@ -8,7 +8,6 @@ open System.Threading
 open System.Threading.Tasks
 open System.Threading.Channels
 open System.Collections.Generic
-open System.Threading.Tasks
 
 [<AutoOpen>]
 module Operators =

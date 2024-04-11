@@ -9,63 +9,67 @@ namespace WorkTelegram.Telegram
             {
               Dispatch: (UpdateMessage -> unit)
               BackCancelKeyboard: Elmish.Keyboard
-              AppEnv: Infrastructure.IAppEnv<'ElmishCommand,'CacheCommand>
-              Notify: (Core.UMX.ChatId -> string -> int -> unit)
+              AppEnv:
+                WorkTelegram.Infrastructure.IAppEnv<'ElmishCommand,'CacheCommand>
+              Notify: (WorkTelegram.Core.UMX.ChatId -> string -> int -> unit)
             }
         
+        [<RequireQualifiedAccess>]
         module private Functions =
             
             val sendExcelItemsDocumentExn:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext ->
-                items: Core.Types.DeletionItem list -> unit
+                items: WorkTelegram.Core.Types.DeletionItem list -> unit
             
             val enteringLastFirstNameEmployerMessageHandle:
               ctx: ViewContext<'a,'b> ->
-                office: Core.Types.Office ->
-                message: Core.Types.TelegramMessage -> unit
+                office: WorkTelegram.Core.Types.Office ->
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringOfficeNameMessageHandle:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext ->
-                message: Core.Types.TelegramMessage -> unit
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringLastFirstNameManagerMessageHandle:
               ctx: ViewContext<'a,'b> ->
-                message: Core.Types.TelegramMessage -> unit
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringNameMessageHandle:
               employerState: EmployerProcess.EmployerContext ->
                 ctx: ViewContext<'a,'b> ->
-                message: Core.Types.TelegramMessage -> unit
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringSerialMessageHandle:
               ctx: ViewContext<'a,'b> ->
                 employerState: EmployerProcess.EmployerContext ->
-                item: Core.Types.ItemWithOnlyName ->
-                message: Core.Types.TelegramMessage -> unit
+                item: WorkTelegram.Core.Types.ItemWithOnlyName ->
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringMacAddressMessageHandle:
               ctx: ViewContext<'a,'b> ->
                 employerState: EmployerProcess.EmployerContext ->
-                item: Core.Types.ItemWithSerial ->
-                message: Core.Types.TelegramMessage -> unit
+                item: WorkTelegram.Core.Types.ItemWithSerial ->
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringCountMessageHandleExn:
               ctx: ViewContext<'a,'b> ->
                 employerState: EmployerProcess.EmployerContext ->
-                item: Core.Types.Item ->
-                message: Core.Types.TelegramMessage -> unit
+                item: WorkTelegram.Core.Types.Item ->
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
             
             val enteringLocationMessageHandle:
               ctx: ViewContext<'a,'b> ->
                 employerState: EmployerProcess.EmployerContext ->
-                item: Core.Types.Item ->
-                count: Core.Types.PositiveInt ->
-                message: Core.Types.TelegramMessage -> unit
+                item: WorkTelegram.Core.Types.Item ->
+                count: WorkTelegram.Core.Types.PositiveInt ->
+                message: WorkTelegram.Core.Types.TelegramMessage -> unit
         
+        [<RequireQualifiedAccess>]
         module private Forms =
             
+            [<RequireQualifiedAccess>]
             module Keyboard =
                 
                 val addRecord:
@@ -83,32 +87,36 @@ namespace WorkTelegram.Telegram
                 val withoutSerial:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithOnlyName -> Elmish.Keyboard
+                    item: WorkTelegram.Core.Types.ItemWithOnlyName ->
+                    Elmish.Keyboard
                 
                 val withoutMacAddress:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithSerial -> Elmish.Keyboard
+                    item: WorkTelegram.Core.Types.ItemWithSerial ->
+                    Elmish.Keyboard
                 
                 val withoutLocation:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.Item ->
-                    count: Core.Types.PositiveInt -> Elmish.Keyboard
+                    item: WorkTelegram.Core.Types.Item ->
+                    count: WorkTelegram.Core.Types.PositiveInt ->
+                    Elmish.Keyboard
                 
                 val enterDeletionItemRecord:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    recordedDeletionItem: Core.Types.DeletionItem ->
+                    recordedDeletionItem: WorkTelegram.Core.Types.DeletionItem ->
                     Elmish.Keyboard
                 
                 val hideDeletionItem:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.DeletionItem -> Elmish.Keyboard
+                    item: WorkTelegram.Core.Types.DeletionItem ->
+                    Elmish.Keyboard
                 
                 val renderOffice:
-                  office: Core.Types.Office ->
+                  office: WorkTelegram.Core.Types.Office ->
                     onClick: (Funogram.Telegram.Bot.UpdateContext -> unit) ->
                     Elmish.Keyboard
                 
@@ -121,34 +129,41 @@ namespace WorkTelegram.Telegram
                 val noAuthEmployer: ctx: ViewContext<'a,'b> -> Elmish.Keyboard
                 
                 val deAuthEmployer:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    employer: Core.Types.Employer -> Elmish.Keyboard
+                    employer: WorkTelegram.Core.Types.Employer ->
+                    Elmish.Keyboard
                 
                 val authEmployer:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    employer: Core.Types.Employer -> Elmish.Keyboard
+                    employer: WorkTelegram.Core.Types.Employer ->
+                    Elmish.Keyboard
                 
                 val managerMenuAuthEmployer:
                   ctx: ViewContext<'a,'b> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    office: Core.Types.Office -> Elmish.Keyboard
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val managerMenuDeAuthEmployer:
                   ctx: ViewContext<'a,'b> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    office: Core.Types.Office -> Elmish.Keyboard
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val managerMenuOfficesOperations:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    office: Core.Types.Office -> Elmish.Keyboard
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val managerMenuGetExcelTableOfActualItems:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    office: Core.Types.Office -> Elmish.Keyboard
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                
+                val managerMenuGetExcelTableOfAllItems:
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val managerMenuAddEditItemRecord:
                   ctx: ViewContext<'a,'b> ->
@@ -156,8 +171,8 @@ namespace WorkTelegram.Telegram
                     Elmish.Keyboard
                 
                 val managerMenuDeletionAllItemRecords:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
-                    office: Core.Types.Office -> Elmish.Keyboard
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val startMakeOfficeProcess:
                   ctx: ViewContext<'a,'b> ->
@@ -166,8 +181,10 @@ namespace WorkTelegram.Telegram
                 
                 val createOffice:
                   ctx: ViewContext<'a,'b> ->
-                    recordOffice: Core.Types.Office -> Elmish.Keyboard
+                    recordOffice: WorkTelegram.Core.Types.Office ->
+                    Elmish.Keyboard
             
+            [<RequireQualifiedAccess>]
             module RenderView =
                 
                 val approvedEmployerMenu:
@@ -184,57 +201,57 @@ namespace WorkTelegram.Telegram
                 val delProcessEnteringSerial:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithOnlyName ->
+                    item: WorkTelegram.Core.Types.ItemWithOnlyName ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val delProcessEnteringMacAddress:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithSerial ->
+                    item: WorkTelegram.Core.Types.ItemWithSerial ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val delProcessEnteringLocation:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.Item ->
-                    count: Core.Types.PositiveInt ->
+                    item: WorkTelegram.Core.Types.Item ->
+                    count: WorkTelegram.Core.Types.PositiveInt ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val delProcessAskingFinish:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    recordedDeletionItem: Core.Types.DeletionItem ->
+                    recordedDeletionItem: WorkTelegram.Core.Types.DeletionItem ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val editDeletionItems:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    items: seq<Core.Types.DeletionItem> ->
+                    items: WorkTelegram.Core.Types.DeletionItem seq ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val renderOffices:
                   ctx: ViewContext<'a,'b> ->
-                    offices: Infrastructure.OfficesMap ->
-                    onClick: (Core.Types.Office ->
+                    offices: WorkTelegram.Infrastructure.OfficesMap ->
+                    onClick: (WorkTelegram.Core.Types.Office ->
                                 Funogram.Telegram.Bot.UpdateContext -> unit) ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val employerAuthAskingFinish:
                   ctx: ViewContext<'a,'b> ->
-                    employer: Core.Types.Employer ->
+                    employer: WorkTelegram.Core.Types.Employer ->
                     onClick: (Funogram.Telegram.Bot.UpdateContext -> unit) ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val managerAuthAskingFinish:
                   ctx: ViewContext<'a,'b> ->
-                    manager: Core.Types.Manager ->
+                    manager: WorkTelegram.Core.Types.Manager ->
                     onClick: (Funogram.Telegram.Bot.UpdateContext -> unit) ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
@@ -245,23 +262,23 @@ namespace WorkTelegram.Telegram
                        Elmish.RenderView)
                 
                 val deAuthEmployers:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    employers: Infrastructure.EmployersMap ->
+                    employers: WorkTelegram.Infrastructure.EmployersMap ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val authEmployers:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    employers: Infrastructure.EmployersMap ->
+                    employers: WorkTelegram.Infrastructure.EmployersMap ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
                 val managerMenuInOffice:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
-                    office: Core.Types.Office ->
+                    office: WorkTelegram.Core.Types.Office ->
                     asEmployerState: EmployerProcess.EmployerContext ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
@@ -274,7 +291,7 @@ namespace WorkTelegram.Telegram
                 
                 val finishMakeOffice:
                   ctx: ViewContext<'a,'b> ->
-                    office: Core.Types.Office ->
+                    office: WorkTelegram.Core.Types.Office ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
@@ -284,18 +301,20 @@ namespace WorkTelegram.Telegram
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
         
+        [<RequireQualifiedAccess>]
         module private ViewEmployer =
             
             val waitChoice:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 employerState: EmployerProcess.EmployerContext ->
                 Elmish.RenderView
             
             val editDeletionItems:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 employerState: EmployerProcess.EmployerContext ->
                 Elmish.RenderView
             
+            [<RequireQualifiedAccess>]
             module DeletionProcess =
                 
                 val enteringName:
@@ -306,43 +325,48 @@ namespace WorkTelegram.Telegram
                 val enteringSerial:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithOnlyName -> Elmish.RenderView
+                    item: WorkTelegram.Core.Types.ItemWithOnlyName ->
+                    Elmish.RenderView
                 
                 val enteringMacAddress:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.ItemWithSerial -> Elmish.RenderView
+                    item: WorkTelegram.Core.Types.ItemWithSerial ->
+                    Elmish.RenderView
                 
                 val enteringCount:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.Item -> Elmish.RenderView
+                    item: WorkTelegram.Core.Types.Item -> Elmish.RenderView
                 
                 val enteringLocation:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    item: Core.Types.Item ->
-                    count: Core.Types.PositiveInt -> Elmish.RenderView
+                    item: WorkTelegram.Core.Types.Item ->
+                    count: WorkTelegram.Core.Types.PositiveInt ->
+                    Elmish.RenderView
                 
                 val askingFinish:
                   ctx: ViewContext<'a,'b> ->
                     employerState: EmployerProcess.EmployerContext ->
-                    recordedDeletionItem: Core.Types.DeletionItem ->
+                    recordedDeletionItem: WorkTelegram.Core.Types.DeletionItem ->
                     Elmish.RenderView
             
+            [<RequireQualifiedAccess>]
             module AuthProcess =
                 
                 val enteringOffice:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     Elmish.RenderView
                 
                 val enteringLastFirstName:
                   ctx: ViewContext<'a,'b> ->
-                    office: Core.Types.Office -> Elmish.RenderView
+                    office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
                 
                 val askingFinish:
                   ctx: ViewContext<'a,'b> ->
-                    employerRecord: Core.Types.Employer -> Elmish.RenderView
+                    employerRecord: WorkTelegram.Core.Types.Employer ->
+                    Elmish.RenderView
             
             val deletionProcess:
               ctx: ViewContext<'a,'b> ->
@@ -350,11 +374,13 @@ namespace WorkTelegram.Telegram
                 delProcess: EmployerProcess.Deletion -> Elmish.RenderView
             
             val authEmployer:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 employerAuth: AuthProcess.AuthEmployer -> Elmish.RenderView
         
+        [<RequireQualifiedAccess>]
         module private ViewManager =
             
+            [<RequireQualifiedAccess>]
             module AuthProcess =
                 
                 val enteringLastFirstName:
@@ -362,36 +388,39 @@ namespace WorkTelegram.Telegram
                 
                 val askingFinish:
                   ctx: ViewContext<'a,'b> ->
-                    manager: Core.Types.Manager -> Elmish.RenderView
+                    manager: WorkTelegram.Core.Types.Manager ->
+                    Elmish.RenderView
             
+            [<RequireQualifiedAccess>]
             module MakeOffice =
                 
                 val enteringName:
-                  ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     managerState: ManagerProcess.ManagerContext ->
                     Elmish.RenderView
                 
                 val askingFinish:
                   ctx: ViewContext<'a,'b> ->
-                    recordOffice: Core.Types.Office -> Elmish.RenderView
+                    recordOffice: WorkTelegram.Core.Types.Office ->
+                    Elmish.RenderView
             
             val makeOfficeProcess:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext ->
                 makeProcess: ManagerProcess.MakeOffice -> Elmish.RenderView
             
             val deAuthEmployers:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext -> Elmish.RenderView
             
             val authEmployers:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext -> Elmish.RenderView
             
             val inOffice:
-              ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 managerState: ManagerProcess.ManagerContext ->
-                office: Core.Types.Office -> Elmish.RenderView
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
             
             val noOffices:
               ctx: ViewContext<'a,'b> ->
@@ -400,26 +429,28 @@ namespace WorkTelegram.Telegram
             val chooseOffice:
               ctx: ViewContext<'a,'b> ->
                 managerState: ManagerProcess.ManagerContext ->
-                offices: Infrastructure.OfficesMap -> Elmish.RenderView
+                offices: WorkTelegram.Infrastructure.OfficesMap ->
+                Elmish.RenderView
             
             val authManager:
               ctx: ViewContext<'a,'b> ->
                 managerAuth: AuthProcess.AuthManager -> Elmish.RenderView
         
         val private employerProcess:
-          ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+          ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
             employerState: EmployerProcess.EmployerContext -> Elmish.RenderView
         
         val private managerProcess:
-          ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+          ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
             managerState: ManagerProcess.ManagerContext -> Elmish.RenderView
         
         val private authProcess:
-          ctx: ViewContext<'a,Infrastructure.CacheCommand> ->
+          ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
             authModel: AuthProcess.AuthModel -> Elmish.RenderView
         
         val view:
-          env: Infrastructure.IAppEnv<'a,Infrastructure.CacheCommand> ->
+          env: WorkTelegram.Infrastructure.IAppEnv<'a,
+                                                   WorkTelegram.Infrastructure.CacheCommand> ->
             dispatch: (UpdateMessage -> unit) ->
             model: Model.ModelContext<'b> -> Elmish.RenderView
 

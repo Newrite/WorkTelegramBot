@@ -1,5 +1,6 @@
 namespace WorkTelegram.Core
     
+    [<AutoOpen>]
     module UMX =
         
         [<Measure>]
@@ -47,6 +48,7 @@ namespace WorkTelegram.Core
         
         type DeletionId = FSharp.UMX.Guid<deletionid>
     
+    [<AutoOpen>]
     module Types =
         
         type TelegramMessage = Funogram.Telegram.Types.Message
@@ -70,6 +72,7 @@ namespace WorkTelegram.Core
             val (|ErrBugSomeThrowException|_|) :
               error: AppError -> System.Exception option
             
+            [<AutoOpen>]
             module DatabasePatterns =
                 
                 val (|ErrDataReaderOutOfRangeError|_|) :
@@ -87,6 +90,7 @@ namespace WorkTelegram.Core
                 val (|ErrDbExecutionError|_|) :
                   error: AppError -> Donald.DbExecutionError option
             
+            [<AutoOpen>]
             module BusinessPatterns =
                 
                 val (|ErrNotFoundInDatabase|_|) :
@@ -109,12 +113,14 @@ namespace WorkTelegram.Core
             
             member Value: string
         
+        [<RequireQualifiedAccess>]
         module MacAddress =
             
             val fromString: input: string -> Result<MacAddress,BusinessError>
             
             val fromOptionString: input: string option -> MacAddress option
         
+        [<RequireQualifiedAccess>]
         module OfficeName =
             
             val equals:
@@ -126,6 +132,7 @@ namespace WorkTelegram.Core
             
             member Value: uint
         
+        [<RequireQualifiedAccess>]
         module PositiveInt =
             
             val create: count: uint32 -> Result<PositiveInt,BusinessError>
@@ -140,6 +147,7 @@ namespace WorkTelegram.Core
               Serial: UMX.Serial
             }
         
+        [<RequireQualifiedAccess>]
         module ItemWithSerial =
             
             val create:
@@ -152,6 +160,7 @@ namespace WorkTelegram.Core
               MacAddress: MacAddress
             }
         
+        [<RequireQualifiedAccess>]
         module ItemWithMacAddress =
             
             val create:
@@ -162,6 +171,7 @@ namespace WorkTelegram.Core
         type ItemWithOnlyName =
             { Name: UMX.ItemName }
         
+        [<RequireQualifiedAccess>]
         module ItemWithOnlyName =
             
             val create: name: UMX.ItemName -> ItemWithOnlyName
@@ -178,6 +188,7 @@ namespace WorkTelegram.Core
             
             member Serial: UMX.Serial option
         
+        [<RequireQualifiedAccess>]
         module Item =
             
             val createWithSerial:
@@ -209,6 +220,7 @@ namespace WorkTelegram.Core
               Manager: Manager
             }
         
+        [<RequireQualifiedAccess>]
         module Office =
             
             val create: officeName: UMX.OfficeName -> manager: Manager -> Office
@@ -222,6 +234,7 @@ namespace WorkTelegram.Core
               IsApproved: bool
             }
         
+        [<RequireQualifiedAccess>]
         module Employer =
             
             val create:
@@ -229,6 +242,7 @@ namespace WorkTelegram.Core
                 lastName: UMX.LastName ->
                 office: Office -> chatId: UMX.ChatId -> Employer
         
+        [<RequireQualifiedAccess>]
         module Manager =
             
             val create:
@@ -254,6 +268,7 @@ namespace WorkTelegram.Core
             
             override ToString: unit -> string
         
+        [<RequireQualifiedAccess>]
         module DeletionItem =
             
             val create:
@@ -263,7 +278,7 @@ namespace WorkTelegram.Core
                 employer: Employer -> DeletionItem
             
             val createExcelTableFromItemsAsByte:
-              items: seq<DeletionItem> -> byte[]
+              items: DeletionItem seq -> byte array
             
             val inspiredItem:
               currentTime: System.DateTime -> item: DeletionItem -> bool
