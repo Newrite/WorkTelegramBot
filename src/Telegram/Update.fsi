@@ -15,6 +15,8 @@ namespace WorkTelegram.Telegram
           ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
         | StartDeAuthEmployers of
           ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
+        | StartDelegateOffice of
+          ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
         | DeletionProcessChange of
           EmployerProcess.EmployerContext * EmployerProcess.Deletion
         | AuthEmployerChange of AuthProcess.AuthEmployer

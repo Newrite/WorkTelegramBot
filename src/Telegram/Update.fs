@@ -29,6 +29,8 @@ type UpdateMessage =
 module Update =
 
   let update env message model callInitModelFunction =
+    
+    // Что бы добавить в историю только нужные модели
     match message with
     | UpdateMessage.Back
     | UpdateMessage.Cancel
