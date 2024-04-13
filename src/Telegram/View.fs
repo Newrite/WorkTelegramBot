@@ -628,7 +628,6 @@ module View =
             ctx.BackCancelKeyboard ]
 
       let managerMenuInOffice ctx managerState (office: Office) asEmployerState =
-        EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
         RenderView.create
           $"
           {office.Manager.FirstName} {office.Manager.LastName}
