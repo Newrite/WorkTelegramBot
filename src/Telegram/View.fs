@@ -333,12 +333,12 @@ module View =
           match Repository.tryUpdateOffice ctx.AppEnv { office with Manager = manager } with
           | false ->
             let text =
-              "Произошла ошибка во время изменения менеджера оффиса, попробуйте еще раз"
+              "Произошла ошибка во время изменения менеджера офиса, попробуйте еще раз"
 
             ctx.Notify managerState.Manager.ChatId text 5000
             ctx.Dispatch UpdateMessage.ReRender
           | true ->
-            let text = "Смена оффиса прошла успешно"
+            let text = "Смена менеджера офиса прошла успешно"
             ctx.Notify managerState.Manager.ChatId text 3000
             EventBus.removeFromDictEvent ctx.AppEnv manager.ChatId
             EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
