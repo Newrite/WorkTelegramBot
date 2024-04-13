@@ -18,6 +18,7 @@ type UpdateMessage =
   | StartEditDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
+  | StartDelegateOffice of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
   | AuthEmployerChange of AuthProcess.AuthEmployer
   | FinishDeletionProcess of EmployerProcess.EmployerContext * DeletionItem
@@ -60,6 +61,10 @@ module Update =
       |> model.Transform
     | UpdateMessage.StartDeAuthEmployers (state, office) ->
       { state with Model = ManagerProcess.ManagerModel.DeAuthEmployers office }
+      |> CoreModel.Manager
+      |> model.Transform
+    | UpdateMessage.StartDelegateOffice (state, office) ->
+      { state with Model = ManagerProcess.ManagerModel.DelegateOffice office }
       |> CoreModel.Manager
       |> model.Transform
     | UpdateMessage.FinishDeletionProcess (state, rDeletionItem) ->
