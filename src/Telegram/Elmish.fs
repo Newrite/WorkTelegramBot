@@ -7,6 +7,7 @@ open Funogram.Telegram.Bot
 open System.Collections.Concurrent
 open Funogram.Types
 open System
+open FSharp.UMX
 
 module Elmish =
 
@@ -251,6 +252,15 @@ module Elmish =
 
       let dict = program.AppEnv.Configurer.ElmishDict
       let config = program.AppEnv.Configurer.BotConfig
+      let eventsBus = program.AppEnv.Bus.Events
+      while eventsBus.Count > 0 do
+        let event = eventsBus.Pop()
+        match event with
+        | EventBusMessage.RemoveFromElmishDict chatId ->
+          match dict.TryRemove(%chatId) with
+          | true, _ -> Logger.info program.AppEnv "Succes remove event for chat id %d" %chatId
+          | false, _ -> Logger.error program.AppEnv "Error when try remove event for chat id %d" %chatId
+        
 
       if isWithStateFunctions program then
 

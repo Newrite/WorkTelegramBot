@@ -13,7 +13,7 @@ open FSharp.UMX
 [<EntryPoint>]
 let main _ =
 
-  let tgToken = System.Environment.GetEnvironmentVariable("TelegramApiKey")
+  let tgToken = Environment.GetEnvironmentVariable("TelegramApiKey")
 
   let logFile = "WorkTelegramBotLog.txt"
 
@@ -55,8 +55,10 @@ let main _ =
     cts.Cancel()
     
   let iCfg = Configurer.IConfigurerBuilder { Config.defaultConfig with Token = tgToken; OnError = onError } (Elmish.ElmishProcessorDict<_>())
+  
+  let iBus = EventBus.IEventBus <| EventsStack() 
 
-  let env = IAppEnvBuilder iLog.Logger iDb.Db iRep.Repository iCfg.Configurer
+  let env = IAppEnvBuilder iLog.Logger iDb.Db iRep.Repository iCfg.Configurer iBus.Bus
 
   let commands: Funogram.Telegram.Types.BotCommand array =
     [| { Command = "/start"

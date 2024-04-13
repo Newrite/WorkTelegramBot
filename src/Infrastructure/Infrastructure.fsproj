@@ -42,6 +42,7 @@
     <Compile Include="Logger.fs" />
     <Compile Include="Database.fs" />
     <Compile Include="Cache.fs" />
+    <Compile Include="EventBus.fs" />
     <Compile Include="Repository.fs" />
     <Compile Include="Configurer.fs" />
     <Compile Include="Env.fs" />

@@ -340,6 +340,8 @@ module View =
           | true ->
             let text = "Смена оффиса прошла успешно"
             ctx.Notify managerState.Manager.ChatId text 3000
+            EventBus.removeFromDictEvent ctx.AppEnv manager.ChatId
+            EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
             ctx.Dispatch UpdateMessage.ReRender
 
         Keyboard.createSingle $"{manager.FirstName} {manager.LastName}" (onClick manager)
@@ -626,6 +628,7 @@ module View =
             ctx.BackCancelKeyboard ]
 
       let managerMenuInOffice ctx managerState (office: Office) asEmployerState =
+        EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
         RenderView.create
           $"
           {office.Manager.FirstName} {office.Manager.LastName}

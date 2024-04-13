@@ -60,6 +60,7 @@ namespace WorkTelegram.Telegram
             | InOffice of WorkTelegram.Core.Types.Office
             | AuthEmployers of WorkTelegram.Core.Types.Office
             | DeAuthEmployers of WorkTelegram.Core.Types.Office
+            | DelegateOffice of WorkTelegram.Core.Types.Office
         
         type ManagerContext =
             {
