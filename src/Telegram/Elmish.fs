@@ -253,15 +253,7 @@ module Elmish =
       let dict = program.AppEnv.Configurer.ElmishDict
       let config = program.AppEnv.Configurer.BotConfig
       let eventsBus = program.AppEnv.Bus.Events
-      while eventsBus.Count > 0 do
-        let event = eventsBus.Pop()
-        match event with
-        | EventBusMessage.RemoveFromElmishDict chatId ->
-          match dict.TryRemove(%chatId) with
-          | true, _ -> Logger.info program.AppEnv "Succes remove event for chat id %d" %chatId
-          | false, _ -> Logger.error program.AppEnv "Error when try remove event for chat id %d" %chatId
         
-
       if isWithStateFunctions program then
 
         let getStates = program.GetChatStates.Value
@@ -291,47 +283,57 @@ module Elmish =
             | Error _ -> ()
 
       let internalUpdate update (ctx: UpdateContext) =
+        
+        let startFunction (msg: Message) =
+          let sendedMessage =
+            Funogram.Telegram.Api.sendMessage msg.Chat.Id "Инициализация..."
+            |> Funogram.Api.api config
+            |> Async.RunSynchronously
+          match sendedMessage with
+          | Ok msg ->
+            let processorConfig = { Config = config; Message = msg }
+            dict.TryAdd(
+              msg.Chat.Id,
+              Agent.MakeAndStartInjected(modelViewUpdateProcessor processorConfig program)
+            )
+            |> ignore
+            if program.SaveChatState.IsSome then
+              program.SaveChatState.Value msg
+          | Error _ -> ()
+          
+        let finishFunction (msg: Message) =
+          if dict.ContainsKey(msg.Chat.Id) then
+            ProcessorCommands.Finish |> dict[msg.Chat.Id].Post
+            if program.DelChatState.IsSome then
+              program.DelChatState.Value msg
+            match dict.TryRemove(msg.Chat.Id) with
+            | true, _ -> true
+            | false, _ -> false
+          else true
+        
+        let handleEvents msg =
+          while eventsBus.Count > 0 do
+            let event = eventsBus.Pop()
+            match event with
+            | EventBusMessage.RemoveFromElmishDict chatId ->
+              match finishFunction msg with
+              | true -> Logger.info program.AppEnv "Succes remove event for chat id %d" %chatId
+              | false -> Logger.error program.AppEnv "Error when try remove event for chat id %d" %chatId
+        
         match ctx with
         | Message m ->
+          
+          handleEvents m
 
           let isStart =
             m.Text.IsSome
             && (m.Text.Value = "/start")
             && (dict.ContainsKey(m.Chat.Id) |> not)
 
-          let startFunction () =
-            let sendedMessage =
-              Funogram.Telegram.Api.sendMessage m.Chat.Id "Инициализация..."
-              |> Funogram.Api.api config
-              |> Async.RunSynchronously
-
-            match sendedMessage with
-            | Ok msg ->
-              let processorConfig = { Config = config; Message = msg }
-
-              dict.TryAdd(
-                m.Chat.Id,
-                Agent.MakeAndStartInjected(modelViewUpdateProcessor processorConfig program)
-              )
-              |> ignore
-
-              if program.SaveChatState.IsSome then
-                program.SaveChatState.Value msg
-            | Error _ -> ()
-
           let isFinish =
             m.Text.IsSome
             && (m.Text.Value = "/finish")
             && dict.ContainsKey(m.Chat.Id)
-
-          let finishFunction () =
-
-            ProcessorCommands.Finish |> dict[m.Chat.Id].Post
-
-            if program.DelChatState.IsSome then
-              program.DelChatState.Value m
-
-            dict.TryRemove(m.Chat.Id) |> ignore
 
           let isRestart =
             m.Text.IsSome
@@ -342,7 +344,7 @@ module Elmish =
 
           if isStart then
 
-            startFunction ()
+            startFunction m
 
           if isMessageAndActorInDict then
             ProcessorCommands.Message ctx
@@ -350,16 +352,17 @@ module Elmish =
 
           if isFinish then
 
-            finishFunction ()
+            finishFunction m |> ignore
 
           if isRestart then
 
-            finishFunction ()
-            startFunction ()
+            finishFunction m |> ignore
+            startFunction m
 
-        | CallbackWithMessage _ ->
+        | CallbackWithMessage (_, _, m) ->
           let chatId = ctx.Update.CallbackQuery.Value.Message.Value.Chat.Id
 
+          handleEvents m
           if dict.ContainsKey(chatId) then
             ProcessorCommands.Message ctx |> dict[chatId].Post
         | Callback _

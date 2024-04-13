@@ -16,5 +16,9 @@ namespace WorkTelegram.Infrastructure
     
     module EventBus =
         
+        val removeFromDictEvent:
+          env: 'a -> chatId: WorkTelegram.Core.UMX.ChatId -> unit
+            when 'a :> IEventBus and 'a :> ILog
+        
         val IEventBus: eventStack: EventsStack -> IEventBus
 

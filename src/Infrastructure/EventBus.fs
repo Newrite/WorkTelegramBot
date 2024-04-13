@@ -2,6 +2,7 @@
 
 open System.Collections.Generic
 open WorkTelegram.Core
+open FSharp.UMX
 
 [<NoEquality>]
 [<NoComparison>]
@@ -20,7 +21,9 @@ type IEventBus =
 
 module EventBus =
   
-  let removeFromDictEvent (env: #IEventBus)  chatId = env.Bus.Events.Push(EventBusMessage.RemoveFromElmishDict chatId)
+  let removeFromDictEvent (env: #IEventBus) chatId =
+    Logger.info env "Add event RemoveFromElmishDict for chat id %d" %chatId
+    env.Bus.Events.Push(EventBusMessage.RemoveFromElmishDict chatId)
 
   let IEventBus eventStack =
     { new IEventBus with
