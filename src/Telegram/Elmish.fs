@@ -319,7 +319,9 @@ module Elmish =
               match event with
               | EventBusMessage.RemoveFromElmishDict ->
                 match finishFunction msg with
-                | true -> Logger.info program.AppEnv "Succes remove event for chat id %d" msg.Chat.Id
+                | true ->
+                  Logger.info program.AppEnv "Succes remove event for chat id %d" msg.Chat.Id
+                  startFunction msg
                 | false -> Logger.error program.AppEnv "Error when try remove event for chat id %d" msg.Chat.Id
         
         match ctx with
