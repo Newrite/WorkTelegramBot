@@ -15,6 +15,7 @@ type UpdateMessage =
   | ManagerChooseOffice of ManagerProcess.ManagerContext * Office
   | ManagerMakeOfficeChange of ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
   | FinishMakeOfficeProcess of Office
+  | FinishDelegeteOffice of (ManagerProcess.ManagerContext * Manager * Office)
   | StartEditDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
@@ -108,6 +109,19 @@ module Update =
       | false ->
         let text = "Произошла ошибка при создании офиса, попробуйте попозже"
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
+
+      callInitModelFunction ()
+    | UpdateMessage.FinishDelegeteOffice (_, manager, office) ->
+      match Repository.tryUpdateOffice env { office with Manager = manager } with
+      | false ->
+        let text =
+          "Произошла ошибка во время изменения менеджера офиса, попробуйте еще раз"
+        Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 5000
+      | true ->
+        let text = "Смена менеджера офиса прошла успешно"
+        Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
+        EventBus.removeFromDictEvent env manager.ChatId
+        // EventBus.removeFromDictEvent env managerState.Manager.ChatId
 
       callInitModelFunction ()
     | UpdateMessage.Cancel -> callInitModelFunction ()
