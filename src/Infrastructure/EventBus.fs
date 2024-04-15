@@ -7,9 +7,9 @@ open FSharp.UMX
 [<NoEquality>]
 [<NoComparison>]
 [<RequireQualifiedAccess>]
-type EventBusMessage = | RemoveFromElmishDict of ChatId
+type EventBusMessage = | RemoveFromElmishDict
 
-type EventsStack = Stack<EventBusMessage>
+type EventsStack = System.Collections.Concurrent.ConcurrentDictionary<ChatId, Stack<EventBusMessage>>
 
 [<Interface>]
 type IEvent =
@@ -23,7 +23,8 @@ module EventBus =
   
   let removeFromDictEvent (env: #IEventBus) chatId =
     Logger.info env "Add event RemoveFromElmishDict for chat id %d" %chatId
-    env.Bus.Events.Push(EventBusMessage.RemoveFromElmishDict chatId)
+    let stack = env.Bus.Events.GetOrAdd(chatId, Stack<EventBusMessage>())
+    stack.Push(EventBusMessage.RemoveFromElmishDict)
 
   let IEventBus eventStack =
     { new IEventBus with
