@@ -311,14 +311,16 @@ module Elmish =
             | false, _ -> false
           else true
         
-        let handleEvents msg =
-          while eventsBus.Count > 0 do
-            let event = eventsBus.Pop()
-            match event with
-            | EventBusMessage.RemoveFromElmishDict chatId ->
-              match finishFunction msg with
-              | true -> Logger.info program.AppEnv "Succes remove event for chat id %d" %chatId
-              | false -> Logger.error program.AppEnv "Error when try remove event for chat id %d" %chatId
+        let handleEvents (msg: Message) =
+          if eventsBus.ContainsKey(%msg.Chat.Id) then
+            let eventsStack = eventsBus[%msg.Chat.Id]
+            while eventsStack.Count > 0 do
+              let event = eventsStack.Pop()
+              match event with
+              | EventBusMessage.RemoveFromElmishDict ->
+                match finishFunction msg with
+                | true -> Logger.info program.AppEnv "Succes remove event for chat id %d" msg.Chat.Id
+                | false -> Logger.error program.AppEnv "Error when try remove event for chat id %d" msg.Chat.Id
         
         match ctx with
         | Message m ->
