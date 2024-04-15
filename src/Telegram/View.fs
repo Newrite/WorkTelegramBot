@@ -330,19 +330,21 @@ module View =
       let delegeteOffice ctx (managerState: ManagerContext) (manager: Manager) office =
 
         let onClick manager _ =
-          match Repository.tryUpdateOffice ctx.AppEnv { office with Manager = manager } with
-          | false ->
-            let text =
-              "Произошла ошибка во время изменения менеджера офиса, попробуйте еще раз"
+         // match Repository.tryUpdateOffice ctx.AppEnv { office with Manager = manager } with
+         // | false ->
+         //   let text =
+         //     "Произошла ошибка во время изменения менеджера офиса, попробуйте еще раз"
 
-            ctx.Notify managerState.Manager.ChatId text 5000
-            ctx.Dispatch UpdateMessage.ReRender
-          | true ->
-            let text = "Смена менеджера офиса прошла успешно"
-            ctx.Notify managerState.Manager.ChatId text 3000
-            EventBus.removeFromDictEvent ctx.AppEnv manager.ChatId
-            EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
-            ctx.Dispatch UpdateMessage.ReRender
+         //   ctx.Notify managerState.Manager.ChatId text 5000
+         //   ctx.Dispatch UpdateMessage.ReRender
+         // | true ->
+         //   let text = "Смена менеджера офиса прошла успешно"
+         //   ctx.Notify managerState.Manager.ChatId text 3000
+         //   EventBus.removeFromDictEvent ctx.AppEnv manager.ChatId
+         //   EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
+         //   ctx.Dispatch UpdateMessage.ReRender
+            
+          ctx.Dispatch <| UpdateMessage.FinishDelegeteOffice(managerState, manager, office)
 
         Keyboard.createSingle $"{manager.FirstName} {manager.LastName}" (onClick manager)
 
