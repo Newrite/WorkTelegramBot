@@ -64,7 +64,9 @@ let main _ =
     [| { Command = "/start"
          Description = "Что бы начать взаимодействие с ботом либо перезапустить его выберите эту комманду" }
        { Command = "/finish"
-         Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" } |]
+         Description = "Что бы завершить взаимодействие с ботом выберите эту комманду" }
+       { Command = "/pin"
+         Description = "Что бы бот отправил сообщение которое не будет удалено, выберите эту команду, позволит оставить бота в истории сообщений" } |]
 
   Funogram.Telegram.Req.SetMyCommands.Make commands
   |> Funogram.Api.api env.Configurer.BotConfig

@@ -285,6 +285,14 @@ module Elmish =
       let internalUpdate update (ctx: UpdateContext) =
         
         let startFunction (msg: Message) =
+          
+          match Repository.tryMessageByChatId program.AppEnv (%msg.Chat.Id) with
+          | None ->
+            Logger.info program.AppEnv "First message for %d, send pin message" msg.Chat.Id
+            Utils.sendMessage program.AppEnv %msg.Chat.Id "Начало сообщний." |> ignore
+          | Some _ ->
+            Logger.info program.AppEnv "No need pin message for %d" msg.Chat.Id
+          
           let sendedMessage =
             Funogram.Telegram.Api.sendMessage msg.Chat.Id "Инициализация..."
             |> Funogram.Api.api config
@@ -343,8 +351,14 @@ module Elmish =
             m.Text.IsSome
             && (m.Text.Value = "/start")
             && dict.ContainsKey(m.Chat.Id)
+            
+          let isPin =
+            m.Text.IsSome && (m.Text.Value = "/pin")
 
           let isMessageAndActorInDict = m.Text.IsSome && dict.ContainsKey(m.Chat.Id)
+          
+          if isPin then
+            Utils.sendMessage program.AppEnv %m.Chat.Id "Закрепляющее сообщение" |> ignore
 
           if isStart then
 
