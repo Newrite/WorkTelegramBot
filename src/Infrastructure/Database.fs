@@ -299,7 +299,7 @@ module Database =
            VALUES
            (@{DbVersionField})"
 
-        let sqlParam = [ DbVersionField, SqlType.Int64 1L ]
+        let sqlParam = [ DbVersionField, SqlType.Int64 (int DatabaseVersions.ActualVersion) ]
 
         Db.newCommand sqlCommand conn
         |> Db.setParams sqlParam
