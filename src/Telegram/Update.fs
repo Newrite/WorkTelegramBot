@@ -19,6 +19,7 @@ type UpdateMessage =
   | StartEditDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
+  | StartEmployerOperations of ManagerProcess.ManagerContext * Office
   | StartDelegateOffice of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
   | AuthEmployerChange of AuthProcess.AuthEmployer
@@ -141,3 +142,7 @@ module Update =
         Utils.sendMessageAndDeleteAfterDelay env %employer.ChatId text 3000
 
       callInitModelFunction ()
+    | UpdateMessage.StartEmployerOperations(state, office) ->
+      { state with Model = ManagerProcess.ManagerModel.EmployerOperations office }
+      |> CoreModel.Manager
+      |> model.Transform

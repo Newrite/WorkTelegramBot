@@ -357,6 +357,11 @@ module View =
         Keyboard.createSingle "Убрать авторизацию сотрудника" (fun _ ->
           UpdateMessage.StartDeAuthEmployers(managerState, office)
           |> ctx.Dispatch)
+        
+      let managerMenuEmployerOperations ctx managerState office =
+        Keyboard.createSingle "Действия с сотрудниками" (fun _ ->
+          UpdateMessage.StartEmployerOperations(managerState, office)
+          |> ctx.Dispatch)
 
       let managerMenuOfficesOperations ctx managerState office =
         Keyboard.create [ Button.create "Создать офис" (fun _ ->
@@ -622,11 +627,25 @@ module View =
               Keyboard.authEmployer ctx managerState employer.Value
             ctx.BackCancelKeyboard ]
           
-      let delegateOffice ctx managerState (managers: ManagersMap) office =
+      let delegeteOffice ctx managerState (managers: ManagersMap) office =
         RenderView.create
           "Выберите менеджера которому хотите передать оффис"
           [ for manager in managers do
               Keyboard.delegeteOffice ctx managerState manager.Value office
+            ctx.BackCancelKeyboard ]
+          
+      let employerOperations ctx managerState office =
+        RenderView.create
+          "Выберите действие"
+          [ Keyboard.managerMenuAuthEmployer ctx managerState office
+            Keyboard.managerMenuDeAuthEmployer ctx managerState office
+            ctx.BackCancelKeyboard ]
+          
+      let managerOfficeOperations ctx managerState office =
+        RenderView.create
+          "Выберите действие"
+          [ Keyboard.managerMenuOfficesOperations ctx managerState office
+            Keyboard.managerMenuDelegateOffice ctx managerState office
             ctx.BackCancelKeyboard ]
 
       let managerMenuInOffice ctx managerState (office: Office) asEmployerState =
@@ -634,8 +653,9 @@ module View =
           $"
           {office.Manager.FirstName} {office.Manager.LastName}
           Меню офиса: {office.OfficeName}"
-          [ Keyboard.managerMenuAuthEmployer ctx managerState office
-            Keyboard.managerMenuDeAuthEmployer ctx managerState office
+          // [ Keyboard.managerMenuAuthEmployer ctx managerState office
+          //   Keyboard.managerMenuDeAuthEmployer ctx managerState office
+          [ Keyboard.managerMenuEmployerOperations ctx managerState office
             Keyboard.managerMenuOfficesOperations ctx managerState office
             Keyboard.managerMenuDelegateOffice ctx managerState office
             Keyboard.managerMenuAddEditItemRecord ctx asEmployerState
@@ -842,7 +862,15 @@ module View =
         Repository.managers ctx.AppEnv
         |> Map.filter (fun chatId _ -> chatId.Equals(managerState.Manager.ChatId) |> not)
 
-      Forms.RenderView.delegateOffice ctx managerState managers office []
+      Forms.RenderView.delegeteOffice ctx managerState managers office []
+      
+    let employerOperations ctx managerState office =
+
+      Forms.RenderView.employerOperations ctx managerState office []
+      
+    let officeOperations ctx managerState office =
+
+      Forms.RenderView.employerOperations ctx managerState office []
 
     let inOffice ctx managerState office =
 
@@ -887,6 +915,8 @@ module View =
     | ManagerModel.NoOffices -> ViewManager.noOffices ctx managerState
     | ManagerModel.MakeOffice makeProcess ->
       ViewManager.makeOfficeProcess ctx managerState makeProcess
+    | ManagerModel.EmployerOperations office -> ViewManager.employerOperations ctx managerState office
+    | ManagerModel.OfficeOperations office -> failwith "todo"
 
   let private authProcess (ctx: ViewContext<_, _>) authModel =
 

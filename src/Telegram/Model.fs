@@ -61,6 +61,8 @@ module ManagerProcess =
     | AuthEmployers of Office
     | DeAuthEmployers of Office
     | DelegateOffice of Office
+    | EmployerOperations of Office
+    | OfficeOperations of Office
 
   type ManagerContext =
     { Manager: Manager
