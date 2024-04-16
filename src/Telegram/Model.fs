@@ -140,9 +140,16 @@ module Model =
         else
           { History = history
             Model = CoreModel.Auth AuthProcess.AuthModel.NoAuth }
-
-      match Repository.tryAddChatId env %message.Chat.Id with
-      | true -> startInit ()
-      | false ->
-        { History = history
-          Model = CoreModel.Error("Произошла ошибка при инициализации, попробуйте еще раз позже.") }
+      
+      let firstMessage = Repository.tryChatIdByChatId env %message.Chat.Id |> Option.isNone
+      if firstMessage then
+        match Repository.tryAddChatId env %message.Chat.Id with
+        | true ->
+          Logger.info env "First message for %d, send pin message" message.Chat.Id
+          Utils.sendMessage env %message.Chat.Id "Начало сообщений." |> ignore
+          startInit ()
+        | false ->
+          { History = history
+            Model = CoreModel.Error("Произошла ошибка при инициализации, попробуйте еще раз позже.") }
+      else
+        startInit ()

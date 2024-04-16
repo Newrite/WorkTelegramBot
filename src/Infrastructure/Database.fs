@@ -437,6 +437,9 @@ module Database =
 
   let selectDeletionItems env =
     genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
+    
+  let selectChatIds env =
+    genericSelectMany<ChatIdDto> env ChatIdDto.TableName ChatIdDto.ofDataReader
 
   let insertTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =

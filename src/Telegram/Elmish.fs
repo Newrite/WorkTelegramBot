@@ -286,13 +286,6 @@ module Elmish =
         
         let startFunction (msg: Message) =
           
-          match Repository.tryMessageByChatId program.AppEnv (%msg.Chat.Id) with
-          | None ->
-            Logger.info program.AppEnv "First message for %d, send pin message" msg.Chat.Id
-            Utils.sendMessage program.AppEnv %msg.Chat.Id "Начало сообщний." |> ignore
-          | Some _ ->
-            Logger.info program.AppEnv "No need pin message for %d" msg.Chat.Id
-          
           let sendedMessage =
             Funogram.Telegram.Api.sendMessage msg.Chat.Id "Инициализация..."
             |> Funogram.Api.api config
