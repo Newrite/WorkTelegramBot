@@ -330,7 +330,7 @@ module View =
       let delegeteEmployerChooseOffice ctx (managerState: ManagerContext) employer choosenOffice office =
 
         let onClick employer _ =
-          match Repository.tryUpdateEmployer ctx.AppEnv { employer with Office =  choosenOffice } with
+          match Repository.tryUpdateEmployer ctx.AppEnv { employer with Office =  choosenOffice; IsApproved = false } with
           | false ->
             let text =
               "Произошла ошибка во время изменения офиса сотрудника, попробуйте еще раз"
@@ -340,6 +340,7 @@ module View =
           | true ->
             let text = "Офис сотрудника изменен успешно"
             ctx.Notify managerState.Manager.ChatId text 3000
+            EventBus.removeFromDictEvent ctx.AppEnv employer.ChatId
             ctx.Dispatch <| UpdateMessage.ManagerChooseOffice(managerState, office)
 
         Keyboard.createSingle $"{choosenOffice.OfficeName}" (onClick employer)
