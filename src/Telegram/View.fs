@@ -682,6 +682,7 @@ module View =
           "Выберите действие"
           [ Keyboard.managerMenuAuthEmployer ctx managerState office
             Keyboard.managerMenuDeAuthEmployer ctx managerState office
+            Keyboard.managerMenuDelegeteEmployer ctx managerState office
             ctx.BackCancelKeyboard ]
           
       let managerOfficeOperations ctx managerState office =
