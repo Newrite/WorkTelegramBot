@@ -755,6 +755,8 @@ module Database =
                   $"Error when update {FixedField} for {OfficeHiddenBugFixTable}: {err}"
           | Error err ->
             Logger.error envLog $"Error when try get offices for {OfficeHiddenBugFixTable}: {err}"
+            else
+              Logger.debug envLog $"No needed office bug fix, getter value is {isFixed}"
       | Error err ->
         Logger.fatal envLog $"Error when try read {FixedField} of {OfficeHiddenBugFixTable}: {err}"
 
