@@ -709,54 +709,77 @@ module Database =
 
     let conn = dbConn envDb
 
+    let handleOffices (conn: SqliteConnection) envDb envLog =
+      let offices = selectOffices envDb
+
+      match offices with
+      | Ok o ->
+        for office in o do
+          match updateOffice envDb { office with IsHidden = false } with
+          | Ok _ ->
+            Logger.info
+              envLog
+              $"Success update office {office.OfficeName} for {OfficeHiddenBugFixTable}"
+          | Error err ->
+            Logger.error
+              envLog
+              $"Error when try update office {office.OfficeName} for {OfficeHiddenBugFixTable}: {err}"
+
+        let sqlUpdateCmd = @$"UPDATE {OfficeHiddenBugFixTable} SET {FixedField} = {true};"
+
+        Logger.info
+          envLog
+          $"Update {FixedField} of {OfficeHiddenBugFixTable} with command: {sqlUpdateCmd}"
+
+        use tran = conn.TryBeginTransaction()
+
+        Db.newCommand sqlUpdateCmd conn
+        |> Db.setTransaction tran
+        |> Db.exec
+        |> function
+          | Ok _ ->
+            tran.TryCommit()
+            Logger.info envLog $"Success update {FixedField} for {OfficeHiddenBugFixTable}"
+          | Error err ->
+            tran.TryRollback()
+
+            Logger.error
+              envLog
+              $"Error when update {FixedField} for {OfficeHiddenBugFixTable}: {err}"
+      | Error err ->
+        Logger.error envLog $"Error when try get offices for {OfficeHiddenBugFixTable}: {err}"
+
     let sqlCommad = @$"SELECT {FixedField} from {OfficeHiddenBugFixTable}"
     Logger.info envLog $"Get {FixedField} of {OfficeHiddenBugFixTable} with command: {sqlCommad}"
+
 
     Db.newCommand sqlCommad conn
     |> Db.querySingle (fun rd -> rd.ReadBoolean FixedField)
     |> function
       | Ok isFixed ->
-        if isFixed.IsSome && not isFixed.Value then
-          let offices = selectOffices envDb
+        if isFixed.IsSome then
+          if not isFixed.Value then
+            handleOffices conn envDb envLog
+          else
+            Logger.debug envLog $"No needed office bug fix, getter value is {isFixed}"
+        else
+          let sqlCommandOfficeBug =
+            $@"INSERT OR IGNORE INTO {officeHiddenBugFixSchema}
+                ({FixedField})
+                VALUES
+                (@{FixedField})"
 
-          match offices with
-          | Ok o ->
-            for office in o do
-              match updateOffice envDb { office with IsHidden = false } with
-              | Ok _ ->
-                Logger.info
-                  envLog
-                  $"Success update office {office.OfficeName} for {OfficeHiddenBugFixTable}"
-              | Error err ->
-                Logger.error
-                  envLog
-                  $"Error when try update office {office.OfficeName} for {OfficeHiddenBugFixTable}: {err}"
+          let sqlParamOfficeBug = [ FixedField, SqlType.Boolean(false) ]
 
-            let sqlUpdateCmd = @$"UPDATE {OfficeHiddenBugFixTable} SET {FixedField} = {true};"
-
-            Logger.info
-              envLog
-              $"Update {FixedField} of {OfficeHiddenBugFixTable} with command: {sqlUpdateCmd}"
-
-            use tran = conn.TryBeginTransaction()
-
-            Db.newCommand sqlUpdateCmd conn
-            |> Db.setTransaction tran
-            |> Db.exec
-            |> function
-              | Ok _ ->
-                tran.TryCommit()
-                Logger.info envLog $"Success update {FixedField} for {OfficeHiddenBugFixTable}"
-              | Error err ->
-                tran.TryRollback()
-
-                Logger.error
-                  envLog
-                  $"Error when update {FixedField} for {OfficeHiddenBugFixTable}: {err}"
-          | Error err ->
-            Logger.error envLog $"Error when try get offices for {OfficeHiddenBugFixTable}: {err}"
-            else
-              Logger.debug envLog $"No needed office bug fix, getter value is {isFixed}"
+          Db.newCommand sqlCommandOfficeBug conn
+          |> Db.setParams sqlParamOfficeBug
+          |> Db.exec
+          |> function
+            | Ok _ ->
+              Logger.info envLog $"Successfull create value for {OfficeHiddenBugFixTable}"
+              handleOffices conn envDb envLog
+            | Error err ->
+              Logger.error envLog $"Error when try add value to {OfficeHiddenBugFixTable} {err}"
       | Error err ->
         Logger.fatal envLog $"Error when try read {FixedField} of {OfficeHiddenBugFixTable}: {err}"
 
