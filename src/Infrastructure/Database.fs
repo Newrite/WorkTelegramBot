@@ -764,7 +764,7 @@ module Database =
             Logger.debug envLog $"No needed office bug fix, getter value is {isFixed}"
         else
           let sqlCommandOfficeBug =
-            $@"INSERT OR IGNORE INTO {officeHiddenBugFixSchema}
+            $@"INSERT OR IGNORE INTO {OfficeHiddenBugFixTable}
                 ({FixedField})
                 VALUES
                 (@{FixedField})"
