@@ -34,6 +34,7 @@ let main _ =
     Database.IDbBuilder conn
 
   Database.initTables iDb iLog |> ignore
+  Database.officeHiddenBugWorkAround iDb iLog
 
 
   let iRep =

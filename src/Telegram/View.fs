@@ -920,7 +920,7 @@ module View =
       let offices =
         Repository.offices ctx.AppEnv
         |> Map.filter (fun _ o ->
-          Logger.debug ctx.AppEnv $"Filtered offices for delegate employer: {office.OfficeId} {o.IsHidden}"
+          Logger.debug ctx.AppEnv $"Filtered offices for delegate employer: {o.OfficeId} {o.IsHidden}"
           o.OfficeId <> office.OfficeId && not o.IsHidden )
 
       Forms.RenderView.delegeteEmployerChooseOffice ctx managerState employer offices office []

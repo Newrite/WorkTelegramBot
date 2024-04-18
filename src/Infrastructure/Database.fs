@@ -23,6 +23,7 @@ module Database =
   exception private DatabaseVersionTryAddValueException of DbError
   exception private DatabaseVersionHandleVersionException of DbError
   exception private DatabaseTryReadDatabaseVersionTableException of DbError
+  exception private DatabaseTryReadOfficeHidenBugFieldTableException of DbError
 
   let dbConn (env: #IDb) = env.Db.Conn
 
@@ -39,9 +40,20 @@ module Database =
   [<Literal>]
   let DbVersionField = "VERSION"
 
+  [<Literal>]
+  let OfficeHiddenBugFixTable = "OFFICE_HIDDEN_BUG_FIX"
+
+  [<Literal>]
+  let FixedField = "FIXED"
+
   let private versionSchema =
     $@"CREATE TABLE IF NOT EXISTS {DbVersionTable} (
       {DbVersionField} INTEGER NOT NULL
+      );"
+
+  let private officeHiddenBugFixSchema =
+    $@"CREATE TABLE IF NOT EXISTS {OfficeHiddenBugFixTable} (
+      {FixedField} BOOL NOT NULL DEFAULT(false)
       );"
 
   let private schema =
@@ -116,8 +128,7 @@ module Database =
       | Error err ->
         Logger.fatal envLog $"Error when try read version: {err}"
 
-        DatabaseTryReadDatabaseVersionTableException(err)
-        |> raise
+        DatabaseTryReadDatabaseVersionTableException(err) |> raise
 
   let private versionHandler envDb envLog =
 
@@ -128,10 +139,12 @@ module Database =
         Logger.info envLog $"Db is actual version: {DatabaseVersions.ActualVersion}"
       elif version = DatabaseVersions.FirstVersion then
 
-        let nextVersion = enum<DatabaseVersions>(int version + 1)
+        let nextVersion = enum<DatabaseVersions> (int version + 1)
         let nextVersionInt = int nextVersion
 
-        Logger.info envLog $"Db version is {version}, try update to {nextVersion} : {nextVersionInt} version"
+        Logger.info
+          envLog
+          $"Db version is {version}, try update to {nextVersion} : {nextVersionInt} version"
 
         use tran = conn.TryBeginTransaction()
 
@@ -179,7 +192,7 @@ module Database =
         |> Db.setTransaction tran
         |> Db.exec
         |> function
-          | Ok () ->
+          | Ok() ->
             tran.TryCommit()
             Logger.info envLog $"Success update from {version} to {nextVersion}"
             handler nextVersion
@@ -190,8 +203,7 @@ module Database =
 
             tran.TryRollback()
 
-            DatabaseVersionHandleVersionException(err)
-            |> raise
+            DatabaseVersionHandleVersionException(err) |> raise
 
       //elif version = DATABASE_VERSIONS.SECOND_VERSION then
       //
@@ -222,31 +234,31 @@ module Database =
       //        FOREIGN KEY({Field.OfficeId}) REFERENCES {OfficeDto.TableName}({Field.OfficeId}),
       //        FOREIGN KEY({Field.ChatId}) REFERENCES {ChatIdDto.TableName}({Field.ChatId})
       //      );
-      //      
-      //      INSERT INTO {DeletionItemDto.TableName} 
+      //
+      //      INSERT INTO {DeletionItemDto.TableName}
       //       ({Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
       //        {Field.ItemMac}, {Field.Count}, {Field.Date},
       //        {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
       //        {Field.OfficeId}, {Field.ChatId})
-      //       SELECT 
+      //       SELECT
       //        {Field.DeletionId}, {Field.ItemName}, {Field.ItemSerial},
       //        {Field.ItemMac}, {Field.Count}, {Field.Date},
       //        {Field.IsDeletion}, {Field.IsHidden}, {Field.ToLocation},
       //        {Field.OfficeId}, {Field.ChatId}
       //       FROM {oldDeletionTableName};
-      //       
+      //
       //      UPDATE {DbVersionTable} SET {DbVersionField} = {nextVersion};"
       //
       //  ()
       //
       else
 
-      Logger.fatal envLog $"Try handle unhandled version of db: {version}"
+        Logger.fatal envLog $"Try handle unhandled version of db: {version}"
 
-      DatabaseUnhandledVersionException(
-        $"Unhandled version in database version handler, version: {version}"
-      )
-      |> raise
+        DatabaseUnhandledVersionException(
+          $"Unhandled version in database version handler, version: {version}"
+        )
+        |> raise
 
     match selectVersion envDb envLog with
     | Some version ->
@@ -254,10 +266,9 @@ module Database =
       handler version
     | None ->
 
-    Logger.fatal envLog $"Error, not found version in database"
+      Logger.fatal envLog $"Error, not found version in database"
 
-    DatabaseVersionTableNotExistException($"Not found version table in database")
-    |> raise
+      DatabaseVersionTableNotExistException($"Not found version table in database") |> raise
 
   let createConnection env databaseName =
     Logger.info env "Start create connection to database"
@@ -270,8 +281,7 @@ module Database =
       conn.Open()
       Logger.info env $"Success create connection to database = {connectionString.ToString()}"
       conn
-    with
-    | _ ->
+    with _ ->
       Logger.info env $"Failed create connection to database"
       reraise ()
 
@@ -299,18 +309,24 @@ module Database =
            VALUES
            (@{DbVersionField})"
 
-        let sqlParam = [ DbVersionField, SqlType.Int64 (int DatabaseVersions.ActualVersion) ]
+        let sqlParam = [ DbVersionField, SqlType.Int64(int DatabaseVersions.ActualVersion) ]
 
         Db.newCommand sqlCommand conn
         |> Db.setParams sqlParam
         |> Db.exec
         |> function
-          | Ok () -> Logger.info envLog "Successfull create value for version table"
+          | Ok() -> Logger.info envLog "Successfull create value for version table"
           | Error err ->
             Logger.fatal envLog $"Error when try add value to version table {err}"
             DatabaseVersionTryAddValueException(err) |> raise
 
     versionHandler envDb envLog
+
+    Logger.info envLog "Execute office hidden bug fix schema sql script"
+
+    use command = new SqliteCommand(officeHiddenBugFixSchema, conn)
+    let result = command.ExecuteNonQuery()
+    Logger.debug envLog $"Schema office hidden bug fix executed with code: {result}"
 
     Logger.info envLog "Execute schema sql script"
 
@@ -320,10 +336,7 @@ module Database =
     result
 
   let private stringOrNull (opt: string option) =
-    if opt.IsSome then
-      SqlType.String opt.Value
-    else
-      SqlType.Null
+    if opt.IsSome then SqlType.String opt.Value else SqlType.Null
 
   let private genericSelectMany<'a> (env: #IDb) tableName (ofDataReader: IDataReader -> 'a) =
 
@@ -337,7 +350,8 @@ module Database =
         | Ok list -> list |> Ok
         | Error err -> err |> AppError.DatabaseError |> Error
 
-    with exn -> exn |> AppError.Bug |> Error
+    with exn ->
+      exn |> AppError.Bug |> Error
 
   let private genericSelectManyWithWhere<'a>
     conn
@@ -355,7 +369,8 @@ module Database =
         | Ok list -> list |> Ok
         | Error err -> err |> AppError.DatabaseError |> Error
 
-    with exn -> exn |> AppError.Bug |> Error
+    with exn ->
+      exn |> AppError.Bug |> Error
 
   let private genericSelectSingle<'a>
     (env: #IDb)
@@ -374,15 +389,14 @@ module Database =
           match opt with
           | Some v -> Ok v
           | None ->
-            BusinessError.NotFoundInDatabase(typedefof<'a>)
-            |> AppError.BusinessError
-            |> Error
+            BusinessError.NotFoundInDatabase(typedefof<'a>) |> AppError.BusinessError |> Error
         | Error err -> err |> AppError.DatabaseError |> Error
 
-    with exn -> exn |> AppError.Bug |> Error
+    with exn ->
+      exn |> AppError.Bug |> Error
 
   let private transactionSingleExn (env: #IDb) sqlCommand sqlParam =
-    
+
     try
 
       use tran = env.Db.Conn.TryBeginTransaction()
@@ -399,7 +413,8 @@ module Database =
       | Ok _ -> Ok()
       | Error err -> err |> AppError.DatabaseError |> Error
 
-    with exn -> exn |> AppError.Bug |> Error
+    with exn ->
+      exn |> AppError.Bug |> Error
 
   let private transactionManyExn (env: #IDb) sqlCommand sqlParam =
 
@@ -408,9 +423,7 @@ module Database =
       use tran = env.Db.Conn.TryBeginTransaction()
 
       let result =
-        Db.newCommand sqlCommand env.Db.Conn
-        |> Db.setTransaction tran
-        |> Db.execMany sqlParam
+        Db.newCommand sqlCommand env.Db.Conn |> Db.setTransaction tran |> Db.execMany sqlParam
 
       tran.TryCommit()
 
@@ -418,8 +431,9 @@ module Database =
       | Ok _ -> Ok()
       | Error err -> err |> AppError.DatabaseError |> Error
 
-    with exn -> exn |> AppError.Bug |> Error
-    
+    with exn ->
+      exn |> AppError.Bug |> Error
+
   let selectTelegramMessages env =
     genericSelectMany<TelegramMessageDto>
       env
@@ -437,7 +451,7 @@ module Database =
 
   let selectDeletionItems env =
     genericSelectMany<DeletionItemDto> env DeletionItemDto.TableName DeletionItemDto.ofDataReader
-    
+
   let selectChatIds env =
     genericSelectMany<ChatIdDto> env ChatIdDto.TableName ChatIdDto.ofDataReader
 
@@ -602,9 +616,9 @@ module Database =
     let sqlParamsList: RawDbParams list =
       [ for deletionItemDto in deletionItemsDtos do
           [ Field.ItemName, SqlType.String deletionItemDto.ItemName
-            Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial 
+            Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial
             Field.ItemMac, stringOrNull deletionItemDto.ItemMac
-            Field.Count, SqlType.Int64 deletionItemDto.Count 
+            Field.Count, SqlType.Int64 deletionItemDto.Count
             Field.Date, SqlType.Int64 deletionItemDto.Date
             Field.IsDeletion, SqlType.Boolean deletionItemDto.IsDeletion
             Field.IsHidden, SqlType.Boolean deletionItemDto.IsHidden
@@ -636,9 +650,9 @@ module Database =
 
     let sqlParams =
       [ Field.ItemName, SqlType.String deletionItemDto.ItemName
-        Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial 
+        Field.ItemSerial, stringOrNull deletionItemDto.ItemSerial
         Field.ItemMac, stringOrNull deletionItemDto.ItemMac
-        Field.Count, SqlType.Int64 deletionItemDto.Count 
+        Field.Count, SqlType.Int64 deletionItemDto.Count
         Field.Date, SqlType.Int64 deletionItemDto.Date
         Field.IsDeletion, SqlType.Boolean deletionItemDto.IsDeletion
         Field.IsHidden, SqlType.Boolean deletionItemDto.IsHidden
@@ -649,7 +663,7 @@ module Database =
         Field.DeletionId, SqlType.Guid deletionItemDto.DeletionId ]
 
     transactionSingleExn env sqlCommand sqlParams
-    
+
   let updateTelegramMessage env (messageDto: TelegramMessageDto) =
     let sqlCommand =
       $"UPDATE {TelegramMessageDto.TableName}
@@ -663,7 +677,7 @@ module Database =
     transactionSingleExn env sqlCommand sqlParam
 
   let deleteOffice env (officeDto: OfficeDto) =
-  
+
     let sqlCommand =
       $"DELETE FROM {OfficeDto.TableName}
         WHERE {Field.OfficeId} = (@{Field.OfficeId})"
@@ -690,3 +704,58 @@ module Database =
     let sqlParam = [ Field.ChatId, SqlType.Int64 chatIdDto.ChatId ]
 
     transactionSingleExn env sqlCommand sqlParam
+
+  let officeHiddenBugWorkAround envDb envLog =
+
+    let conn = dbConn envDb
+
+    let sqlCommad = @$"SELECT {FixedField} from {OfficeHiddenBugFixTable}"
+    Logger.info envLog $"Get {FixedField} of {OfficeHiddenBugFixTable} with command: {sqlCommad}"
+
+    Db.newCommand sqlCommad conn
+    |> Db.querySingle (fun rd -> rd.ReadBoolean FixedField)
+    |> function
+      | Ok isFixed ->
+        if isFixed.IsSome && not isFixed.Value then
+          let offices = selectOffices envDb
+
+          match offices with
+          | Ok o ->
+            for office in o do
+              match updateOffice envDb { office with IsHidden = false } with
+              | Ok _ ->
+                Logger.info
+                  envLog
+                  $"Success update office {office.OfficeName} for {OfficeHiddenBugFixTable}"
+              | Error err ->
+                Logger.error
+                  envLog
+                  $"Error when try update office {office.OfficeName} for {OfficeHiddenBugFixTable}: {err}"
+
+            let sqlUpdateCmd = @$"UPDATE {OfficeHiddenBugFixTable} SET {FixedField} = {true};"
+
+            Logger.info
+              envLog
+              $"Update {FixedField} of {OfficeHiddenBugFixTable} with command: {sqlUpdateCmd}"
+
+            use tran = conn.TryBeginTransaction()
+
+            Db.newCommand sqlUpdateCmd conn
+            |> Db.setTransaction tran
+            |> Db.exec
+            |> function
+              | Ok _ ->
+                tran.TryCommit()
+                Logger.info envLog $"Success update {FixedField} for {OfficeHiddenBugFixTable}"
+              | Error err ->
+                tran.TryRollback()
+
+                Logger.error
+                  envLog
+                  $"Error when update {FixedField} for {OfficeHiddenBugFixTable}: {err}"
+          | Error err ->
+            Logger.error envLog $"Error when try get offices for {OfficeHiddenBugFixTable}: {err}"
+      | Error err ->
+        Logger.fatal envLog $"Error when try read {FixedField} of {OfficeHiddenBugFixTable}: {err}"
+
+        DatabaseTryReadOfficeHidenBugFieldTableException(err) |> raise
