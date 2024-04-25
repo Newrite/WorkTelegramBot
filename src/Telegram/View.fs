@@ -341,7 +341,8 @@ module View =
             let text = "Офис сотрудника изменен успешно"
             ctx.Notify managerState.Manager.ChatId text 3000
             EventBus.removeFromDictEvent ctx.AppEnv employer.ChatId
-            ctx.Dispatch <| UpdateMessage.ManagerChooseOffice(managerState, office)
+            ctx.Dispatch <| UpdateMessage.Back
+            ctx.Dispatch <| UpdateMessage.Back
 
         Keyboard.createSingle $"{choosenOffice.OfficeName}" (onClick employer)
         
@@ -888,17 +889,17 @@ module View =
       | MakeOffice.EnteringName -> MakeOffice.enteringName ctx managerState
       | MakeOffice.AskingFinish recordOffice -> MakeOffice.askingFinish ctx recordOffice
 
-    let deAuthEmployers ctx managerState =
+    let deAuthEmployers ctx managerState office =
       let employers =
         Repository.employers ctx.AppEnv
-        |> Map.filter (fun _ employer -> employer.IsApproved)
+        |> Map.filter (fun _ employer -> employer.IsApproved && employer.Office = office)
 
       Forms.RenderView.deAuthEmployers ctx managerState employers []
 
-    let authEmployers ctx managerState =
+    let authEmployers ctx managerState office =
       let employers =
         Repository.employers ctx.AppEnv
-        |> Map.filter (fun _ employer -> not employer.IsApproved)
+        |> Map.filter (fun _ employer -> not employer.IsApproved && employer.Office = office)
 
       Forms.RenderView.authEmployers ctx managerState employers []
       
@@ -968,8 +969,8 @@ module View =
 
   let private managerProcess ctx (managerState: ManagerContext) =
     match managerState.Model with
-    | ManagerModel.DeAuthEmployers _ -> ViewManager.deAuthEmployers ctx managerState
-    | ManagerModel.AuthEmployers _ -> ViewManager.authEmployers ctx managerState
+    | ManagerModel.DeAuthEmployers _ -> ViewManager.deAuthEmployers ctx managerState office
+    | ManagerModel.AuthEmployers _ -> ViewManager.authEmployers ctx managerState office
     | ManagerModel.DelegateOffice office -> ViewManager.delegateOffice ctx managerState office
     | ManagerModel.InOffice office -> ViewManager.inOffice ctx managerState office
     | ManagerModel.ChooseOffice offices -> ViewManager.chooseOffice ctx managerState offices
