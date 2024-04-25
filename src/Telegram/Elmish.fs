@@ -343,8 +343,14 @@ module Elmish =
             m.Text.IsSome
             && (m.Text.Value = "/start")
             && dict.ContainsKey(m.Chat.Id)
+            
+          let isPin =
+            m.Text.IsSome && (m.Text.Value = "/pin")
 
           let isMessageAndActorInDict = m.Text.IsSome && dict.ContainsKey(m.Chat.Id)
+          
+          if isPin then
+            Utils.sendMessage program.AppEnv %m.Chat.Id "Закрепляющее сообщение" |> ignore
 
           if isStart then
 

@@ -61,7 +61,11 @@ module ManagerProcess =
     | AuthEmployers of Office
     | DeAuthEmployers of Office
     | DelegateOffice of Office
-
+    | EmployerOperations of Office
+    | OfficeOperations of Office
+    | DelegateEmployer of Office
+    | DelegateEmployerChooseOffice of Office * Employer
+   
   type ManagerContext =
     { Manager: Manager
       Model: ManagerModel }
@@ -101,7 +105,9 @@ module Model =
         let employer = Repository.tryEmployerByChatId env chatId
 
         if manager.IsSome then
-          let offices = Repository.tryOfficeByChatId env manager.Value.ChatId
+          let offices =
+            Repository.tryOfficeByChatId env manager.Value.ChatId
+            |> Map.filter (fun _ office -> not office.IsHidden)
 
           match offices.Count with
           | 0 ->
@@ -140,9 +146,16 @@ module Model =
         else
           { History = history
             Model = CoreModel.Auth AuthProcess.AuthModel.NoAuth }
-
-      match Repository.tryAddChatId env %message.Chat.Id with
-      | true -> startInit ()
-      | false ->
-        { History = history
-          Model = CoreModel.Error("Произошла ошибка при инициализации, попробуйте еще раз позже.") }
+      
+      let firstMessage = Repository.tryChatIdByChatId env %message.Chat.Id |> Option.isNone
+      if firstMessage then
+        match Repository.tryAddChatId env %message.Chat.Id with
+        | true ->
+          Logger.info env "First message for %d, send pin message" message.Chat.Id
+          Utils.sendMessage env %message.Chat.Id "Начало сообщений." |> ignore
+          startInit ()
+        | false ->
+          { History = history
+            Model = CoreModel.Error("Произошла ошибка при инициализации, попробуйте еще раз позже.") }
+      else
+        startInit ()

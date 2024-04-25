@@ -239,6 +239,25 @@ module Repository =
     errorHandler env err
     false
 
+  let tryChatIdByChatId env chatId =
+    
+    let chatIdDto = ChatIdDto.fromDomain chatId
+    Logger.debug env 
+      $"Try get chatId: {chatIdDto.ChatId}"
+    
+    match Database.selectChatIds env with
+    | Ok chatIds ->
+      Logger.info env 
+        $"Success get chatIds for: {chatIdDto.ChatId}"
+      chatIds
+      |> List.map ChatIdDto.toDomain
+      |> List.tryFind (fun x -> x = chatId)
+    | Error err ->
+      Logger.warning env 
+        $"Error when try get chatIds by chatId: {chatIdDto.ChatId}"
+      errorHandler env err
+      None
+  
   let tryDeleteMessage env message =
     let messageDto = TelegramMessageDto.fromDomain message
     let cache = cache env

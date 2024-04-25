@@ -141,7 +141,7 @@ module OfficeDto =
   let fromDomain (office: Office) : OfficeDto =
     { OfficeId = %office.OfficeId
       OfficeName = %office.OfficeName
-      IsHidden = true
+      IsHidden = office.IsHidden
       ManagerId = %office.Manager.ChatId }
 
   let toDomain (office: OfficeDto) (manager: ManagerDto) =
