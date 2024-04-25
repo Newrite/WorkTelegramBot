@@ -969,8 +969,8 @@ module View =
 
   let private managerProcess ctx (managerState: ManagerContext) =
     match managerState.Model with
-    | ManagerModel.DeAuthEmployers _ -> ViewManager.deAuthEmployers ctx managerState office
-    | ManagerModel.AuthEmployers _ -> ViewManager.authEmployers ctx managerState office
+    | ManagerModel.DeAuthEmployers office -> ViewManager.deAuthEmployers ctx managerState office
+    | ManagerModel.AuthEmployers office -> ViewManager.authEmployers ctx managerState office
     | ManagerModel.DelegateOffice office -> ViewManager.delegateOffice ctx managerState office
     | ManagerModel.InOffice office -> ViewManager.inOffice ctx managerState office
     | ManagerModel.ChooseOffice offices -> ViewManager.chooseOffice ctx managerState offices
