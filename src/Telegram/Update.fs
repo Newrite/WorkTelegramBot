@@ -15,12 +15,12 @@ type UpdateMessage =
   | ManagerChooseOffice of ManagerProcess.ManagerContext * Office
   | ManagerMakeOfficeChange of ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
   | FinishMakeOfficeProcess of Office
-  | FinishDelegeteOffice of (ManagerProcess.ManagerContext * Manager * Office)
+  | FinishDelegateOffice of (ManagerProcess.ManagerContext * Manager * Office)
   | StartEditDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
-  | DelegeteEmployerChoose of ManagerProcess.ManagerContext * Office * Employer
-  | StartDelegeteEmployer of ManagerProcess.ManagerContext * Office
+  | DelegateEmployerChoose of ManagerProcess.ManagerContext * Office * Employer
+  | StartDelegateEmployer of ManagerProcess.ManagerContext * Office
   | StartEmployerOperations of ManagerProcess.ManagerContext * Office
   | StartDelegateOffice of ManagerProcess.ManagerContext * Office
   | DeletionProcessChange of EmployerProcess.EmployerContext * EmployerProcess.Deletion
@@ -114,7 +114,7 @@ module Update =
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
 
       callInitModelFunction ()
-    | UpdateMessage.FinishDelegeteOffice (_, manager, office) ->
+    | UpdateMessage.FinishDelegateOffice (_, manager, office) ->
       match Repository.tryUpdateOffice env { office with Manager = manager } with
       | false ->
         let text =
@@ -148,11 +148,11 @@ module Update =
       { state with Model = ManagerProcess.ManagerModel.EmployerOperations office }
       |> CoreModel.Manager
       |> model.Transform
-    | UpdateMessage.DelegeteEmployerChoose(state, office, employer) ->
-      { state with Model = ManagerProcess.ManagerModel.DelegeteEmployerChooseOffice(office, employer) }
+    | UpdateMessage.DelegateEmployerChoose(state, office, employer) ->
+      { state with Model = ManagerProcess.ManagerModel.DelegateEmployerChooseOffice(office, employer) }
       |> CoreModel.Manager
       |> model.Transform
-    | UpdateMessage.StartDelegeteEmployer(state, office) ->
-      { state with Model = ManagerProcess.ManagerModel.DelegeteEmployer office }
+    | UpdateMessage.StartDelegateEmployer(state, office) ->
+      { state with Model = ManagerProcess.ManagerModel.DelegateEmployer office }
       |> CoreModel.Manager
       |> model.Transform

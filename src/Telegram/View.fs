@@ -327,7 +327,7 @@ module View =
 
         Keyboard.createSingle $"{employer.FirstName} {employer.LastName}" (onClick employer)
         
-      let delegeteEmployerChooseOffice ctx (managerState: ManagerContext) employer choosenOffice office =
+      let delegateEmployerChooseOffice ctx (managerState: ManagerContext) employer choosenOffice office =
 
         let onClick employer _ =
           match Repository.tryUpdateEmployer ctx.AppEnv { employer with Office =  choosenOffice; IsApproved = false } with
@@ -346,14 +346,14 @@ module View =
 
         Keyboard.createSingle $"{choosenOffice.OfficeName}" (onClick employer)
         
-      let delegeteEmployer ctx (managerState: ManagerContext) employer office =
+      let delegateEmployer ctx (managerState: ManagerContext) employer office =
 
         let onClick employer _ =            
-          ctx.Dispatch <| UpdateMessage.DelegeteEmployerChoose(managerState, office, employer)
+          ctx.Dispatch <| UpdateMessage.DelegateEmployerChoose(managerState, office, employer)
 
         Keyboard.createSingle $"{employer.FirstName} {employer.LastName}" (onClick employer)
         
-      let delegeteOffice ctx (managerState: ManagerContext) (manager: Manager) office =
+      let delegateOffice ctx (managerState: ManagerContext) (manager: Manager) office =
 
         let onClick manager _ =
          // match Repository.tryUpdateOffice ctx.AppEnv { office with Manager = manager } with
@@ -370,7 +370,7 @@ module View =
          //   EventBus.removeFromDictEvent ctx.AppEnv managerState.Manager.ChatId
          //   ctx.Dispatch UpdateMessage.ReRender
             
-          ctx.Dispatch <| UpdateMessage.FinishDelegeteOffice(managerState, manager, office)
+          ctx.Dispatch <| UpdateMessage.FinishDelegateOffice(managerState, manager, office)
 
         Keyboard.createSingle $"{manager.FirstName} {manager.LastName}" (onClick manager)
 
@@ -389,9 +389,9 @@ module View =
           UpdateMessage.StartEmployerOperations(managerState, office)
           |> ctx.Dispatch)
         
-      let managerMenuDelegeteEmployer ctx managerState office =
+      let managerMenuDelegateEmployer ctx managerState office =
         Keyboard.createSingle "Переместить сотрдника офиса в другой офис" (fun _ ->
-          UpdateMessage.StartDelegeteEmployer(managerState, office)
+          UpdateMessage.StartDelegateEmployer(managerState, office)
           |> ctx.Dispatch)
 
       let managerMenuOfficesOperations ctx managerState office =
@@ -658,25 +658,25 @@ module View =
               Keyboard.authEmployer ctx managerState employer.Value
             ctx.BackCancelKeyboard ]
           
-      let delegeteOffice ctx managerState (managers: ManagersMap) office =
+      let delegateOffice ctx managerState (managers: ManagersMap) office =
         RenderView.create
           "Выберите менеджера которому хотите передать оффис"
           [ for manager in managers do
-              Keyboard.delegeteOffice ctx managerState manager.Value office
+              Keyboard.delegateOffice ctx managerState manager.Value office
             ctx.BackCancelKeyboard ]
           
-      let delegeteEmployerChooseOffice ctx managerState employer (offices: OfficesMap) office =
+      let delegateEmployerChooseOffice ctx managerState employer (offices: OfficesMap) office =
         RenderView.create
           $"Сотрудник: {employer.FirstName} {employer.LastName}\nВыберите офис в который хотите переместить сотрудника"
           [ for office_from in offices do
-              Keyboard.delegeteEmployerChooseOffice ctx managerState employer office_from.Value office
+              Keyboard.delegateEmployerChooseOffice ctx managerState employer office_from.Value office
             ctx.BackCancelKeyboard ]
           
-      let delegeteEmployer ctx managerState (employers: EmployersMap) office =
+      let delegateEmployer ctx managerState (employers: EmployersMap) office =
         RenderView.create
           "Выберите сотрудника которого хотите переместить"
           [ for employer in employers do
-              Keyboard.delegeteEmployer ctx managerState employer.Value office
+              Keyboard.delegateEmployer ctx managerState employer.Value office
             ctx.BackCancelKeyboard ]
           
       let employerOperations ctx managerState office =
@@ -684,7 +684,7 @@ module View =
           "Выберите действие"
           [ Keyboard.managerMenuAuthEmployer ctx managerState office
             Keyboard.managerMenuDeAuthEmployer ctx managerState office
-            Keyboard.managerMenuDelegeteEmployer ctx managerState office
+            Keyboard.managerMenuDelegateEmployer ctx managerState office
             ctx.BackCancelKeyboard ]
           
       let managerOfficeOperations ctx managerState office =
@@ -908,14 +908,14 @@ module View =
         Repository.managers ctx.AppEnv
         |> Map.filter (fun chatId _ -> chatId.Equals(managerState.Manager.ChatId) |> not)
 
-      Forms.RenderView.delegeteOffice ctx managerState managers office []
+      Forms.RenderView.delegateOffice ctx managerState managers office []
       
     let delegateEmployer ctx managerState office =
       let employers =
         Repository.employers ctx.AppEnv
         |> Map.filter (fun _ e -> e.Office = office)
 
-      Forms.RenderView.delegeteEmployer ctx managerState employers office []
+      Forms.RenderView.delegateEmployer ctx managerState employers office []
       
     let delegateEmployerChooseOffice ctx managerState office employer =
       let offices =
@@ -924,7 +924,7 @@ module View =
           Logger.debug ctx.AppEnv $"Filtered offices for delegate employer: {o.OfficeId} {o.IsHidden}"
           o.OfficeId <> office.OfficeId && not o.IsHidden )
 
-      Forms.RenderView.delegeteEmployerChooseOffice ctx managerState employer offices office []
+      Forms.RenderView.delegateEmployerChooseOffice ctx managerState employer offices office []
       
     let employerOperations ctx managerState office =
 
@@ -979,8 +979,8 @@ module View =
       ViewManager.makeOfficeProcess ctx managerState makeProcess
     | ManagerModel.EmployerOperations office -> ViewManager.employerOperations ctx managerState office
     | ManagerModel.OfficeOperations office -> failwith "todo"
-    | ManagerModel.DelegeteEmployer office -> ViewManager.delegateEmployer ctx managerState office
-    | ManagerModel.DelegeteEmployerChooseOffice(office, employer) -> ViewManager.delegateEmployerChooseOffice ctx managerState office employer
+    | ManagerModel.DelegateEmployer office -> ViewManager.delegateEmployer ctx managerState office
+    | ManagerModel.DelegateEmployerChooseOffice(office, employer) -> ViewManager.delegateEmployerChooseOffice ctx managerState office employer
 
   let private authProcess (ctx: ViewContext<_, _>) authModel =
 
