@@ -285,7 +285,6 @@ module Elmish =
       let internalUpdate update (ctx: UpdateContext) =
         
         let startFunction (msg: Message) =
-          
           let sendedMessage =
             Funogram.Telegram.Api.sendMessage msg.Chat.Id "Инициализация..."
             |> Funogram.Api.api config

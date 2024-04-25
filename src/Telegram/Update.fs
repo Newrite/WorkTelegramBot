@@ -114,6 +114,7 @@ module Update =
         Utils.sendMessageAndDeleteAfterDelay env %office.Manager.ChatId text 3000
 
       callInitModelFunction ()
+
     | UpdateMessage.FinishDelegateOffice (_, manager, office) ->
       match Repository.tryUpdateOffice env { office with Manager = manager } with
       | false ->

@@ -65,7 +65,7 @@ module ManagerProcess =
     | OfficeOperations of Office
     | DelegateEmployer of Office
     | DelegateEmployerChooseOffice of Office * Employer
-    
+   
   type ManagerContext =
     { Manager: Manager
       Model: ManagerModel }
