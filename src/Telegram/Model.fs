@@ -105,7 +105,9 @@ module Model =
         let employer = Repository.tryEmployerByChatId env chatId
 
         if manager.IsSome then
-          let offices = Repository.tryOfficeByChatId env manager.Value.ChatId
+          let offices =
+            Repository.tryOfficeByChatId env manager.Value.ChatId
+            |> Map.filter (fun _ office -> not office.IsHidden)
 
           match offices.Count with
           | 0 ->
