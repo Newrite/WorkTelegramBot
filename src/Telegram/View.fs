@@ -814,7 +814,7 @@ module View =
         Repository.deletionItems ctx.AppEnv
         |> Map.toList
         |> List.map snd
-        |> List.filter (fun item -> item.Employer.Office.OfficeId = employerState.Employer.Office.OfficeId)
+        |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
         |> List.filter (fun item -> not item.IsHidden && not item.IsReadyToDeletion && not item.IsDeletion)
         |> List.filter (fun item -> DeletionItem.inspiredItem currentTime item |> not)
 
