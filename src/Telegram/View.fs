@@ -320,10 +320,10 @@ module View =
             | Some serial -> %serial
             | None -> "_"
             
-          let item_time = item.Time
-          let item_date = item_time.Date
+          let itemTime = item.Time
+          let itemTimeDate = itemTime.Date
 
-          $"Date:{item_date} N:{item.Item.Name} S:{serial}"
+          $"Date:{itemTimeDate.Day}/{itemTimeDate.Month}/{itemTimeDate.Year} N:{item.Item.Name} S:{serial}"
 
         Keyboard.createSingle text (fun _ ->
             ctx.Dispatch UpdateMessage.ReRender)
