@@ -519,6 +519,8 @@ module View =
             |> Map.toList 
             |> List.map snd
             |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> not item.IsHidden)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item || item.IsReadyToDeletion)
 
           if items.Length > 0 then
             try
