@@ -89,7 +89,8 @@ namespace WorkTelegram.Telegram
                 
                 val forceInspireItems:
                   ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
-                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                    employerState: EmployerProcess.EmployerContext ->
+                    Elmish.Keyboard
                 
                 val refresh: ctx: ViewContext<'a,'b> -> Elmish.Keyboard
                 

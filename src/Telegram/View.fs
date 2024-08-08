@@ -666,11 +666,11 @@ module View =
               Keyboard.hideDeletionItem ctx employerState item
             ctx.BackCancelKeyboard ]
           
-      let showRecords ctx employerState items =
+      let showRecords ctx items =
         RenderView.create
           "Последние записи"
           [ for item in items do
-              Keyboard.showLastRecords ctx employerState
+              Keyboard.showDeletionItem ctx item
             ctx.BackCancelKeyboard ]
 
       let renderOffices ctx (offices: OfficesMap) onClick =
@@ -835,9 +835,9 @@ module View =
         Repository.deletionItems ctx.AppEnv
         |> Map.toList
         |> List.map snd
-        |> List.filter (fun item -> item.Employer.Office.OfficeId = employerState.Employer.Office.OfficeId)
+        |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
         |> List.filter (fun item -> not item.IsHidden)
-        |> List.filter (DeletionItem.inspiredItem currentTime)
+        |> List.filter (fun item -> DeletionItem.inspiredItem currentTime item || item.IsReadyToDeletion)
         |> List.takeWhile (fun _ ->
           counter <- counter + 1
           counter <= 5)
@@ -848,7 +848,7 @@ module View =
           [ ctx.BackCancelKeyboard ]
           []
       else
-        Forms.RenderView.showRecords ctx employerState items []
+        Forms.RenderView.showRecords ctx items []
 
     [<RequireQualifiedAccess>]
     module DeletionProcess =
