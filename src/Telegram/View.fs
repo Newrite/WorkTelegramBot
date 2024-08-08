@@ -318,8 +318,10 @@ module View =
             match item.Item.Serial with
             | Some serial -> %serial
             | None -> "_"
+            
+          let item_date = item.Time.Date
 
-          $"Date:{item.Time.Date} N:{item.Item.Name} S:{serial}"
+          $"Date:{item_date} N:{item.Item.Name} S:{serial}"
 
         Keyboard.createSingle text (fun _ ->
             ctx.Dispatch UpdateMessage.ReRender)
