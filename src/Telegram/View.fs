@@ -840,6 +840,8 @@ module View =
         |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
         |> List.filter (fun item -> not item.IsHidden)
         |> List.filter (fun item -> DeletionItem.inspiredItem currentTime item || item.IsReadyToDeletion)
+        |> List.sortBy (_.Time)
+        |> List.rev
         |> List.takeWhile (fun _ ->
           counter <- counter + 1
           counter <= 5)
