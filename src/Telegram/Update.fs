@@ -17,6 +17,7 @@ type UpdateMessage =
   | FinishMakeOfficeProcess of Office
   | FinishDelegateOffice of (ManagerProcess.ManagerContext * Manager * Office)
   | StartEditDeletionItems of EmployerProcess.EmployerContext
+  | ShowLastDeletionItems of EmployerProcess.EmployerContext
   | StartAuthEmployers of ManagerProcess.ManagerContext * Office
   | StartDeAuthEmployers of ManagerProcess.ManagerContext * Office
   | DelegateEmployerChoose of ManagerProcess.ManagerContext * Office * Employer
@@ -156,4 +157,8 @@ module Update =
     | UpdateMessage.StartDelegateEmployer(state, office) ->
       { state with Model = ManagerProcess.ManagerModel.DelegateEmployer office }
       |> CoreModel.Manager
+      |> model.Transform
+    | UpdateMessage.ShowLastDeletionItems state ->
+      { state with Model = EmployerProcess.EmployerModel.ShowedLastRecords }
+      |> CoreModel.Employer
       |> model.Transform

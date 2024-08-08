@@ -38,6 +38,7 @@ module EmployerProcess =
     | Deletion of Deletion
     | WaitChoice
     | EditDeletionItems
+    | ShowedLastRecords
 
   type EmployerContext =
     { Employer: Employer

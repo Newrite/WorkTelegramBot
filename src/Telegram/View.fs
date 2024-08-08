@@ -216,6 +216,12 @@ module View =
         Keyboard.createSingle "Удалить запись" (fun _ ->
           UpdateMessage.StartEditDeletionItems employerState
           |> ctx.Dispatch)
+        
+      let showLastRecords ctx employerState =
+
+        Keyboard.createSingle "Показать последние записи" (fun _ ->
+          UpdateMessage.ShowLastDeletionItems employerState
+          |> ctx.Dispatch)
 
       let refresh ctx =
         Keyboard.createSingle "Обновить" (fun _ -> ctx.Dispatch UpdateMessage.Cancel)
@@ -275,6 +281,18 @@ module View =
           | false ->
             let text = "Не удалось удалить запись, попробуйте еще раз или попозже"
             ctx.Notify employerState.Employer.ChatId text 3000
+            ctx.Dispatch UpdateMessage.ReRender)
+        
+      let showDeletionItem ctx item =
+        let text =
+          let serial =
+            match item.Item.Serial with
+            | Some serial -> %serial
+            | None -> "_"
+
+          $"Date:{item.Time.Date} N:{item.Item.Name} S:{serial}"
+
+        Keyboard.createSingle text (fun _ ->
             ctx.Dispatch UpdateMessage.ReRender)
 
       let renderOffice office onClick = Keyboard.createSingle %office.OfficeName onClick
@@ -564,6 +582,7 @@ module View =
           text
           [ Keyboard.addRecord ctx employerState
             Keyboard.deleteRecord ctx employerState
+            Keyboard.showLastRecords ctx employerState
             ctx.BackCancelKeyboard ]
 
       let waitingApproveEmployerMenu ctx =
@@ -611,6 +630,13 @@ module View =
           "Выберите запись для удаления"
           [ for item in items do
               Keyboard.hideDeletionItem ctx employerState item
+            ctx.BackCancelKeyboard ]
+          
+      let showRecords ctx employerState items =
+        RenderView.create
+          "Последние записи"
+          [ for item in items do
+              Keyboard.showLastRecords ctx employerState
             ctx.BackCancelKeyboard ]
 
       let renderOffices ctx (offices: OfficesMap) onClick =
@@ -763,6 +789,32 @@ module View =
           []
       else
         Forms.RenderView.editDeletionItems ctx employerState items []
+        
+    let showLastDeletionItems ctx employerState =
+
+      let items =
+        
+        let currentTime = System.DateTime.Now
+        
+        let mutable counter = 0
+
+        Repository.deletionItems ctx.AppEnv
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun item -> item.Employer.Office.OfficeId = employerState.Employer.Office.OfficeId)
+        |> List.filter (fun item -> not item.IsHidden)
+        |> List.filter (DeletionItem.inspiredItem currentTime)
+        |> List.takeWhile (fun _ ->
+          counter <- counter + 1
+          counter <= 5)
+
+      if items.Length < 1 then
+        RenderView.create
+          "Не нашлось готовых или уже списанных записей"
+          [ ctx.BackCancelKeyboard ]
+          []
+      else
+        Forms.RenderView.showRecords ctx employerState items []
 
     [<RequireQualifiedAccess>]
     module DeletionProcess =
@@ -966,6 +1018,7 @@ module View =
     | EmployerModel.WaitChoice -> ViewEmployer.waitChoice ctx employerState
     | EmployerModel.Deletion delProcess -> ViewEmployer.deletionProcess ctx employerState delProcess
     | EmployerModel.EditDeletionItems -> ViewEmployer.editDeletionItems ctx employerState
+    | EmployerModel.ShowedLastRecords -> ViewEmployer.showLastDeletionItems ctx employerState
 
   let private managerProcess ctx (managerState: ManagerContext) =
     match managerState.Model with
