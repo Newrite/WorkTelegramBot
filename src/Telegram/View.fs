@@ -7,6 +7,7 @@ open WorkTelegram.Infrastructure
 
 open Elmish
 open WorkTelegram.Telegram
+open WorkTelegram.Telegram.EmployerProcess
 open WorkTelegram.Telegram.ManagerProcess
 
 module View =
@@ -223,13 +224,13 @@ module View =
           UpdateMessage.ShowLastDeletionItems employerState
           |> ctx.Dispatch)
         
-      let forceInspireItems ctx office =
+      let forceInspireItems ctx employerState =
         Keyboard.createSingle "Подготовить все записи для списания" (fun _ ->
           let items =
             Repository.deletionItems ctx.AppEnv 
             |> Map.toList 
             |> List.map snd
-            |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
             |> List.filter (fun item -> not item.IsHidden && not item.IsReadyToDeletion && not item.IsDeletion)
             |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item |> not)
 
@@ -239,16 +240,16 @@ module View =
             | true ->
               let text = "Операция прошла успешно"
 
-              ctx.Notify office.Manager.ChatId text 3000
+              ctx.Notify employerState.Employer.ChatId text 3000
             | false ->
               let text = "Не удалось подготовить записи, попробуйте попозже"
 
-              ctx.Notify office.Manager.ChatId text 5000
+              ctx.Notify employerState.Employer.ChatId text 5000
 
           else
             let text = "Нет записей для подготовки"
 
-            ctx.Notify office.Manager.ChatId text 5000
+            ctx.Notify employerState.Employer.ChatId text 5000
 
           ctx.Dispatch UpdateMessage.ReRender)
 
@@ -615,7 +616,7 @@ module View =
           [ Keyboard.addRecord ctx employerState
             Keyboard.deleteRecord ctx employerState
             Keyboard.showLastRecords ctx employerState
-            Keyboard.forceInspireItems ctx employerState.Employer.Office
+            Keyboard.forceInspireItems ctx employerState
             ctx.BackCancelKeyboard ]
 
       let waitingApproveEmployerMenu ctx =
