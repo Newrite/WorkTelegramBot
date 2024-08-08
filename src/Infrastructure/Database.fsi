@@ -20,6 +20,8 @@ namespace WorkTelegram.Infrastructure
         
         exception private DatabaseTryReadDatabaseVersionTableException of Donald.DbError
         
+        exception private DatabaseTryReadOfficeHidenBugFieldTableException of Donald.DbError
+        
         val dbConn: env: #IDb -> Microsoft.Data.Sqlite.SqliteConnection
         
         val IDbBuilder: conn: Microsoft.Data.Sqlite.SqliteConnection -> IDb
@@ -30,7 +32,15 @@ namespace WorkTelegram.Infrastructure
         [<Literal>]
         val DbVersionField: string = "VERSION"
         
+        [<Literal>]
+        val OfficeHiddenBugFixTable: string = "OFFICE_HIDDEN_BUG_FIX"
+        
+        [<Literal>]
+        val FixedField: string = "FIXED"
+        
         val private versionSchema: string
+        
+        val private officeHiddenBugFixSchema: string
         
         val private schema: string
         
@@ -109,6 +119,11 @@ namespace WorkTelegram.Infrastructure
             Result<WorkTelegram.Core.DeletionItemDto list,
                    WorkTelegram.Core.Types.AppError>
         
+        val selectChatIds:
+          env: IDb ->
+            Result<WorkTelegram.Core.ChatIdDto list,
+                   WorkTelegram.Core.Types.AppError>
+        
         val insertTelegramMessage:
           env: IDb ->
             messageDto: WorkTelegram.Core.TelegramMessageDto ->
@@ -173,4 +188,6 @@ namespace WorkTelegram.Infrastructure
           env: IDb ->
             chatIdDto: WorkTelegram.Core.ChatIdDto ->
             Result<unit,WorkTelegram.Core.Types.AppError>
+        
+        val officeHiddenBugWorkAround: envDb: IDb -> envLog: ILog -> unit
 

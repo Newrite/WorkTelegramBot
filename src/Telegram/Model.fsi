@@ -36,6 +36,7 @@ namespace WorkTelegram.Telegram
             | Deletion of Deletion
             | WaitChoice
             | EditDeletionItems
+            | ShowedLastRecords
         
         type EmployerContext =
             {
@@ -61,6 +62,11 @@ namespace WorkTelegram.Telegram
             | AuthEmployers of WorkTelegram.Core.Types.Office
             | DeAuthEmployers of WorkTelegram.Core.Types.Office
             | DelegateOffice of WorkTelegram.Core.Types.Office
+            | EmployerOperations of WorkTelegram.Core.Types.Office
+            | OfficeOperations of WorkTelegram.Core.Types.Office
+            | DelegateEmployer of WorkTelegram.Core.Types.Office
+            | DelegateEmployerChooseOffice of
+              WorkTelegram.Core.Types.Office * WorkTelegram.Core.Types.Employer
         
         type ManagerContext =
             {
@@ -96,7 +102,8 @@ namespace WorkTelegram.Telegram
                       when 'a :> WorkTelegram.Infrastructure.ILog and
                            'a :>
                                 WorkTelegram.Infrastructure.IRep<WorkTelegram.Infrastructure.CacheCommand> and
-                           'a :> WorkTelegram.Infrastructure.IDb
+                           'a :> WorkTelegram.Infrastructure.IDb and
+                           'a :> WorkTelegram.Infrastructure.ICfg<'b>
             
             member Transform: model: CoreModel -> ModelContext<'Model>
 

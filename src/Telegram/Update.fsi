@@ -10,10 +10,21 @@ namespace WorkTelegram.Telegram
         | ManagerMakeOfficeChange of
           ManagerProcess.ManagerContext * ManagerProcess.MakeOffice
         | FinishMakeOfficeProcess of WorkTelegram.Core.Types.Office
+        | FinishDelegateOffice of
+          (ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Manager *
+           WorkTelegram.Core.Types.Office)
         | StartEditDeletionItems of EmployerProcess.EmployerContext
+        | ShowLastDeletionItems of EmployerProcess.EmployerContext
         | StartAuthEmployers of
           ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
         | StartDeAuthEmployers of
+          ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
+        | DelegateEmployerChoose of
+          ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office *
+          WorkTelegram.Core.Types.Employer
+        | StartDelegateEmployer of
+          ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
+        | StartEmployerOperations of
           ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
         | StartDelegateOffice of
           ManagerProcess.ManagerContext * WorkTelegram.Core.Types.Office
@@ -38,5 +49,6 @@ namespace WorkTelegram.Telegram
                       WorkTelegram.Infrastructure.IRep<WorkTelegram.Infrastructure.CacheCommand> and
                  'a :> WorkTelegram.Infrastructure.ILog and
                  'a :> WorkTelegram.Infrastructure.IDb and
-                 'a :> WorkTelegram.Infrastructure.ICfg<'b>
+                 'a :> WorkTelegram.Infrastructure.ICfg<'b> and
+                 'a :> WorkTelegram.Infrastructure.IEventBus
 

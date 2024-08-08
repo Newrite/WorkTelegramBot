@@ -7,6 +7,7 @@ open WorkTelegram.Infrastructure
 
 open Elmish
 open WorkTelegram.Telegram
+open WorkTelegram.Telegram.EmployerProcess
 open WorkTelegram.Telegram.ManagerProcess
 
 module View =
@@ -216,6 +217,41 @@ module View =
         Keyboard.createSingle "Удалить запись" (fun _ ->
           UpdateMessage.StartEditDeletionItems employerState
           |> ctx.Dispatch)
+        
+      let showLastRecords ctx employerState =
+
+        Keyboard.createSingle "Показать последние записи" (fun _ ->
+          UpdateMessage.ShowLastDeletionItems employerState
+          |> ctx.Dispatch)
+        
+      let forceInspireItems ctx employerState =
+        Keyboard.createSingle "Подготовить все записи для списания" (fun _ ->
+          let items =
+            Repository.deletionItems ctx.AppEnv 
+            |> Map.toList 
+            |> List.map snd
+            |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
+            |> List.filter (fun item -> not item.IsHidden && not item.IsReadyToDeletion && not item.IsDeletion)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item |> not)
+
+          if items.Length > 0 then
+            let updatedItems = List.map (fun item -> { item with DeletionItem.IsReadyToDeletion = true }) items
+            match Repository.tryUpdateDeletionItems ctx.AppEnv updatedItems with
+            | true ->
+              let text = "Операция прошла успешно"
+
+              ctx.Notify employerState.Employer.ChatId text 3000
+            | false ->
+              let text = "Не удалось подготовить записи, попробуйте попозже"
+
+              ctx.Notify employerState.Employer.ChatId text 5000
+
+          else
+            let text = "Нет записей для подготовки"
+
+            ctx.Notify employerState.Employer.ChatId text 5000
+
+          ctx.Dispatch UpdateMessage.ReRender)
 
       let refresh ctx =
         Keyboard.createSingle "Обновить" (fun _ -> ctx.Dispatch UpdateMessage.Cancel)
@@ -275,6 +311,21 @@ module View =
           | false ->
             let text = "Не удалось удалить запись, попробуйте еще раз или попозже"
             ctx.Notify employerState.Employer.ChatId text 3000
+            ctx.Dispatch UpdateMessage.ReRender)
+        
+      let showDeletionItem ctx item =
+        let text =
+          let serial =
+            match item.Item.Serial with
+            | Some serial -> %serial
+            | None -> "_"
+            
+          let itemTime = item.Time
+          let itemTimeDate = itemTime.Date
+
+          $"Date:{itemTimeDate.Day}/{itemTimeDate.Month}/{itemTimeDate.Year} N:{item.Item.Name} S:{serial}"
+
+        Keyboard.createSingle text (fun _ ->
             ctx.Dispatch UpdateMessage.ReRender)
 
       let renderOffice office onClick = Keyboard.createSingle %office.OfficeName onClick
@@ -434,7 +485,7 @@ module View =
             |> List.map snd
             |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
             |> List.filter (fun item -> not item.IsHidden && not item.IsDeletion)
-            |> List.filter (DeletionItem.inspiredItem System.DateTime.Now)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item || item.IsReadyToDeletion)
 
           if items.Length > 0 then
             try
@@ -468,6 +519,8 @@ module View =
             |> Map.toList 
             |> List.map snd
             |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> not item.IsHidden)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item || item.IsReadyToDeletion)
 
           if items.Length > 0 then
             try
@@ -564,6 +617,8 @@ module View =
           text
           [ Keyboard.addRecord ctx employerState
             Keyboard.deleteRecord ctx employerState
+            Keyboard.showLastRecords ctx employerState
+            Keyboard.forceInspireItems ctx employerState
             ctx.BackCancelKeyboard ]
 
       let waitingApproveEmployerMenu ctx =
@@ -611,6 +666,13 @@ module View =
           "Выберите запись для удаления"
           [ for item in items do
               Keyboard.hideDeletionItem ctx employerState item
+            ctx.BackCancelKeyboard ]
+          
+      let showRecords ctx items =
+        RenderView.create
+          "Последние записи"
+          [ for item in items do
+              Keyboard.showDeletionItem ctx item
             ctx.BackCancelKeyboard ]
 
       let renderOffices ctx (offices: OfficesMap) onClick =
@@ -763,6 +825,32 @@ module View =
           []
       else
         Forms.RenderView.editDeletionItems ctx employerState items []
+        
+    let showLastDeletionItems ctx employerState =
+
+      let items =
+        
+        let currentTime = System.DateTime.Now
+        
+        let mutable counter = 0
+
+        Repository.deletionItems ctx.AppEnv
+        |> Map.toList
+        |> List.map snd
+        |> List.filter (fun item -> item.Employer.ChatId = employerState.Employer.ChatId)
+        |> List.filter (fun item -> not item.IsHidden)
+        |> List.filter (fun item -> DeletionItem.inspiredItem currentTime item || item.IsReadyToDeletion)
+        |> List.takeWhile (fun _ ->
+          counter <- counter + 1
+          counter <= 5)
+
+      if items.Length < 1 then
+        RenderView.create
+          "Не нашлось готовых или уже списанных записей"
+          [ ctx.BackCancelKeyboard ]
+          []
+      else
+        Forms.RenderView.showRecords ctx items []
 
     [<RequireQualifiedAccess>]
     module DeletionProcess =
@@ -966,6 +1054,7 @@ module View =
     | EmployerModel.WaitChoice -> ViewEmployer.waitChoice ctx employerState
     | EmployerModel.Deletion delProcess -> ViewEmployer.deletionProcess ctx employerState delProcess
     | EmployerModel.EditDeletionItems -> ViewEmployer.editDeletionItems ctx employerState
+    | EmployerModel.ShowedLastRecords -> ViewEmployer.showLastDeletionItems ctx employerState
 
   let private managerProcess ctx (managerState: ManagerContext) =
     match managerState.Model with

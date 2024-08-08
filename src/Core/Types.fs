@@ -442,9 +442,6 @@ module Types =
 
     let createExcelTableFromItemsAsByte items =
       
-      // let t = DateTime.UtcNow.Ticks
-      // let ti = DateTime
-      
       let headers =
         [ "Имя"
           "Серийный номер"

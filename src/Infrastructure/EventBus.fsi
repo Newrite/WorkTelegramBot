@@ -1,10 +1,11 @@
 namespace WorkTelegram.Infrastructure
     
     [<NoEquality; NoComparison; RequireQualifiedAccess>]
-    type EventBusMessage =
-        | RemoveFromElmishDict of WorkTelegram.Core.UMX.ChatId
+    type EventBusMessage = | RemoveFromElmishDict
     
-    type EventsStack = System.Collections.Generic.Stack<EventBusMessage>
+    type EventsStack =
+        System.Collections.Concurrent.ConcurrentDictionary<WorkTelegram.Core.UMX.ChatId,
+                                                           System.Collections.Generic.Stack<EventBusMessage>>
     
     type IEvent =
         
