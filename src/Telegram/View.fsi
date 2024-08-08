@@ -82,6 +82,11 @@ namespace WorkTelegram.Telegram
                     employerState: EmployerProcess.EmployerContext ->
                     Elmish.Keyboard
                 
+                val showLastRecords:
+                  ctx: ViewContext<'a,'b> ->
+                    employerState: EmployerProcess.EmployerContext ->
+                    Elmish.Keyboard
+                
                 val refresh: ctx: ViewContext<'a,'b> -> Elmish.Keyboard
                 
                 val withoutSerial:
@@ -115,6 +120,11 @@ namespace WorkTelegram.Telegram
                     item: WorkTelegram.Core.Types.DeletionItem ->
                     Elmish.Keyboard
                 
+                val showDeletionItem:
+                  ctx: ViewContext<'a,'b> ->
+                    item: WorkTelegram.Core.Types.DeletionItem ->
+                    Elmish.Keyboard
+                
                 val renderOffice:
                   office: WorkTelegram.Core.Types.Office ->
                     onClick: (Funogram.Telegram.Bot.UpdateContext -> unit) ->
@@ -140,8 +150,21 @@ namespace WorkTelegram.Telegram
                     employer: WorkTelegram.Core.Types.Employer ->
                     Elmish.Keyboard
                 
-                val delegeteOffice:
+                val delegateEmployerChooseOffice:
                   ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    employer: WorkTelegram.Core.Types.Employer ->
+                    choosenOffice: WorkTelegram.Core.Types.Office ->
+                    office: 'b -> Elmish.Keyboard
+                
+                val delegateEmployer:
+                  ctx: ViewContext<'a,'b> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    employer: WorkTelegram.Core.Types.Employer ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                
+                val delegateOffice:
+                  ctx: ViewContext<'a,'b> ->
                     managerState: ManagerProcess.ManagerContext ->
                     manager: WorkTelegram.Core.Types.Manager ->
                     office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
@@ -152,6 +175,16 @@ namespace WorkTelegram.Telegram
                     office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
                 
                 val managerMenuDeAuthEmployer:
+                  ctx: ViewContext<'a,'b> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                
+                val managerMenuEmployerOperations:
+                  ctx: ViewContext<'a,'b> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                
+                val managerMenuDelegateEmployer:
                   ctx: ViewContext<'a,'b> ->
                     managerState: ManagerProcess.ManagerContext ->
                     office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
@@ -245,6 +278,13 @@ namespace WorkTelegram.Telegram
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
                 
+                val showRecords:
+                  ctx: ViewContext<'a,'b> ->
+                    employerState: EmployerProcess.EmployerContext ->
+                    items: 'c seq ->
+                    ((Funogram.Telegram.Types.Message -> unit) list ->
+                       Elmish.RenderView)
+                
                 val renderOffices:
                   ctx: ViewContext<'a,'b> ->
                     offices: WorkTelegram.Infrastructure.OfficesMap ->
@@ -287,9 +327,40 @@ namespace WorkTelegram.Telegram
                        Elmish.RenderView)
                 
                 val delegateOffice:
-                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                  ctx: ViewContext<'a,'b> ->
                     managerState: ManagerProcess.ManagerContext ->
                     managers: WorkTelegram.Infrastructure.ManagersMap ->
+                    office: WorkTelegram.Core.Types.Office ->
+                    ((Funogram.Telegram.Types.Message -> unit) list ->
+                       Elmish.RenderView)
+                
+                val delegateEmployerChooseOffice:
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    employer: WorkTelegram.Core.Types.Employer ->
+                    offices: WorkTelegram.Infrastructure.OfficesMap ->
+                    office: 'b ->
+                    ((Funogram.Telegram.Types.Message -> unit) list ->
+                       Elmish.RenderView)
+                
+                val delegateEmployer:
+                  ctx: ViewContext<'a,'b> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    employers: WorkTelegram.Infrastructure.EmployersMap ->
+                    office: WorkTelegram.Core.Types.Office ->
+                    ((Funogram.Telegram.Types.Message -> unit) list ->
+                       Elmish.RenderView)
+                
+                val employerOperations:
+                  ctx: ViewContext<'a,'b> ->
+                    managerState: ManagerProcess.ManagerContext ->
+                    office: WorkTelegram.Core.Types.Office ->
+                    ((Funogram.Telegram.Types.Message -> unit) list ->
+                       Elmish.RenderView)
+                
+                val managerOfficeOperations:
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    managerState: ManagerProcess.ManagerContext ->
                     office: WorkTelegram.Core.Types.Office ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
@@ -329,6 +400,16 @@ namespace WorkTelegram.Telegram
                 Elmish.RenderView
             
             val editDeletionItems:
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                employerState: EmployerProcess.EmployerContext ->
+                Elmish.RenderView
+            
+            val forceInspireItems:
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                employerState: EmployerProcess.EmployerContext ->
+                Elmish.RenderView
+            
+            val showLastDeletionItems:
               ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 employerState: EmployerProcess.EmployerContext ->
                 Elmish.RenderView
@@ -430,14 +511,37 @@ namespace WorkTelegram.Telegram
             
             val deAuthEmployers:
               ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
-                managerState: ManagerProcess.ManagerContext -> Elmish.RenderView
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
             
             val authEmployers:
               ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
-                managerState: ManagerProcess.ManagerContext -> Elmish.RenderView
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
             
             val delegateOffice:
               ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
+            
+            val delegateEmployer:
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
+            
+            val delegateEmployerChooseOffice:
+              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office ->
+                employer: WorkTelegram.Core.Types.Employer -> Elmish.RenderView
+            
+            val employerOperations:
+              ctx: ViewContext<'a,'b> ->
+                managerState: ManagerProcess.ManagerContext ->
+                office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
+            
+            val officeOperations:
+              ctx: ViewContext<'a,'b> ->
                 managerState: ManagerProcess.ManagerContext ->
                 office: WorkTelegram.Core.Types.Office -> Elmish.RenderView
             

@@ -83,6 +83,11 @@ namespace WorkTelegram.Infrastructure
           env: 'a -> chatId: WorkTelegram.Core.UMX.ChatId -> bool
             when 'a :> ILog and 'a :> IDb
         
+        val tryChatIdByChatId:
+          env: 'a ->
+            chatId: WorkTelegram.Core.UMX.ChatId ->
+            WorkTelegram.Core.UMX.ChatId option when 'a :> ILog and 'a :> IDb
+        
         val tryDeleteMessage:
           env: 'a -> message: WorkTelegram.Core.Types.TelegramMessage -> bool
             when 'a :> IRep<CacheCommand> and 'a :> ILog and 'a :> IDb

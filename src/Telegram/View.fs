@@ -222,6 +222,35 @@ module View =
         Keyboard.createSingle "Показать последние записи" (fun _ ->
           UpdateMessage.ShowLastDeletionItems employerState
           |> ctx.Dispatch)
+        
+      let forceInspireItems ctx office =
+        Keyboard.createSingle "Подготовить все записи для списания" (fun _ ->
+          let items =
+            Repository.deletionItems ctx.AppEnv 
+            |> Map.toList 
+            |> List.map snd
+            |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
+            |> List.filter (fun item -> not item.IsHidden && not item.IsReadyToDeletion && not item.IsDeletion)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item |> not)
+
+          if items.Length > 0 then
+            let updatedItems = List.map (fun item -> { item with DeletionItem.IsReadyToDeletion = true }) items
+            match Repository.tryUpdateDeletionItems ctx.AppEnv updatedItems with
+            | true ->
+              let text = "Операция прошла успешно"
+
+              ctx.Notify office.Manager.ChatId text 3000
+            | false ->
+              let text = "Не удалось подготовить записи, попробуйте попозже"
+
+              ctx.Notify office.Manager.ChatId text 5000
+
+          else
+            let text = "Нет записей для подготовки"
+
+            ctx.Notify office.Manager.ChatId text 5000
+
+          ctx.Dispatch UpdateMessage.ReRender)
 
       let refresh ctx =
         Keyboard.createSingle "Обновить" (fun _ -> ctx.Dispatch UpdateMessage.Cancel)
@@ -452,7 +481,7 @@ module View =
             |> List.map snd
             |> List.filter (fun item -> item.Employer.Office.OfficeId = office.OfficeId)
             |> List.filter (fun item -> not item.IsHidden && not item.IsDeletion)
-            |> List.filter (DeletionItem.inspiredItem System.DateTime.Now)
+            |> List.filter (fun item -> DeletionItem.inspiredItem System.DateTime.Now item || item.IsReadyToDeletion)
 
           if items.Length > 0 then
             try
@@ -583,6 +612,7 @@ module View =
           [ Keyboard.addRecord ctx employerState
             Keyboard.deleteRecord ctx employerState
             Keyboard.showLastRecords ctx employerState
+            Keyboard.forceInspireItems ctx employerState.Employer.Office
             ctx.BackCancelKeyboard ]
 
       let waitingApproveEmployerMenu ctx =
