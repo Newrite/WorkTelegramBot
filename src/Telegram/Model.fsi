@@ -37,7 +37,6 @@ namespace WorkTelegram.Telegram
             | WaitChoice
             | EditDeletionItems
             | ShowedLastRecords
-            | ForceInspired
         
         type EmployerContext =
             {

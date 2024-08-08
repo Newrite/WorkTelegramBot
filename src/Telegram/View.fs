@@ -319,7 +319,8 @@ module View =
             | Some serial -> %serial
             | None -> "_"
             
-          let item_date = item.Time.Date
+          let item_time = item.Time
+          let item_date = item_time.Date
 
           $"Date:{item_date} N:{item.Item.Name} S:{serial}"
 

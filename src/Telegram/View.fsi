@@ -87,6 +87,10 @@ namespace WorkTelegram.Telegram
                     employerState: EmployerProcess.EmployerContext ->
                     Elmish.Keyboard
                 
+                val forceInspireItems:
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
+                    office: WorkTelegram.Core.Types.Office -> Elmish.Keyboard
+                
                 val refresh: ctx: ViewContext<'a,'b> -> Elmish.Keyboard
                 
                 val withoutSerial:
@@ -232,7 +236,7 @@ namespace WorkTelegram.Telegram
             module RenderView =
                 
                 val approvedEmployerMenu:
-                  ctx: ViewContext<'a,'b> ->
+                  ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                     employerState: EmployerProcess.EmployerContext ->
                     ((Funogram.Telegram.Types.Message -> unit) list ->
                        Elmish.RenderView)
@@ -400,11 +404,6 @@ namespace WorkTelegram.Telegram
                 Elmish.RenderView
             
             val editDeletionItems:
-              ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
-                employerState: EmployerProcess.EmployerContext ->
-                Elmish.RenderView
-            
-            val forceInspireItems:
               ctx: ViewContext<'a,WorkTelegram.Infrastructure.CacheCommand> ->
                 employerState: EmployerProcess.EmployerContext ->
                 Elmish.RenderView
