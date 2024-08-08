@@ -162,3 +162,4 @@ module Update =
       { state with Model = EmployerProcess.EmployerModel.ShowedLastRecords }
       |> CoreModel.Employer
       |> model.Transform
+
